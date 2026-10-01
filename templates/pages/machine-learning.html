@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+{% block head %}{% include "_lesson_head.html" %}{% endblock %}
+{% block h1 %}Machine Learning{% endblock %}
+{% block lead %}<div class="meta"><span class="tag">overview</span><span class="tag">data · model · loss · optimizer</span><span class="tag">generalisation</span><span class="tag">→ transformers</span></div>
+<p class="lead"><b>Why it exists:</b> some tasks, like recognising a face, translating a sentence or predicting the next word, are too complicated to write rules for by hand. Machine learning means <b>the computer finds the rules itself from examples</b>. This page gives the map for the whole course: one recipe (data → model → loss → optimizer) that runs from a straight line all the way to GPT. Every plot on this page is interactive.</p>{% endblock %}
+{% block content %}{% raw %}
+<div class="lsn"><div class="lsn-main">
+
+<h2><span class="n">01</span>Writing rules vs. learning rules</h2>
+<div class="pair"><div>
+<p>A classic program is a set of rules written by a person. To decide whether a fruit is ripe, you might write: <code>if colour &gt; 5 then "ripe"</code>. That works for easy problems. But who could write the rules for “is there a cat in this photo?” or “what word comes next?”</p>
+<p><b>Machine learning turns the process around.</b> We give the computer <b>examples with answers</b>, and it searches for the rule that makes the fewest mistakes on them.</p>
+<svg viewBox="0 0 520 150" role="img" aria-label="Traditional programming versus machine learning" style="max-width:520px;margin:6px 0 10px">
+ <defs><marker id="ar1" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8z" fill="#5d6675"/></marker></defs>
+ <g font-family="IBM Plex Sans,sans-serif" font-size="13">
+ <text x="0" y="16" font-weight="600" fill="#171b24">Traditional programming</text>
+ <rect x="0" y="26" width="110" height="44" rx="8" fill="#e6ecff"/><text x="55" y="44" text-anchor="middle" fill="#2f54eb">Rules</text><text x="55" y="60" text-anchor="middle" fill="#2f54eb" font-size="11">(written by you)</text>
+ <rect x="0" y="76" width="110" height="30" rx="8" fill="#f1f3f5"/><text x="55" y="96" text-anchor="middle">Data</text>
+ <path d="M115 66 H180" stroke="#5d6675" stroke-width="1.6" marker-end="url(#ar1)"/>
+ <rect x="185" y="46" width="70" height="40" rx="8" fill="#171b24"/><text x="220" y="71" text-anchor="middle" fill="#fff">Program</text>
+ <path d="M258 66 H300" stroke="#5d6675" stroke-width="1.6" marker-end="url(#ar1)"/><text x="306" y="71">Answers</text>
+ <text x="0" y="130" font-weight="600" fill="#171b24">Machine learning:</text>
+ <text x="128" y="130" fill="#5d6675">Data + Answers →</text><rect x="246" y="114" width="70" height="24" rx="6" fill="#171b24"/><text x="281" y="131" text-anchor="middle" fill="#fff">Learner</text>
+ <text x="324" y="130" fill="#e8590c" font-weight="600">→ Rules (the model)</text>
+ </g></svg>
+<p><b>Try it on the right.</b> Each dot is a fruit, placed by its colour score (0 = green, 10 = red). The top row holds fruits that were really ripe, the bottom row unripe ones. Drag the slider to choose a rule yourself. Then press <b>Let the machine learn</b>. The computer tries every threshold, counts the mistakes for each one (the lower curve) and keeps the best. <b>Learning is a search for the parameter value that makes the error smallest.</b></p>
+<div class="callout tf"><b>Transformer link</b>GPT-4 learns in the same way. It has billions of thresholds and weights instead of one, and it is scored on predicting the next word instead of on ripe fruit. The idea stays the same: adjust the parameters so the error on examples goes down.</div>
+</div><div class="fig"><h4>Rule by hand vs. rule by search</h4>
+<canvas id="c1" width="640" height="250"></canvas>
+<canvas id="c1b" width="640" height="150"></canvas>
+<div class="ctl-row"><span>your threshold</span><input type="range" id="th" min="0" max="10" step="0.05" value="3"><output id="thv"></output></div>
+<div class="btns"><button id="learn1">Let the machine learn ▶</button><button id="rs1">Reset</button></div>
+<div class="out" id="o1"></div></div></div>
+
+<h2><span class="n">02</span>The universal recipe: data, model, loss, optimizer</h2>
+<div class="pair"><div>
+<p>Every algorithm in this course, from linear regression up to the Transformer, is built from the same <b>four ingredients</b>. Learn these four words and every new model will look familiar:</p>
+<div class="cards">
+ <div><b>1 · Data</b>Examples \((x_i, y_i)\). Here \(x\) is the input (features) and \(y\) is the answer we want, if we have one.</div>
+ <div><b>2 · Model</b>A function \(f_\theta(x)\) with adjustable <b>parameters</b> \(\theta\) (weights). It turns an input into a prediction \(\hat y\).</div>
+ <div><b>3 · Loss</b>A single number \(\mathcal L(\theta)\) that measures how wrong the predictions are. Small is good.</div>
+ <div><b>4 · Optimizer</b>A procedure that changes \(\theta\) so the loss goes down, usually <b>gradient descent</b>.</div>
+</div>
+<div class="formula">$$\theta^\star=\arg\min_\theta\;\underbrace{\frac1N\sum_{i=1}^{N}\ell\big(f_\theta(x_i),\,y_i\big)}_{\text{average loss on the training data}}$$<span class="cap">Training = find the parameters \(\theta^\star\) that make the average loss as small as possible. This one line describes nearly all of machine learning.</span></div>
+<div class="formula">$$\theta\;\leftarrow\;\theta-\eta\,\nabla_\theta\mathcal L(\theta)$$<span class="cap">Gradient descent: take a small step of size \(\eta\) (the learning rate) downhill. The gradient \(\nabla\mathcal L\) points uphill, so we step the other way.</span></div>
+<p><b>Click a model on the right</b> and compare its four ingredients. Look at how little changes between rows: the model grows, but the loss and the optimizer stay almost the same.</p>
+</div><div class="fig"><h4>Same recipe, different models</h4>
+<div class="seg" id="rec"><button data-v="lin" class="on">Linear regression</button><button data-v="log">Logistic regression</button><button data-v="km">k-means</button><button data-v="nn">Neural network</button><button data-v="cnn">CNN</button><button data-v="tf">Transformer</button></div>
+<div class="table compact" style="margin:6px 0 0"><table><tbody id="recT"></tbody></table></div>
+<canvas id="c2" width="640" height="120" style="margin-top:10px"></canvas>
+<p class="hint">Bar: typical number of parameters, on a log scale (each tick ×1000).</p></div></div>
+
+<h2><span class="n">03</span>Everything becomes a vector of numbers</h2>
+<div class="pair"><div>
+<p>A model can only compute with numbers. So before learning starts, every input is turned into a list of numbers called a <b>feature vector</b> \(x\in\mathbb R^d\). Here \(d\) is the number of features.</p>
+<ul>
+<li><b>Table row</b> (an apartment): \(x = [\text{size}, \text{age}, \text{rooms}]\), so \(d=3\).</li>
+<li><b>Image</b>: each pixel's brightness is one number. A 10×10 image gives \(d=100\). A phone photo has millions.</li>
+<li><b>Text</b>: split the text into <b>tokens</b> (words or word pieces), give each token an id, then look up a learned vector for that id. This vector is called an <b>embedding</b>.</li>
+</ul>
+<p><b>Try it.</b> In <i>Image</i> mode, draw on the grid and watch the 100-number vector change. In <i>Text</i> mode, type a sentence and watch it become token ids and then vectors.</p>
+<div class="callout"><b>Why it matters</b>Once data is a vector, “similar” can be measured with geometry: the distance or angle between two vectors. Clustering, PCA, nearest neighbours and attention all depend on this.</div>
+<div class="callout tf"><b>Transformer link</b>The first layer of every language model is exactly the <i>Text</i> mode here: token → id → embedding vector. The embedding table is a big learned matrix with one row per vocabulary word, often 50,000 rows × 4,096 numbers.</div>
+</div><div class="fig"><h4>Inputs → vectors</h4>
+<div class="seg" id="vm"><button data-v="img" class="on">Image</button><button data-v="txt">Text</button></div>
+<div id="vimg"><div class="two"><div><div class="grid-in" id="gin" style="grid-template-columns:repeat(10,1fr)"></div><p class="hint">Click or drag to paint. Right-click or shift-drag to erase.</p></div>
+<div><canvas id="c3" width="300" height="300"></canvas></div></div>
+<div class="btns"><button id="clr3">Clear</button><button id="dig3">Draw a “7”</button></div></div>
+<div id="vtxt" hidden><input id="tin" type="text" value="The cat sat on the mat" style="width:100%;font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px">
+<canvas id="c3t" width="640" height="300" style="margin-top:8px"></canvas></div>
+<div class="out" id="o3"></div></div></div>
+
+<h2><span class="n">04</span>The real goal: generalisation (under- and over-fitting)</h2>
+<div class="pair"><div>
+<p>Remembering the training examples is easy; a lookup table can do it. The real goal is to do well on <b>new examples the model has never seen</b>. This is called <b>generalisation</b>. To measure it we keep some data back as a <b>test set</b>.</p>
+<p>On the right, the true relationship is the dashed curve. We see only a few noisy samples of it (blue dots), and we fit a polynomial of degree \(d\):</p>
+<div class="formula">$$\hat y = w_0 + w_1x + w_2x^2+\dots+w_dx^d$$</div>
+<ul>
+<li><b>Underfitting</b> (degree 0–2): the model is too simple, so both training and test error are high.</li>
+<li><b>Good fit</b> (around 3–5): it captures the pattern but not the noise.</li>
+<li><b>Overfitting</b> (high degree, few points): the curve passes through every blue dot (training error ≈ 0) but swings wildly between them, so test error (orange) explodes.</li>
+</ul>
+<p><b>Experiment:</b> set the degree to 12, then raise the number of training points. <b>More data tames a big model.</b> This is the main reason modern models are trained on so much data.</p>
+<div class="callout"><b>Bias–variance in one sentence</b>A model that is too simple is <i>biased</i> and wrong in the same way on every dataset. A model that is too flexible has <i>high variance</i>: it changes a lot with every new random sample. Press “New sample” at degree 12 to see the variance.</div>
+<div class="callout tf"><b>Transformer link</b>LLMs have billions of parameters, enough to memorise their training data, yet they generalise because they are trained on trillions of tokens. Engineers watch the <b>validation loss</b> curve, exactly like the orange curve here, to decide when to stop training.</div>
+</div><div class="fig"><h4>Polynomial fit · train vs. test error</h4>
+<canvas id="c4" width="640" height="300"></canvas>
+<canvas id="c4b" width="640" height="170"></canvas>
+<div class="ctl-grid">
+<div class="ctl-row"><span>degree d</span><input type="range" id="deg" min="0" max="12" step="1" value="3"><output id="degv"></output></div>
+<div class="ctl-row"><span>training points N</span><input type="range" id="np" min="4" max="60" step="1" value="12"><output id="npv"></output></div>
+<div class="ctl-row"><span>noise σ</span><input type="range" id="ns" min="0" max="0.6" step="0.01" value="0.2"><output id="nsv"></output></div>
+<div class="btns" style="margin-top:4px"><button id="new4">New sample ↻</button></div></div>
+<div class="out" id="o4"></div></div></div>
+
+<h2><span class="n">05</span>Train / validation / test, and the workflow</h2>
+<div class="pair"><div>
+<p>Data is split into three parts. A good way to remember them is a student preparing for an exam:</p>
+<div class="table compact"><table><thead><tr><th>Split</th><th>Analogy</th><th>Used for</th></tr></thead><tbody>
+<tr><td><span class="pill">train</span></td><td>homework</td><td>learning the <b>parameters</b> \(\theta\) (weights)</td></tr>
+<tr><td><span class="pill w">validation</span></td><td>mock exam</td><td>choosing <b>hyper-parameters</b>: degree, learning rate, model size, when to stop</td></tr>
+<tr><td><span class="pill" style="background:#e9f7ec;color:#2f9e44">test</span></td><td>final exam</td><td>one honest estimate of real-world performance, used <b>once</b> at the end</td></tr>
+</tbody></table></div>
+<p><b>Parameters vs. hyper-parameters.</b> Parameters are learned by the optimizer (the \(w\)’s). Hyper-parameters are chosen by you before training (the degree \(d\), the learning rate \(\eta\), the number of layers).</p>
+<p>If you tune your choices on the test set, it quietly turns into training data, and your reported score becomes too optimistic. This is called <b>data leakage</b>.</p>
+<p><b>Click the workflow steps on the right</b> for what happens at each stage of a real project.</p>
+</div><div class="fig"><h4>Splitting 100 examples</h4>
+<canvas id="c5" width="640" height="130"></canvas>
+<div class="ctl-row"><span>train %</span><input type="range" id="tr" min="40" max="90" step="5" value="70"><output id="trv"></output></div>
+<div class="ctl-row"><span>validation %</span><input type="range" id="va" min="5" max="30" step="5" value="15"><output id="vav"></output></div>
+<h4 style="margin-top:14px">The ML project workflow</h4>
+<div class="seg" id="wf"><button data-v="0" class="on">1 Define</button><button data-v="1">2 Data</button><button data-v="2">3 Split</button><button data-v="3">4 Train</button><button data-v="4">5 Tune</button><button data-v="5">6 Test</button><button data-v="6">7 Deploy</button></div>
+<div class="ex" id="wfx"></div></div></div>
+
+<h2><span class="n">06</span>Four ways to learn: the paradigms</h2>
+<div class="pair"><div>
+<p>Learning methods are grouped by <b>what kind of feedback</b> the learner gets. Each one has its own lesson in this course:</p>
+<div class="cards" id="pcards">
+<div class="click on" data-v="sup"><b>Supervised</b>Every example comes with the correct answer \(y\). <i>Learn \(x\mapsto y\).</i><br><a href="/supervised-learning">lesson →</a></div>
+<div class="click" data-v="uns"><b>Unsupervised</b>No answers. Find structure such as groups or directions. <i>Learn about \(p(x)\).</i><br><a href="/unsupervised-learning">lesson →</a></div>
+<div class="click" data-v="ssl"><b>Self-supervised</b>Hide part of the data and predict it. The data supplies its own labels.<br><a href="/self-supervised-learning">lesson →</a></div>
+<div class="click" data-v="rl"><b>Reinforcement</b>No answers, only a <b>reward</b> after acting. Learn by trial and error.<br><a href="/reinforcement-learning">lesson →</a></div>
+</div>
+<p>Separately from the paradigm, we choose a <b>model family</b>: linear models, trees, <a href="/neural-networks">neural networks</a>, <a href="/cnn">CNNs</a> for images, <a href="/rnn">RNNs</a> and <a href="/transformers">Transformers</a> for sequences. Any family can be trained under any paradigm.</p>
+<div class="callout tf"><b>Transformer link</b>A chatbot like ChatGPT or Claude uses <b>three</b> paradigms in turn: (1) <b>self-supervised</b> pre-training on internet text (predict the next token); (2) <b>supervised</b> fine-tuning on written example answers; (3) <b>reinforcement learning</b> from human feedback (RLHF) to prefer helpful answers.</div>
+</div><div class="fig"><h4 id="ph">What the data looks like</h4>
+<canvas id="c6" width="640" height="340"></canvas>
+<div class="ex" id="o6"></div></div></div>
+
+<h2><span class="n">07</span>The road map to Transformers</h2>
+<div class="pair even"><div>
+<p>The course is built so that each lesson adds <b>one</b> new piece that a Transformer needs. Hover over a step on the right to see the piece it adds.</p>
+<div class="table compact"><table><thead><tr><th>Lesson</th><th>Piece it gives the Transformer</th></tr></thead><tbody>
+<tr><td><a href="/linear-regression">Linear regression</a></td><td>linear layer \(Wx+b\), loss, gradient descent</td></tr>
+<tr><td><a href="/logistic-regression">Logistic regression</a></td><td>sigmoid/softmax, cross-entropy, logits</td></tr>
+<tr><td><a href="/clustering">Clustering</a></td><td>distance and similarity, soft assignments ≈ attention weights</td></tr>
+<tr><td><a href="/pca">PCA</a></td><td>embeddings, projections, low-rank structure</td></tr>
+<tr><td><a href="/neural-networks">Neural networks</a></td><td>stacked layers, non-linearity, backpropagation, Adam, residuals</td></tr>
+<tr><td><a href="/cnn">CNN</a></td><td>weight sharing, patches, multiple “heads” (filters)</td></tr>
+<tr><td><a href="/rnn">RNN</a></td><td>sequences, next-token training, the problem attention solves</td></tr>
+<tr><td><a href="/self-supervised-learning">Self-supervised</a></td><td>pre-training objective: predict missing or next tokens</td></tr>
+<tr><td><a href="/reinforcement-learning">Reinforcement learning</a></td><td>RLHF: aligning a chatbot with human preferences</td></tr>
+</tbody></table></div>
+</div><div class="fig"><h4>Building blocks stacking up</h4>
+<canvas id="c7" width="640" height="470"></canvas>
+<div class="ex" id="o7">Hover over a block.</div></div></div>
+
+<div class="summary"><b>Teach it in one sentence:</b> Machine learning means choosing a model with adjustable parameters, defining a loss that scores its mistakes on example data, and letting an optimizer adjust the parameters to lower that loss, while checking on held-out data that the model works on new examples too.</div>
+
+</div><aside class="lsn-toc"><p>On this page</p><nav></nav></aside></div>
+{% endraw %}{% include "_lesson_scripts.html" %}{% raw %}
+<script>
+(function(){
+var $=L.$,C=L.C,col=L.col;
+
+/* ---------- 01 threshold search ---------- */
+var r1=L.rng(11),F=[];
+for(var i=0;i<34;i++){var ripe=i%2,x=ripe?6.1+r1.g()*1.5:3.9+r1.g()*1.5;x=L.clamp(x,.2,9.8);F.push([x,ripe,r1()*.5-.25])}
+function errAt(t){return F.filter(function(q){return (q[0]>t?1:0)!==q[1]}).length}
+var sweep={on:false,t:0,curve:[]},best=null;
+function hue(x){var h=120-x*12;return 'hsl('+h+',70%,45%)'}
+function draw1(){var t=sweep.on?sweep.t:L.val('th'),p=L.plot('c1',{x:[0,10],y:[0,1],xl:'colour score (0 = green … 10 = red)',grid:false,yt:false,m:[12,14,38,64]});
+p.rect(0,0,t,1,C.orange,.06);p.rect(t,0,10,1,C.blue,.06);
+p.ptext('ripe',8,p.Y(.73),C.ink,'left','600 13px IBM Plex Sans,system-ui,sans-serif');p.ptext('unripe',8,p.Y(.23),C.ink,'left','600 13px IBM Plex Sans,system-ui,sans-serif');
+p.hl(.5,col('--line'),[]);
+F.forEach(function(q){var y=(q[1]?.75:.25)+q[2]*.35,wrong=(q[0]>t?1:0)!==q[1];p.dot(q[0],y,hue(q[0]),7);if(wrong)p.ring(q[0],y,C.red,11,2.5)});
+p.vl(t,C.ink,[6,4],2.5);p.text('rule: ripe if colour > '+t.toFixed(2),Math.min(t,6.4)+.1,.96,C.ink,'left','600 13px IBM Plex Sans,system-ui,sans-serif');
+p.text('predict unripe ←',Math.max(t-.1,2.4),.05,C.orange,'right');p.text('→ predict ripe',Math.min(t+.1,7.6),.05,C.blue);
+var q=L.plot('c1b',{x:[0,10],y:[0,20],yl:'mistakes',m:[10,14,22,64]});
+var cur=sweep.curve.length?sweep.curve:[];
+if(cur.length)q.path(cur,C.purple,2.5);
+if(best!==null&&!sweep.on){q.vl(best,C.green,[3,3],2);q.dot(best,errAt(best),C.green,6);q.text('best threshold = '+best.toFixed(2),best+.15,17,C.green,'left','600 12.5px IBM Plex Sans,system-ui,sans-serif')}
+q.dot(t,errAt(t),C.ink,5);
+$('o1').innerHTML='threshold <b>'+t.toFixed(2)+'</b> → mistakes <b>'+errAt(t)+' / '+F.length+'</b> (red rings)'+(best!==null?' &nbsp;·&nbsp; machine’s best: <b>'+errAt(best)+'</b> mistakes at '+best.toFixed(2):'')}
+L.bind('th',draw1);L.reg(draw1);
+var tm1=null;
+$('learn1').onclick=function(){if(tm1)return;sweep={on:true,t:0,curve:[]};best=null;
+tm1=setInterval(function(){sweep.t+=.1;sweep.curve.push([sweep.t,errAt(sweep.t)]);
+if(sweep.t>=10){clearInterval(tm1);tm1=null;sweep.on=false;var bv=99;sweep.curve.forEach(function(c){if(c[1]<bv){bv=c[1];best=c[0]}});$('th').value=best;$('th').dispatchEvent(new Event('input'))}draw1()},30)};
+$('rs1').onclick=function(){if(tm1){clearInterval(tm1);tm1=null}sweep={on:false,t:0,curve:[]};best=null;$('th').value=3;$('th').dispatchEvent(new Event('input'))};
+
+/* ---------- 02 recipe ---------- */
+var REC={
+lin:{d:'pairs (x, y): flat size → price',m:'\\hat y = w^\\top x + b',l:'\\text{MSE}=\\tfrac1N\\sum(\\hat y-y)^2',o:'gradient descent (or closed form)',p:2,n:'The simplest model: one straight line. <a href="/linear-regression">Lesson →</a>'},
+log:{d:'pairs (x, y∈{0,1}): hours → pass?',m:'\\hat p=\\sigma(w^\\top x+b)',l:'-\\tfrac1N\\sum y\\log\\hat p+(1-y)\\log(1-\\hat p)',o:'gradient descent',p:3,n:'A linear score squashed into a probability. Same loss as GPT. <a href="/logistic-regression">Lesson →</a>'},
+km:{d:'only x (no labels)',m:'\\text{cluster}(x)=\\arg\\min_k\\lVert x-\\mu_k\\rVert',l:'\\sum_i\\lVert x_i-\\mu_{c(i)}\\rVert^2',o:'alternate: assign ↔ update means',p:6,n:'Unsupervised: the “loss” measures how tight the groups are. <a href="/clustering">Lesson →</a>'},
+nn:{d:'pairs (x, y)',m:'\\hat y=W_2\\,\\mathrm{ReLU}(W_1x+b_1)+b_2',l:'cross-entropy or MSE',o:'backprop + SGD / Adam',p:1e5,n:'Linear layers stacked with non-linearities. <a href="/neural-networks">Lesson →</a>'},
+cnn:{d:'(image, label)',m:'\\text{conv}\\to\\text{ReLU}\\to\\text{pool}\\to\\dots\\to\\text{softmax}',l:'cross-entropy',o:'backprop + SGD / Adam',p:2.5e7,n:'A neural net that shares weights across image positions. <a href="/cnn">Lesson →</a>'},
+tf:{d:'raw text (labels = next token)',m:'p(x_{t}\\mid x_{<t})=\\mathrm{softmax}(W\\,h_t)',l:'-\\tfrac1T\\sum_t\\log p(x_t\\mid x_{<t})',o:'backprop + AdamW',p:1e11,n:'The same recipe with attention layers and trillions of training tokens. <a href="/transformers">Lesson →</a>'}};
+function draw2(v){var r=REC[v];
+$('recT').innerHTML='<tr><th style="width:8em">1 · Data</th><td>'+r.d+'</td></tr><tr><th>2 · Model</th><td id="rm"></td></tr><tr><th>3 · Loss</th><td id="rl"></td></tr><tr><th>4 · Optimizer</th><td>'+r.o+'</td></tr><tr><th>Note</th><td>'+r.n+'</td></tr>';
+L.tex('rm',r.m);L.tex('rl',r.l);
+var k=L.ctx('c2'),g=k.g,keys=['lin','log','km','nn','cnn','tf'],names=['Linear','Logistic','k-means','MLP','CNN','Transformer'];
+var x0=110,x1=k.W-20,lg=function(n){return x0+(Math.log10(n)/12)*(x1-x0)};
+g.font='12px IBM Plex Sans,system-ui,sans-serif';g.strokeStyle=col('--line');
+for(var e=0;e<=12;e+=3){g.beginPath();g.moveTo(lg(Math.pow(10,e)),4);g.lineTo(lg(Math.pow(10,e)),k.H-16);g.stroke();g.fillStyle=col('--muted');g.textAlign='center';g.fillText(['1','1 thousand','1 million','1 billion','1 trillion'][e/3],lg(Math.pow(10,e)),k.H-3)}
+keys.forEach(function(kk,i){var y=6+i*16,on=kk===v;g.fillStyle=on?C.blue:'#c5cbd6';g.fillRect(x0,y,lg(REC[kk].p)-x0,12);g.fillStyle=on?C.ink:col('--muted');g.textAlign='right';g.font=(on?'600 ':'')+'12px IBM Plex Sans,system-ui,sans-serif';g.fillText(names[i],x0-8,y+10)});g.textAlign='left'}
+var sg2=L.seg('rec',draw2);draw2(sg2.get());
+
+/* ---------- 03 vectors ---------- */
+var px=new Array(100).fill(0),gin=$('gin'),painting=0;
+for(i=0;i<100;i++){var d=document.createElement('div');d.dataset.i=i;gin.appendChild(d)}
+function paintCell(e){var t=e.target;if(!t.dataset||t.dataset.i===undefined)return;px[+t.dataset.i]=painting>0?1:0;draw3()}
+gin.addEventListener('pointerdown',function(e){e.preventDefault();painting=(e.button===2||e.shiftKey)?-1:1;paintCell(e)});
+gin.addEventListener('pointerover',function(e){if(painting)paintCell(e)});
+addEventListener('pointerup',function(){painting=0});gin.addEventListener('contextmenu',function(e){e.preventDefault()});
+function draw3(){gin.querySelectorAll('div').forEach(function(d,i){d.style.background=px[i]?C.ink:''});
+var k=L.ctx('c3'),g=k.g,W=k.W;g.font='11px IBM Plex Mono,ui-monospace,monospace';g.fillStyle=col('--muted');g.fillText('flattened x ∈ ℝ¹⁰⁰ (row by row)',4,12);
+for(var i=0;i<100;i++){var r=Math.floor(i/5),c=i%5,x=4+c*58,y=20+r*13.6;g.fillStyle=px[i]?C.blue:'#f1f3f5';g.fillRect(x,y,14,11);g.fillStyle=col('--muted');g.fillText('x'+(i<10?'0':'')+i+'='+px[i],x+17,y+10)}
+$('o3').innerHTML='image → vector of <b>100</b> numbers · '+px.filter(Boolean).length+' pixels on · x = ['+px.slice(0,12).join(', ')+', …]'}
+$('clr3').onclick=function(){px.fill(0);draw3()};
+$('dig3').onclick=function(){px.fill(0);[[1,1],[1,2],[1,3],[1,4],[1,5],[1,6],[1,7],[1,8],[2,8],[3,7],[4,6],[5,6],[5,5],[6,5],[7,4],[8,4]].forEach(function(q){px[q[0]*10+q[1]]=1});[[4,4],[4,5],[4,7]].forEach(function(q){px[q[0]*10+q[1]]=1});draw3()};
+function hash(s){var h=2166136261;for(var i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return Math.abs(h)}
+function draw3t(){var toks=($('tin').value.toLowerCase().match(/[a-z0-9']+|[^\sa-z0-9]/g)||[]).slice(0,9);
+var k=L.ctx('c3t'),g=k.g;g.font='12px IBM Plex Mono,ui-monospace,monospace';
+var colw=(k.W-90)/Math.max(1,toks.length);
+g.fillStyle=col('--muted');g.fillText('token',4,20);g.fillText('id',4,46);g.fillText('embedding',4,72);g.fillText('(8 numbers)',4,86);
+toks.forEach(function(t,i){var x=90+i*colw,id=hash(t)%50000,r=L.rng(id+1);
+g.fillStyle=C.blue;g.font='600 13px IBM Plex Mono,ui-monospace,monospace';g.fillText(t,x,20);g.font='12px IBM Plex Mono,ui-monospace,monospace';g.fillStyle=col('--muted');g.fillText(id,x,46);
+for(var j=0;j<8;j++){var v=r.g()*.8,y=62+j*28;g.fillStyle='#eef1f6';g.fillRect(x,y,colw-14,22);g.fillStyle=v>0?C.blue:C.orange;var w=Math.min(1,Math.abs(v))*(colw-14)/2,mid=x+(colw-14)/2;g.fillRect(v>0?mid:mid-w,y+4,w,14);g.fillStyle=C.ink;g.font='10px IBM Plex Mono,ui-monospace,monospace';g.fillText(v.toFixed(2),x+2,y+15)}});
+$('o3').innerHTML='<b>'+toks.length+'</b> tokens → matrix of shape <b>'+toks.length+' × 8</b> (in GPT-2: '+toks.length+' × 768). Same word ⇒ same id ⇒ same vector. Here the numbers are random; in a real model they are <b>learned</b>.'}
+$('tin').addEventListener('input',draw3t);
+L.seg('vm',function(v){$('vimg').hidden=v!=='img';$('vtxt').hidden=v!=='txt';v==='img'?draw3():draw3t()});draw3();
+
+/* ---------- 04 polynomial over/under-fitting ---------- */
+var truth=function(x){return Math.sin(2.6*x)+.3*x},seed4=5,TR=[],TE=[];
+function sample(){var r=L.rng(seed4),n=L.val('np'),s=L.val('ns');TR=[];TE=[];for(var i=0;i<n;i++){var x=-1+2*r();TR.push([x,truth(x)+r.g()*s])}for(i=0;i<80;i++){x=-1+2*r();TE.push([x,truth(x)+r.g()*s])}}
+function cheb(x,d){var T=[1,x];for(var k=2;k<=d;k++)T.push(2*x*T[k-1]-T[k-2]);return T.slice(0,d+1)}
+function solve(A,b){var n=b.length;for(var i=0;i<n;i++){var mx=i;for(var r=i+1;r<n;r++)if(Math.abs(A[r][i])>Math.abs(A[mx][i]))mx=r;var t=A[i];A[i]=A[mx];A[mx]=t;t=b[i];b[i]=b[mx];b[mx]=t;for(r=i+1;r<n;r++){var f=A[r][i]/A[i][i];for(var c=i;c<n;c++)A[r][c]-=f*A[i][c];b[r]-=f*b[i]}}var x=new Array(n);for(i=n-1;i>=0;i--){var s=b[i];for(c=i+1;c<n;c++)s-=A[i][c]*x[c];x[i]=s/A[i][i]}return x}
+function fitP(d,D){var n=d+1,A=[],b=new Array(n).fill(0);for(var i=0;i<n;i++)A.push(new Array(n).fill(0));D.forEach(function(q){var t=cheb(q[0],d);for(var i=0;i<n;i++){b[i]+=t[i]*q[1];for(var j=0;j<n;j++)A[i][j]+=t[i]*t[j]}});for(i=0;i<n;i++)A[i][i]+=1e-7;var w=solve(A,b);return function(x){var t=cheb(x,d),s=0;for(var i=0;i<n;i++)s+=w[i]*t[i];return s}}
+function mse(f,D){var s=0;D.forEach(function(q){var e=f(q[0])-q[1];s+=e*e});return s/D.length}
+function draw4(){var d=L.val('deg'),f=fitP(d,TR),p=L.plot('c4',{x:[-1,1],y:[-2.2,2.2],xl:'input x',yl:'output y'});
+p.line(truth,C.gray,2,[6,5]);TE.forEach(function(q){p.ring(q[0],q[1],C.orange,3.5,1.4)});p.line(f,C.purple,3);TR.forEach(function(q){p.dot(q[0],q[1],C.blue,5.5)});
+p.ptext('— — true function   ● training   ○ test   — fitted degree '+d,p.L+8,p.T+16,col('--muted'));
+var tr=[],te=[],ymax=1.2;for(var k=0;k<=12;k++){var fk=fitP(k,TR);tr.push([k,Math.min(ymax,mse(fk,TR))]);te.push([k,Math.min(ymax,mse(fk,TE))])}
+var q=L.plot('c4b',{x:[0,12],y:[0,ymax],xl:'polynomial degree (model complexity)',yl:'MSE'});
+q.path(tr,C.blue,2.5);q.path(te,C.orange,2.5);q.vl(d,C.ink,[3,3],1.5);q.dot(d,tr[d][1],C.blue,5);q.dot(d,te[d][1],C.orange,5);
+q.ptext('train error',q.R-160,q.T+16,C.blue,'left','600 12px IBM Plex Sans,system-ui,sans-serif');q.ptext('test error',q.R-80,q.T+16,C.orange,'left','600 12px IBM Plex Sans,system-ui,sans-serif');
+var a=mse(f,TR),b=mse(f,TE),verdict=d<=1?'<b>underfitting</b>: too simple for the curve':(b>3*Math.max(a,.02)&&b>.12)?'<b>overfitting</b>: memorised the noise':'<b>good fit</b>';
+$('o4').innerHTML='parameters: <b>'+(d+1)+'</b> · data points: <b>'+TR.length+'</b> · train MSE <b>'+a.toFixed(3)+'</b> · test MSE <b>'+b.toFixed(3)+'</b><br>→ '+verdict}
+L.bind(['deg'],draw4);L.bind(['np','ns'],function(){sample();draw4()});sample();L.reg(draw4);
+$('new4').onclick=function(){seed4++;sample();draw4()};
+
+/* ---------- 05 splits & workflow ---------- */
+function draw5(){var tr=L.val('tr'),va=Math.min(L.val('va'),100-tr-5),te=100-tr-va,k=L.ctx('c5'),g=k.g;
+var cw=(k.W-8)/25;for(var i=0;i<100;i++){var c=i%25,r=Math.floor(i/25),cc=i<tr?C.blue:i<tr+va?C.orange:C.green;g.fillStyle=cc;g.globalAlpha=.85;g.beginPath();g.arc(4+c*cw+cw/2,10+r*20+8,7,0,7);g.fill()}g.globalAlpha=1;
+g.font='600 13px IBM Plex Sans,system-ui,sans-serif';g.fillStyle=C.blue;g.fillText('train '+tr+'%',4,118);g.fillStyle=C.orange;g.fillText('validation '+va+'%',170,118);g.fillStyle=C.green;g.fillText('test '+te+'%',360,118)}
+L.bind(['tr','va'],draw5);L.reg(draw5);
+var WF=['<b>Define the task.</b> What is the input \\(x\\), the output \\(y\\), and how will success be measured (accuracy, error in €, user clicks)? A bad metric ruins everything after it.',
+'<b>Collect and clean data.</b> Usually the biggest job. Remove duplicates, fix wrong labels, check for bias. “Garbage in, garbage out.” For LLMs this means filtering trillions of web tokens.',
+'<b>Split</b> into train, validation and test <i>before</i> looking at the data closely, so the test set stays truly unseen.',
+'<b>Train</b>: minimise the loss on the training set with gradient descent. Watch the loss curve go down.',
+'<b>Tune</b> hyper-parameters (model size, learning rate, regularisation) by comparing <i>validation</i> scores. Stop training when the validation loss stops improving (“early stopping”).',
+'<b>Test once</b> on the held-out test set and report that number. If you go back and tune again, the test set is no longer honest.',
+'<b>Deploy and monitor.</b> Real data drifts over time (new slang, new products), so performance is watched and the model retrained. For LLMs: evaluation suites, red-teaming, user feedback.'];
+L.seg('wf',function(v){$('wfx').innerHTML=WF[+v];L.renderMath($('wfx'))});$('wfx').innerHTML=WF[0];
+
+/* ---------- 06 paradigms ---------- */
+var r6=L.rng(3),P6=[];for(i=0;i<60;i++){var c=i%3,ctr=[[-1.2,-.6],[1.2,-.4],[0,1.2]][c];P6.push([ctr[0]+r6.g()*.45,ctr[1]+r6.g()*.45,c])}
+var PX={sup:['Supervised: every point has a label (its colour). The learner draws boundaries between the colours, and new points get the colour of their region.','Labelled data'],
+uns:['Unsupervised: the same points, but with no colours. The learner must find the three groups (clustering) or the main directions (PCA) by itself.','Unlabelled data'],
+ssl:['Self-supervised: take raw text, hide a word, and train the model to fill it in. The hidden word <i>is</i> the label, so no human labelling is needed. This is how GPT is pre-trained.','Labels made from the data itself'],
+rl:['Reinforcement: an agent (●) moves around a grid. Nobody shows it the right move; it only gets +1 at the goal ★ and −1 in the pit ✕. It must find a good policy (the arrows) by trial and error.','Reward instead of answers']};
+function draw6(v){$('o6').innerHTML=PX[v][0];$('ph').textContent=PX[v][1];
+if(v==='sup'||v==='uns'){var p=L.plot('c6',{x:[-2.6,2.6],y:[-2,2.4],grid:false,ticks:false});
+if(v==='sup')p.field(function(x,y){var b=0,bd=1e9;[[-1.2,-.6],[1.2,-.4],[0,1.2]].forEach(function(c,k){var d=(x-c[0])*(x-c[0])+(y-c[1])*(y-c[1]);if(d<bd){bd=d;b=k}});return[L.PAL[b],.1]},50);
+P6.forEach(function(q){p.dot(q[0],q[1],v==='sup'?L.PAL[q[2]]:C.gray,6)});if(v==='uns')p.ptext('? which points belong together ?',p.L+10,p.T+20,C.ink,'left','600 13px IBM Plex Sans,system-ui,sans-serif');return}
+var k=L.ctx('c6'),g=k.g;
+if(v==='ssl'){var w=['the','cat','sat','on','the','???'];g.font='600 20px IBM Plex Mono,ui-monospace,monospace';var x=24;w.forEach(function(t,i){var tw=g.measureText(t).width+20;g.fillStyle=i===5?C.ink:'#eef1f6';g.fillRect(x,80,tw,40);g.fillStyle=i===5?'#fff':C.ink;g.fillText(t,x+10,107);x+=tw+8});
+g.font='14px IBM Plex Sans,system-ui,sans-serif';g.fillStyle=col('--muted');g.fillText('input (context) →',24,64);g.fillText('target = the hidden word, taken from the original text',24,160);
+var probs=[['mat',.42],['floor',.21],['sofa',.12],['roof',.06],['dog',.02]];probs.forEach(function(q,i){g.fillStyle=i?'#c5cbd6':C.blue;g.fillRect(140,190+i*28,q[1]*900,20);g.fillStyle=C.ink;g.font='13px IBM Plex Mono,ui-monospace,monospace';g.fillText(q[0],24,205+i*28);g.fillText((q[1]*100).toFixed(0)+'%',150+q[1]*900,205+i*28)});return}
+var n=5,s=60,ox=150,oy=20,goal=[4,0],pit=[4,1],wall=[[2,1],[2,2]];
+var pol=[['→','→','→','→','★'],['↑','↑','■','↑','✕'],['↑','↑','■','↑','←'],['→','→','→','↑','←'],['↑','↑','↑','↑','↑']];
+for(var r=0;r<n;r++)for(var c=0;c<n;c++){var t=pol[r][c];g.fillStyle=t==='■'?'#495057':t==='★'?'#e9f7ec':t==='✕'?'#ffe3e3':'#f8f9fb';g.fillRect(ox+c*s,oy+r*s,s-3,s-3);g.fillStyle=t==='★'?C.green:t==='✕'?C.red:C.blue;g.font=(t.length===1&&'→←↑'.indexOf(t)>=0?'22px':'26px')+' IBM Plex Sans';g.textAlign='center';if(t!=='■')g.fillText(t,ox+c*s+s/2-1,oy+r*s+s/2+8)}
+g.textAlign='left';g.fillStyle=C.orange;g.beginPath();g.arc(ox+s/2,oy+4*s+s/2,10,0,7);g.fill();g.font='13px IBM Plex Sans,system-ui,sans-serif';g.fillStyle=col('--muted');g.fillText('+1',ox+5*s+4,oy+34);g.fillText('−1',ox+5*s+4,oy+s+34)}
+var pc=document.querySelectorAll('#pcards .click');pc.forEach(function(c){c.addEventListener('click',function(e){if(e.target.tagName==='A')return;pc.forEach(function(o){o.classList.toggle('on',o===c)});draw6(c.dataset.v)})});draw6('sup');
+
+/* ---------- 07 road map ---------- */
+var BL=[['Linear layer  Wx+b','linear-regression','Every Transformer block is mostly linear layers: Q, K, V projections, the MLP and the output head.'],
+['Softmax + cross-entropy','logistic-regression','Turns the final scores into next-token probabilities, and is the training loss.'],
+['Similarity · soft assignment','clustering','Attention weights are a softmax over similarities, like a soft version of “which cluster is closest?”.'],
+['Embeddings & projections','pca','Tokens live as vectors; Q/K/V are learned projections into smaller sub-spaces, as in PCA.'],
+['MLP + backprop + Adam','neural-networks','The feed-forward sub-layer is an MLP; the whole model is trained with backpropagation and AdamW.'],
+['Residuals · LayerNorm','neural-networks','The tricks that make 100-layer networks trainable.'],
+['Weight sharing · patches','cnn','The same weights are applied at every position; Vision Transformers cut images into patches, like CNN filters.'],
+['Sequences · next-token','rnn','Language modelling = predict the next token. RNNs did it step by step; attention does it in parallel.'],
+['Self-supervised pre-training','self-supervised-learning','Billions of free training examples made from raw text.'],
+['RLHF alignment','reinforcement-learning','Fine-tune the pretrained model to give answers people prefer.']],hov=-1;
+function draw7(){var k=L.ctx('c7'),g=k.g,h=36,y0=k.H-12;
+BL.forEach(function(b,i){var y=y0-(i+1)*(h+4),w=k.W-120-i*14,x=60+i*7;g.fillStyle=i===hov?C.orange:i<2?C.blue:i<6?'#4c6ef5':'#748ffc';g.globalAlpha=i===hov?1:.88;g.beginPath();g.roundRect?g.roundRect(x,y,w,h,8):g.rect(x,y,w,h);g.fill();g.globalAlpha=1;g.fillStyle='#fff';g.font='600 14px IBM Plex Sans,system-ui,sans-serif';g.fillText((i+1)+'. '+b[0],x+14,y+23)});
+g.fillStyle=C.ink;g.font='700 15px IBM Plex Sans,system-ui,sans-serif';g.fillText('= a Transformer (GPT, Claude, …)',60+10*7,y0-10*(h+4)-10)}
+L.pointer('c7',{move:function(x,y){var k=+$('c7').dataset.h,i=Math.floor((k-12-y)/40);hov=(i>=0&&i<BL.length)?i:-1;if(hov>=0)$('o7').innerHTML='<b>'+BL[hov][0]+'</b>: '+BL[hov][2]+' <a href="/'+BL[hov][1]+'">Lesson →</a>';draw7()}});
+L.reg(draw7);
+})();
+</script>
+{% endraw %}{% endblock %}

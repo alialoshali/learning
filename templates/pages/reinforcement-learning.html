@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+{% block head %}{% include "_lesson_head.html" %}{% endblock %}
+{% block h1 %}Reinforcement Learning{% endblock %}
+{% block lead %}<div class="meta"><span class="tag">agent · environment · reward</span><span class="tag">explore vs. exploit</span><span class="tag">Q-learning</span><span class="tag">policy gradient</span><span class="tag">→ RLHF</span></div>
+<p class="lead"><b>Why it exists:</b> for many problems nobody can write down the correct answer, but we can <b>score the outcome</b>: did the robot fall over, did we win the game, did the user like this answer? Reinforcement learning (RL) learns <b>by trial and error from rewards</b>, often delayed many steps after the decision that earned them. It is how AlphaGo learned Go, and through RLHF it is how ChatGPT and Claude learn to give helpful answers.</p>{% endblock %}
+{% block content %}{% raw %}
+<div class="lsn"><div class="lsn-main">
+
+<h2><span class="n">01</span>The loop: agent, environment, reward</h2>
+<div class="pair"><div>
+<p>RL has no dataset in advance. An <b>agent</b> interacts with an <b>environment</b> step by step:</p>
+<ol>
+<li>it observes the <b>state</b> \(s_t\) (where am I?),</li>
+<li>chooses an <b>action</b> \(a_t\) using its <b>policy</b> \(\pi(a\mid s)\),</li>
+<li>receives a <b>reward</b> \(r_{t+1}\) (a number, good or bad) and the next state \(s_{t+1}\).</li>
+</ol>
+<p>The goal is to choose actions that maximise the <b>total reward over time</b>, not the immediate reward. This is what makes RL hard:</p>
+<div class="table compact"><table><thead><tr><th>Supervised learning</th><th>Reinforcement learning</th></tr></thead><tbody>
+<tr><td>the correct answer is given</td><td>only a score, never the correct answer</td></tr>
+<tr><td>feedback right away</td><td>feedback can come many steps later (<b>credit assignment</b>)</td></tr>
+<tr><td>fixed dataset</td><td>the agent’s own actions decide what data it sees (<b>exploration</b>)</td></tr>
+</tbody></table></div>
+<p><b>Press Step</b> on the right to walk one turn of the loop. The log records the experience tuples \((s, a, r, s')\) that are the agent’s only training data.</p>
+<div class="callout tf"><b>Transformer link</b>For a chatbot: the <b>state</b> is the conversation so far, an <b>action</b> is the next token (or a whole answer), the <b>policy</b> is the Transformer’s softmax over the vocabulary, and the <b>reward</b> comes from a model trained on human preferences.</div>
+</div><div class="fig"><h4>One turn of the RL loop</h4>
+<svg id="loop" viewBox="0 0 640 250"></svg>
+<div class="btns"><button id="st1">Step ▶</button><button id="rs1">Reset</button></div>
+<div id="log1" style="font-family:var(--mono);font-size:12.5px;max-height:160px;overflow:auto;margin-top:8px"></div></div></div>
+
+<h2><span class="n">02</span>Explore vs. exploit: the multi-armed bandit</h2>
+<div class="pair"><div>
+<p>The simplest RL problem has one state and \(K\) actions: slot machines (“one-armed bandits”) with <b>unknown</b> average payouts \(\mu_k\). Each pull gives a noisy reward. The agent keeps a running estimate of each arm’s value:</p>
+<div class="formula">$$Q_k\leftarrow Q_k+\frac{1}{n_k}\big(r-Q_k\big)$$<span class="cap">Incremental average: move the estimate a step towards the new reward. This is gradient descent on \((Q_k-r)^2\) with learning rate \(1/n_k\).</span></div>
+<p>Then the dilemma: <b>exploit</b> (pull the arm that looks best so far) or <b>explore</b> (try others, which might be better)? The <b>ε-greedy</b> rule exploits with probability \(1-\varepsilon\) and picks a random arm with probability \(\varepsilon\).</p>
+<p><b>Try it:</b> click the arms yourself, or press <b>Run</b>. Compare \(\varepsilon=0\) (it gets stuck on the first arm that looked good) with \(\varepsilon=0.1\). Tick <i>reveal</i> to see the true means. <b>Regret</b> = the reward lost compared with always pulling the best arm.</p>
+<div class="callout tf"><b>Transformer link</b>Sampling an LLM at temperature 0 is pure exploitation (always the top token). During RL fine-tuning, the model must sample with some randomness (temperature > 0) so it can discover better answers. That is exploration.</div>
+</div><div class="fig"><h4>5 slot machines · click an arm to pull</h4>
+<canvas id="c2" class="click" width="640" height="250"></canvas>
+<canvas id="c2b" width="640" height="150"></canvas>
+<div class="ctl-row"><span>ε (explore rate)</span><input type="range" id="e2" min="0" max="0.5" step="0.01" value="0.1"><output id="e2v"></output></div>
+<div class="btns"><button id="run2">Run ε-greedy ▶</button><button id="rs2">Reset</button><label class="chk"><input type="checkbox" id="rv2"> reveal true means</label></div>
+<div class="out" id="o2"></div></div></div>
+
+<h2><span class="n">03</span>Return and discounting: rewards now vs. later</h2>
+<div class="pair"><div>
+<p>The agent maximises the <b>return</b>, the sum of future rewards, where rewards further in the future count less:</p>
+<div class="formula">$$G_t=r_{t+1}+\gamma\,r_{t+2}+\gamma^2r_{t+3}+\dots=\sum_{k=0}^{\infty}\gamma^k\,r_{t+k+1}$$</div>
+<div class="table compact leg"><table><tbody>
+<tr><td>\(\gamma\in[0,1)\)</td><td><b>discount factor</b>. A reward \(k\) steps away is worth \(\gamma^k\) of its face value.</td></tr>
+<tr><td>\(\gamma=0\)</td><td>short-sighted: only the next reward counts.</td></tr>
+<tr><td>\(\gamma\to1\)</td><td>far-sighted: patient, plans ahead.</td></tr>
+</tbody></table></div>
+<p><b>Try it:</b> path A gives +1 every step for 4 steps. Path B gives nothing for 12 steps, then +10. Which is better? It depends on \(\gamma\). Move the slider and watch the preferred path switch. The faded bars show each reward’s discounted value.</p>
+<p>Discounting also keeps infinite sums finite. A constant reward of 1 forever is worth \(1/(1-\gamma)\), so \(\gamma\) sets an “effective horizon” of about \(1/(1-\gamma)\) steps.</p>
+<div class="callout tf"><b>Transformer link</b>In RLHF a whole answer usually gets <b>one</b> reward at the end, and credit must flow back to every token that produced it. This is a credit-assignment problem across hundreds of steps.</div>
+</div><div class="fig"><h4>Discounted value of two reward streams</h4>
+<canvas id="c3" width="640" height="320"></canvas>
+<div class="ctl-row"><span>discount γ</span><input type="range" id="g3" min="0" max="0.99" step="0.01" value="0.8"><output id="g3v"></output></div>
+<div class="out" id="o3"></div></div></div>
+
+<h2><span class="n">04</span>Value functions and Q-learning in a grid world</h2>
+<div class="pair"><div>
+<p>The <b>action value</b> \(Q(s,a)\) is the expected return if we take action \(a\) in state \(s\) and act well afterwards. It satisfies a recursive relation, the <b>Bellman equation</b>:</p>
+<div class="formula">$$Q^\star(s,a)=\mathbb E\big[\,r+\gamma\max_{a'}Q^\star(s',a')\,\big]$$<span class="cap">Value now = reward now + discounted value of the best next move.</span></div>
+<p><b>Q-learning</b> turns this into an update after every single step \((s,a,r,s')\):</p>
+<div class="formula">$$Q(s,a)\leftarrow Q(s,a)+\alpha\Big[\underbrace{r+\gamma\max_{a'}Q(s',a')}_{\text{target}}-Q(s,a)\Big]$$<span class="cap">The bracket is the <b>TD error</b>, “target minus prediction”: the same error signal as in regression, with learning rate \(\alpha\).</span></div>
+<p><b>Try it:</b> the agent ● starts bottom-left and must reach ★ (+10) without falling into ✕ (−10). Each step costs −0.1. Press <b>Train 1 episode</b> to watch it wander, then <b>Train 200</b>. The value (colour) spreads backwards from the goal, one step per episode, and the arrows (greedy policy) form a path. Click cells to add or remove walls, and the agent re-learns.</p>
+<div class="callout tf"><b>Transformer link</b>DeepMind’s DQN (2015) replaced the Q-table with a neural network to play Atari from pixels. Transformers trained with RL (e.g. for games or reasoning) still use these ideas: a value estimate, a TD-style target, and exploration.</div>
+</div><div class="fig"><h4>Grid world · colour = max Q(s,·) · arrows = greedy policy</h4>
+<canvas id="c4" class="click" width="640" height="420"></canvas>
+<canvas id="c4b" width="640" height="120"></canvas>
+<div class="ctl-grid">
+<div class="ctl-row"><span>learning rate α</span><input type="range" id="a4" min="0.05" max="1" step="0.05" value="0.5"><output id="a4v"></output></div>
+<div class="ctl-row"><span>discount γ</span><input type="range" id="g4" min="0.5" max="0.99" step="0.01" value="0.95"><output id="g4v"></output></div>
+<div class="ctl-row"><span>explore ε</span><input type="range" id="e4" min="0" max="0.5" step="0.01" value="0.15"><output id="e4v"></output></div></div>
+<div class="btns"><button id="ep4">Train 1 episode ▶</button><button id="many4">Train 200</button><button id="rs4">Reset Q</button></div>
+<div class="out" id="o4"></div></div></div>
+
+<h2><span class="n">05</span>Policy gradients: learn the policy directly</h2>
+<div class="pair"><div>
+<p>Instead of learning values, we can make the policy itself a differentiable model. For example, a softmax over action scores \(\theta\), just like a classifier:</p>
+<div class="formula">$$\pi_\theta(a\mid s)=\mathrm{softmax}(\theta)_a$$</div>
+<p>We want to maximise the expected return \(J(\theta)=\mathbb E_{a\sim\pi_\theta}[R]\). The <b>REINFORCE</b> theorem gives its gradient as something we can estimate from samples:</p>
+<div class="formula">$$\nabla_\theta J=\mathbb E\big[\,(R-b)\;\nabla_\theta\log\pi_\theta(a\mid s)\,\big]$$<span class="cap">\(b\) = baseline (e.g. average reward). It does not change the expected gradient but reduces its noise.</span></div>
+<p><b>Read it as supervised learning on your own samples:</b> \(\nabla\log\pi(a)\) is the gradient of the cross-entropy loss for “label = the action I took”. Multiply it by how good the outcome was. Good actions become more likely, bad ones less likely.</p>
+<p><b>Try it:</b> three actions with true average rewards 1, 2 and 3 (plus noise). Press <b>Train</b> and watch probability move to the best action. Untick the baseline: learning gets noisier and slower.</p>
+<div class="callout tf"><b>Transformer link</b>This is the core of RL for LLMs (PPO, GRPO). Sample an answer, score it, and push up \(\log\pi(\text{answer tokens})\) in proportion to (reward − baseline). The gradient flows through the same softmax that generates text.</div>
+</div><div class="fig"><h4>Softmax policy trained with REINFORCE</h4>
+<canvas id="c5" width="640" height="230"></canvas>
+<canvas id="c5b" width="640" height="150"></canvas>
+<div class="ctl-row"><span>learning rate</span><input type="range" id="lr5" min="0.01" max="0.5" step="0.01" value="0.1"><output id="lr5v"></output></div>
+<div class="btns"><button id="run5">Train ▶</button><button id="rs5">Reset</button><label class="chk"><input type="checkbox" id="bl5" checked> use baseline b</label></div>
+<div class="out" id="o5"></div></div></div>
+
+<h2><span class="n">06</span>RLHF: how chatbots learn what people prefer</h2>
+<div class="pair"><div>
+<p><b>Reinforcement Learning from Human Feedback</b> is the final training stage of most chat assistants:</p>
+<ol>
+<li><b>SFT</b>: start from a model fine-tuned on example answers (the <b>reference policy</b> \(\pi_{\text{ref}}\)).</li>
+<li><b>Reward model</b>: people compare two answers, A and B. A network \(r_\phi\) is trained so that preferred answers score higher (Bradley–Terry model):
+<div class="formula">$$P(A\succ B)=\sigma\big(r_\phi(A)-r_\phi(B)\big)$$<span class="cap">Logistic regression on the <i>difference</i> of two scores.</span></div></li>
+<li><b>RL</b>: optimise the policy to get high reward <b>without drifting too far</b> from \(\pi_{\text{ref}}\):
+<div class="formula">$$\max_\pi\ \mathbb E_{y\sim\pi}\big[r_\phi(y)\big]-\beta\,\mathrm{KL}\big(\pi\,\Vert\,\pi_{\text{ref}}\big)$$</div></li>
+</ol>
+<p>The solution has a neat closed form, \(\pi^\star(y)\propto\pi_{\text{ref}}(y)\,e^{r(y)/\beta}\). On the right are six possible answers. Lower \(\beta\) and the policy chases reward. Below a certain point it collapses onto answer F, which the reward model <b>overrates</b> (long and flattering, but not actually better). This is <b>reward hacking</b>. The KL penalty \(\beta\) is what keeps the model honest.</p>
+<div class="callout tf"><b>Transformer link</b>All three stages fine-tune the <b>same Transformer</b>. The reward model is usually a copy of it with a regression head. DPO, a popular newer method, uses the closed form above to skip the RL loop and trains with a simple classification-style loss.</div>
+</div><div class="fig"><h4>KL-regularised policy over 6 candidate answers</h4>
+<canvas id="c6" width="640" height="330"></canvas>
+<div class="ctl-row"><span>KL weight β</span><input type="range" id="b6" min="-1.5" max="1.5" step="0.02" value="0.3"><output id="b6v"></output></div>
+<div class="out" id="o6"></div></div></div>
+
+<h2><span class="n">07</span>Summary</h2>
+<div class="pair even"><div>
+<div class="table compact"><table><thead><tr><th>Idea</th><th>Formula</th><th>In LLM training</th></tr></thead><tbody>
+<tr><td>Policy</td><td>\(\pi_\theta(a\mid s)\)</td><td>the Transformer’s next-token softmax</td></tr>
+<tr><td>Return</td><td>\(\sum\gamma^k r\)</td><td>reward for a whole answer</td></tr>
+<tr><td>Exploration</td><td>ε-greedy, sampling</td><td>sampling temperature during RL</td></tr>
+<tr><td>TD / value</td><td>\(r+\gamma\max Q'-Q\)</td><td>value head in PPO</td></tr>
+<tr><td>Policy gradient</td><td>\((R-b)\nabla\log\pi\)</td><td>PPO / GRPO updates</td></tr>
+<tr><td>Preference model</td><td>\(\sigma(r_A-r_B)\)</td><td>reward model from human comparisons</td></tr>
+<tr><td>KL penalty</td><td>\(\beta\,\mathrm{KL}(\pi\Vert\pi_{\text{ref}})\)</td><td>prevents reward hacking</td></tr>
+</tbody></table></div></div><div>
+<div class="summary"><b>Teach it in one sentence:</b> reinforcement learning improves a policy by trying actions, observing rewards and making rewarded actions more likely, balancing exploration against exploitation. With a reward model built from human preferences, it is the step that turns a text predictor into a helpful assistant.</div></div></div>
+
+</div><aside class="lsn-toc"><p>On this page</p><nav></nav></aside></div>
+{% endraw %}{% include "_lesson_scripts.html" %}{% raw %}
+<script>
+(function(){
+var $=L.$,C=L.C,col=L.col;
+
+/* ---------- 01 loop diagram ---------- */
+var ph1=-1,log1=[],pos1=[0,0],r1=L.rng(4);
+function svg1(){var hl=function(i,a,b){return ph1===i?a:b};
+$('loop').innerHTML='<defs><marker id="mk" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9z" fill="#5d6675"/></marker><marker id="mk2" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9z" fill="#e8590c"/></marker></defs>'+
+'<g font-family="IBM Plex Sans,sans-serif" font-size="14">'+
+'<rect x="40" y="80" width="150" height="80" rx="14" fill="'+hl(1,'#2f54eb','#e6ecff')+'"/><text x="115" y="115" text-anchor="middle" font-weight="700" fill="'+hl(1,'#fff','#2f54eb')+'">Agent</text><text x="115" y="136" text-anchor="middle" font-size="12" fill="'+hl(1,'#fff','#5d6675')+'">policy π(a|s)</text>'+
+'<rect x="450" y="80" width="150" height="80" rx="14" fill="'+hl(2,'#2f9e44','#e9f7ec')+'"/><text x="525" y="115" text-anchor="middle" font-weight="700" fill="'+hl(2,'#fff','#2f9e44')+'">Environment</text><text x="525" y="136" text-anchor="middle" font-size="12" fill="'+hl(2,'#fff','#5d6675')+'">the world / game</text>'+
+'<path d="M190 100 C 300 40, 340 40, 450 100" fill="none" stroke="'+hl(1,'#e8590c','#5d6675')+'" stroke-width="'+hl(1,3,1.6)+'" marker-end="url(#'+hl(1,'mk2','mk')+')"/><text x="320" y="44" text-anchor="middle" fill="'+hl(1,'#e8590c','#171b24')+'" font-weight="600">action aₜ</text>'+
+'<path d="M450 140 C 340 200, 300 200, 190 140" fill="none" stroke="'+hl(2,'#e8590c','#5d6675')+'" stroke-width="'+hl(2,3,1.6)+'" marker-end="url(#'+hl(2,'mk2','mk')+')"/><text x="320" y="196" text-anchor="middle" fill="'+hl(2,'#e8590c','#171b24')+'" font-weight="600">state sₜ₊₁, reward rₜ₊₁</text>'+
+'<text x="320" y="238" text-anchor="middle" fill="#5d6675" font-size="12.5">'+(ph1<0?'press Step':ph1===1?'agent picks an action from its policy':'environment returns the new state and a reward')+'</text></g>'}
+$('st1').onclick=function(){ph1=ph1===1?2:1;if(ph1===1){var acts=['up','right','right','up','left'];this._a=['↑ up','→ right','↓ down','← left'][r1.int(4)]}
+else{var a=this._a,np=pos1.slice();if(a[0]==='↑')np[1]=Math.min(3,np[1]+1);if(a[0]==='↓')np[1]=Math.max(0,np[1]-1);if(a[0]==='→')np[0]=Math.min(3,np[0]+1);if(a[0]==='←')np[0]=Math.max(0,np[0]-1);
+var r=(np[0]===3&&np[1]===3)?+10:-0.1;log1.unshift('t='+log1.length+'  s=('+pos1+')  a='+a+'  r='+r+'  s′=('+np+')'+(r>0?'  🎉 goal':''));pos1=r>0?[0,0]:np;$('log1').innerHTML=log1.map(function(l){return'<div>'+l+'</div>'}).join('')}svg1()};
+$('rs1').onclick=function(){ph1=-1;log1=[];pos1=[0,0];$('log1').innerHTML='';svg1()};svg1();
+
+/* ---------- 02 bandit ---------- */
+var MU=[.6,1.2,2.1,1.5,.2],K=5,B={Q:[0,0,0,0,0],n:[0,0,0,0,0],t:0,tot:0,hist:[],regret:[]},r2=L.rng(5);
+function pull(k){var r=MU[k]+r2.g();B.n[k]++;B.Q[k]+=(r-B.Q[k])/B.n[k];B.t++;B.tot+=r;B.hist.push(B.tot/B.t);B.regret.push((B.regret.length?B.regret[B.regret.length-1]:0)+Math.max.apply(null,MU)-MU[k]);B.last=[k,r]}
+function choose(){var e=L.val('e2');if(r2()<e)return r2.int(K);var m=Math.max.apply(null,B.Q),c=[];B.Q.forEach(function(q,i){if(q===m)c.push(i)});return c[r2.int(c.length)]}
+function draw2(){var p=L.plot('c2',{x:[-.5,4.5],y:[-1,3.5],yl:'estimated value Q',xt:false});var rv=$('rv2').checked;
+for(var k=0;k<K;k++){p.rect(k-.32,0,k+.32,B.Q[k],B.last&&B.last[0]===k?C.orange:C.blue,.85);if(rv)p.seg(k-.42,MU[k],k+.42,MU[k],C.green,3,[5,3]);
+p.text('arm '+(k+1),k,-.75,C.ink,'center','600 13px IBM Plex Sans,system-ui,sans-serif');p.text('n='+B.n[k],k,-.45,col('--muted'),'center','12px IBM Plex Mono,ui-monospace,monospace');p.text(B.Q[k].toFixed(2),k,Math.max(B.Q[k],0)+.12,C.ink,'center','12px IBM Plex Mono,ui-monospace,monospace')}
+if(rv)p.ptext('dashed green = true mean μ',p.L+8,p.T+16,C.green);
+var n=B.hist.length,q=L.plot('c2b',{x:[0,Math.max(50,n)],y:[0,Math.max(10,B.regret[n-1]||0)],xl:'pulls',yl:'regret'});q.path(B.regret.map(function(v,i){return[i+1,v]}),C.red,2.5);
+$('o2').innerHTML='pulls <b>'+B.t+'</b> · average reward <b>'+(B.t?(B.tot/B.t).toFixed(2):'—')+'</b> (best possible ≈ '+Math.max.apply(null,MU).toFixed(1)+') · regret <b>'+(B.regret[n-1]||0).toFixed(1)+'</b>'+(B.last?' · last: arm '+(B.last[0]+1)+' paid <b>'+B.last[1].toFixed(2)+'</b>':'')}
+L.pointer('c2',{down:function(x){var p=L.coords('c2',{x:[-.5,4.5],y:[-1,3.5],yl:'a'}),k=Math.round(p.ix(x));if(k>=0&&k<K){pull(k);draw2()}}});
+L.runner('run2',function(){for(var i=0;i<3;i++)pull(choose());draw2();if(B.t>=600)return false},40);
+$('rs2').onclick=function(){B={Q:[0,0,0,0,0],n:[0,0,0,0,0],t:0,tot:0,hist:[],regret:[]};draw2()};$('rv2').onchange=draw2;L.bind('e2');L.reg(draw2);
+
+/* ---------- 03 discount ---------- */
+function draw3(){var g=L.val('g3'),A=[1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0],Bs=[0,0,0,0,0,0,0,0,0,0,0,0,10,0,0,0];
+var GA=0,GB=0;A.forEach(function(r,k){GA+=Math.pow(g,k)*r});Bs.forEach(function(r,k){GB+=Math.pow(g,k)*r});
+var p=L.plot('c3',{x:[-.6,15.6],y:[-11,11],xl:'steps into the future k',yl:'reward'});p.hl(0,col('--line'),[]);
+for(var k=0;k<16;k++){var w=Math.pow(g,k);if(A[k]){p.rect(k-.35,0,k+.35,A[k]*3,C.blue,.2);p.rect(k-.35,0,k+.35,A[k]*3*w,C.blue,.9)}if(Bs[k]){p.rect(k-.35,-Bs[k],k+.35,0,C.orange,.2);p.rect(k-.35,-Bs[k]*w,k+.35,0,C.orange,.9)}}
+p.line(function(x){return 10*Math.pow(g,x)},C.gray,1.5,[4,4]);p.text('weight γᵏ (×10)',8,10*Math.pow(g,8)+.8,col('--muted'));
+p.text('path A: +1 for 4 steps (bars ×3 for visibility)',.2,9.6,C.blue,'left','600 13px IBM Plex Sans,system-ui,sans-serif');p.text('path B: +10 after 12 steps (drawn downward)',.2,-9.6,C.orange,'left','600 13px IBM Plex Sans,system-ui,sans-serif');
+$('o3').innerHTML='G(A) = <b>'+GA.toFixed(2)+'</b> · G(B) = <b>'+GB.toFixed(2)+'</b> → prefer <b>'+(GA>GB?'A (take the small reward now)':'B (wait for the big reward)')+'</b> · effective horizon ≈ '+(1/(1-g)).toFixed(1)+' steps'}
+L.bind('g3',draw3);L.reg(draw3);
+
+/* ---------- 04 grid world Q-learning ---------- */
+var GW=8,GH=5,GOAL=[7,4],PIT=[[5,3],[5,4]],START=[0,0],WALL={'3,1':1,'3,2':1,'3,3':1,'6,1':1};
+var Q={},rets=[],ag=null,anim=null,r4=L.rng(9),eps4=0;
+function key(x,y){return x+','+y}function isPit(x,y){return PIT.some(function(p){return p[0]===x&&p[1]===y})}
+function q(s){return Q[s]||(Q[s]=[0,0,0,0])}
+var DX=[[0,1],[1,0],[0,-1],[-1,0]];
+function envStep(x,y,a){var nx=x+DX[a][0],ny=y+DX[a][1];if(nx<0||ny<0||nx>=GW||ny>=GH||WALL[key(nx,ny)]){nx=x;ny=y}var r=-.1,done=false;if(nx===GOAL[0]&&ny===GOAL[1]){r=10;done=true}else if(isPit(nx,ny)){r=-10;done=true}return[nx,ny,r,done]}
+function act(s){var e=L.val('e4');if(r4()<e)return r4.int(4);var v=q(s),m=Math.max.apply(null,v),c=[];v.forEach(function(x,i){if(x===m)c.push(i)});return c[r4.int(c.length)]}
+function learn(x,y,a,res){var al=L.val('a4'),g=L.val('g4'),s=key(x,y),t=res[2]+(res[3]?0:g*Math.max.apply(null,q(key(res[0],res[1]))));q(s)[a]+=al*(t-q(s)[a])}
+function episode(){var x=START[0],y=START[1],R=0;for(var t=0;t<200;t++){var a=act(key(x,y)),res=envStep(x,y,a);learn(x,y,a,res);R+=res[2];x=res[0];y=res[1];if(res[3])break}rets.push(R)}
+function draw4(){var k=L.ctx('c4'),g=k.g,cs=Math.min((k.W-20)/GW,(k.H-20)/GH),ox=(k.W-cs*GW)/2,oy=10,vmax=10;
+for(var x=0;x<GW;x++)for(var y=0;y<GH;y++){var px=ox+x*cs,py=oy+(GH-1-y)*cs,s=key(x,y);
+if(WALL[s]){g.fillStyle='#495057';g.fillRect(px+1,py+1,cs-2,cs-2);continue}
+var v=Q[s]?Math.max.apply(null,Q[s]):0,goal=x===GOAL[0]&&y===GOAL[1],pit=isPit(x,y);
+g.fillStyle=goal?'#d3f9d8':pit?'#ffe3e3':v>=0?'rgba(47,158,68,'+Math.min(.75,v/vmax)+')':'rgba(224,49,49,'+Math.min(.75,-v/vmax)+')';g.fillRect(px+1,py+1,cs-2,cs-2);g.strokeStyle=col('--line');g.strokeRect(px+1,py+1,cs-2,cs-2);
+g.textAlign='center';if(goal){g.fillStyle=C.green;g.font='30px sans-serif';g.fillText('★',px+cs/2,py+cs/2+10)}else if(pit){g.fillStyle=C.red;g.font='28px sans-serif';g.fillText('✕',px+cs/2,py+cs/2+10)}
+else{if(Q[s]&&Math.max.apply(null,Q[s])!==Math.min.apply(null,Q[s])){var a=Q[s].indexOf(Math.max.apply(null,Q[s]));L.arrow(g,px+cs/2-DX[a][0]*cs*.22,py+cs/2+DX[a][1]*cs*.22,px+cs/2+DX[a][0]*cs*.28,py+cs/2-DX[a][1]*cs*.28,C.ink,2.2)}
+g.fillStyle=col('--muted');g.font='10.5px IBM Plex Mono,ui-monospace,monospace';g.fillText(v.toFixed(1),px+cs/2,py+cs-6)}g.textAlign='left'}
+var sp=ox+START[0]*cs,sy=oy+(GH-1-START[1])*cs;g.fillStyle=col('--muted');g.font='11px IBM Plex Sans,system-ui,sans-serif';g.fillText('start',sp+4,sy+13);
+if(ag){g.fillStyle=C.orange;g.beginPath();g.arc(ox+ag[0]*cs+cs/2,oy+(GH-1-ag[1])*cs+cs/2,cs*.2,0,7);g.fill();g.strokeStyle='#fff';g.lineWidth=2;g.stroke()}
+var n=rets.length,ma=[];for(var i=0;i<n;i++){var a0=Math.max(0,i-19),s=0;for(var j=a0;j<=i;j++)s+=rets[j];ma.push([i+1,s/(i-a0+1)])}
+var p=L.plot('c4b',{x:[0,Math.max(20,n)],y:[-12,11],xl:'episode',yl:'return'});p.hl(0,col('--line'),[]);p.path(rets.map(function(v,i){return[i+1,v]}),'#c5cbd6',1);p.path(ma,C.purple,2.5);
+$('o4').innerHTML='episodes <b>'+n+'</b>'+(n?' · last return <b>'+rets[n-1].toFixed(1)+'</b> · 20-episode avg <b>'+ma[n-1][1].toFixed(1)+'</b>':'')+' · click a cell to toggle a wall'}
+$('ep4').onclick=function(){if(anim)return;var x=START[0],y=START[1],R=0,t=0;ag=[x,y];anim=setInterval(function(){var a=act(key(x,y)),res=envStep(x,y,a);learn(x,y,a,res);R+=res[2];x=res[0];y=res[1];ag=[x,y];t++;
+if(res[3]||t>150){clearInterval(anim);anim=null;rets.push(R);setTimeout(function(){ag=null;draw4()},300)}draw4()},60)};
+$('many4').onclick=function(){for(var i=0;i<200;i++)episode();draw4()};
+$('rs4').onclick=function(){Q={};rets=[];draw4()};L.bind(['a4','g4','e4']);
+L.pointer('c4',{down:function(px,py){var k={W:+$('c4').dataset.w,H:+$('c4').dataset.h},cs=Math.min((k.W-20)/GW,(k.H-20)/GH),ox=(k.W-cs*GW)/2,x=Math.floor((px-ox)/cs),y=GH-1-Math.floor((py-10)/cs);
+if(x<0||y<0||x>=GW||y>=GH)return;if((x===GOAL[0]&&y===GOAL[1])||isPit(x,y)||(x===START[0]&&y===START[1]))return;var s=key(x,y);if(WALL[s])delete WALL[s];else{WALL[s]=1;delete Q[s]}draw4()}});
+L.reg(draw4);
+
+/* ---------- 05 REINFORCE ---------- */
+var R5=[1,2,3],th=[0,0,0],hist5=[],avg5=0,n5=0,r5=L.rng(3);
+function step5(){var p=L.softmax(th),u=r5(),a=u<p[0]?0:u<p[0]+p[1]?1:2,R=R5[a]+r5.g()*1.5,b=$('bl5').checked?avg5:0,lr=L.val('lr5');
+n5++;avg5+=(R-avg5)/Math.min(n5,50);for(var i=0;i<3;i++)th[i]+=lr*(R-b)*((i===a?1:0)-p[i]);hist5.push(L.softmax(th))}
+function draw5(){var p=L.softmax(th),k=L.ctx('c5'),g=k.g;g.font='13px IBM Plex Sans,system-ui,sans-serif';
+for(var i=0;i<3;i++){var y=20+i*68;g.fillStyle=C.ink;g.font='600 13px IBM Plex Sans,system-ui,sans-serif';g.fillText('action '+'ABC'[i]+'  (avg reward '+R5[i]+')',10,y+12);
+g.fillStyle='#eef1f6';g.fillRect(10,y+20,k.W-120,22);g.fillStyle=L.PAL[i];g.fillRect(10,y+20,(k.W-120)*p[i],22);g.fillStyle=C.ink;g.font='13px IBM Plex Mono,ui-monospace,monospace';g.fillText('π = '+p[i].toFixed(3),k.W-104,y+36);g.fillStyle=col('--muted');g.fillText('θ='+th[i].toFixed(2),k.W-104,y+16)}
+var q=L.plot('c5b',{x:[0,Math.max(100,hist5.length)],y:[0,1],xl:'updates',yl:'π(a)'});for(i=0;i<3;i++)q.path(hist5.map(function(h,t){return[t+1,h[i]]}),L.PAL[i],2.2);
+$('o5').innerHTML='updates <b>'+hist5.length+'</b> · expected reward under π: <b>'+(p[0]*1+p[1]*2+p[2]*3).toFixed(3)+'</b> (max 3) · baseline b = <b>'+($('bl5').checked?avg5.toFixed(2):'0')+'</b>'}
+L.runner('run5',function(){for(var i=0;i<3;i++)step5();draw5();if(hist5.length>=900)return false},40);
+$('rs5').onclick=function(){th=[0,0,0];hist5=[];avg5=0;n5=0;draw5()};L.bind('lr5');L.reg(draw5);
+
+/* ---------- 06 RLHF ---------- */
+var ANS=[['A','correct, concise',.30,2.0],['B','correct, detailed',.22,2.4],['C','partly wrong',.18,.2],['D','refuses politely',.12,-.5],['E','rude',.12,-2],['F','long + flattering (RM overrates)',.06,3.4]];
+function draw6(){var beta=Math.pow(10,L.val('b6')),ref=ANS.map(function(a){return a[2]}),z=ANS.map(function(a){return Math.log(a[2])+a[3]/beta}),pi=L.softmax(z);
+var k=L.ctx('c6'),g=k.g,bw=(k.W-30)/6;g.font='12px IBM Plex Sans,system-ui,sans-serif';
+g.fillStyle=col('--muted');g.fillText('grey = reference policy π_ref   blue = optimised policy π*   number above = reward r(y)',10,14);
+ANS.forEach(function(a,i){var x=20+i*bw,h0=ref[i]*400,h1=pi[i]*240;g.fillStyle='#d0d5dd';g.fillRect(x,270-Math.min(240,h0),bw*.38,Math.min(240,h0));g.fillStyle=i===5?C.red:C.blue;g.fillRect(x+bw*.42,270-h1,bw*.38,h1);
+g.fillStyle=C.ink;g.font='600 14px IBM Plex Sans,system-ui,sans-serif';g.fillText(a[0],x+bw*.32,292);g.font='11px IBM Plex Sans,system-ui,sans-serif';g.fillStyle=col('--muted');var w=a[1].split(' ');g.fillText(w.slice(0,2).join(' '),x,307);g.fillText(w.slice(2).join(' '),x,320);
+g.fillStyle=a[3]>=0?C.green:C.red;g.font='12px IBM Plex Mono,ui-monospace,monospace';g.fillText('r='+a[3],x+bw*.3,270-Math.max(Math.min(240,h0),h1)-6)});
+var ER=0,KL=0;pi.forEach(function(p,i){ER+=p*ANS[i][3];if(p>1e-12)KL+=p*Math.log(p/ref[i])});
+$('o6').innerHTML='β = <b>'+beta.toFixed(3)+'</b> · expected reward <b>'+ER.toFixed(2)+'</b> · KL(π‖π_ref) = <b>'+KL.toFixed(2)+'</b> · P(F) = <b>'+(pi[5]*100).toFixed(0)+'%</b>'+(pi[5]>.5?' <span style="color:var(--red)">→ reward hacking: the policy exploits the reward model’s blind spot</span>':beta>5?' → barely changed from the reference':' → balanced')}
+L.bind('b6',draw6,2);var o6=$('b6v');$('b6').addEventListener('input',function(){o6.textContent='10^'+(+$('b6').value).toFixed(2)});o6.textContent='10^0.30';L.reg(draw6);
+})();
+</script>
+{% endraw %}{% endblock %}

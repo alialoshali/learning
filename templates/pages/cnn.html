@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+{% block head %}{% include "_lesson_head.html" %}{% endblock %}
+{% block h1 %}Convolutional Neural Networks (CNNs){% endblock %}
+{% block lead %}<div class="meta"><span class="tag">images</span><span class="tag">convolution · kernels</span><span class="tag">weight sharing</span><span class="tag">pooling · receptive field</span><span class="tag">→ Vision Transformers</span></div>
+<p class="lead"><b>Why it exists:</b> an image is a huge grid of numbers, and what matters in it (an edge, an eye, a wheel) can appear <b>anywhere</b>. A plain neural network would need a separate weight for every pixel of every pattern at every position. A CNN slides one small learned filter across the whole image: the <b>same weights at every position</b>. This needs far fewer parameters, works wherever the object is, and builds features in layers from edges to objects. CNNs drove computer vision from 2012 to 2020, and the Vision Transformer is the idea that replaced them.</p>{% endblock %}
+{% block content %}{% raw %}
+<div class="lsn"><div class="lsn-main">
+
+<h2><span class="n">01</span>Why not a plain MLP on pixels?</h2>
+<div class="pair"><div>
+<p>Flatten an image into a vector and feed it to an <a href="/neural-networks">MLP</a>. Two problems appear immediately:</p>
+<ol>
+<li><b>Too many parameters.</b> A 224×224 colour image has 150,528 inputs. One fully connected layer with 1,000 neurons already needs <b>150 million</b> weights.</li>
+<li><b>No sense of position.</b> Shift the digit a few pixels and the flattened vector changes almost completely. The MLP has to learn “7 at the top-left”, “7 at the centre” and so on as separate patterns.</li>
+</ol>
+<p><b>Try it:</b> move the shift slider. The cosine similarity between the original and shifted pixel vectors drops quickly, even though a person sees the same digit. Then compare the parameter counts below the image.</p>
+<p>CNNs fix both problems with two assumptions about images: <b>locality</b> (nearby pixels matter together, so each neuron looks at a small patch) and <b>translation equivariance</b> (a pattern means the same thing anywhere, so the same weights are used everywhere).</p>
+<div class="callout tf"><b>Transformer link</b>Transformers drop these built-in assumptions and learn what to look at with attention. That is why Vision Transformers need more training data than CNNs, but scale better once they have it.</div>
+</div><div class="fig"><h4>Shift the digit: what the MLP sees</h4>
+<canvas id="c1" width="640" height="250"></canvas>
+<div class="ctl-row"><span>shift right (pixels)</span><input type="range" id="sh1" min="0" max="6" step="1" value="2"><output id="sh1v"></output></div>
+<h4 style="margin-top:12px">Parameters of one layer</h4>
+<div class="ctl-row"><span>image size (px)</span><input type="range" id="n1" min="28" max="512" step="4" value="224"><output id="n1v"></output></div>
+<div class="ctl-row"><span>neurons / filters</span><input type="range" id="m1" min="8" max="1024" step="8" value="64"><output id="m1v"></output></div>
+<canvas id="c1b" width="640" height="110"></canvas>
+<div class="out" id="o1"></div></div></div>
+
+<h2><span class="n">02</span>The convolution operation</h2>
+<div class="pair"><div>
+<p>A <b>kernel</b> (filter) is a small grid of weights, e.g. 3×3. Slide it over the image. At each position, multiply the kernel with the patch under it element by element, add everything up, and write the result into the output <b>feature map</b>:</p>
+<div class="formula">$$Y[i,j]=\sum_{m=0}^{k-1}\sum_{n=0}^{k-1}X[i+m,\,j+n]\;K[m,n]\;+\;b$$</div>
+<p>Each output value is a <b>dot product</b> between the kernel and one patch, so it is large when the patch <b>looks like the kernel</b>. A kernel is a pattern detector, and the feature map shows <b>where</b> the pattern occurs.</p>
+<p><b>Try it:</b></p>
+<ul>
+<li><b>Hover</b> over an output cell to see its 3×3 window and the full multiply-and-add.</li>
+<li>Pick <i>vertical edge</i>: the output lights up only where brightness changes from left to right.</li>
+<li>Paint on the input grid, or click kernel cells to edit them (left click +1, right click −1).</li>
+</ul>
+<div class="callout"><b>Learned, not designed</b>Edge, blur and sharpen kernels were designed by hand for decades. In a CNN, kernel values are <b>parameters</b> learned by backpropagation, just like the weights of an MLP. Trained first-layer kernels usually turn out to be edge and colour detectors anyway.</div>
+</div><div class="fig"><h4>Input ∗ kernel = feature map</h4>
+<div class="seg" id="kp2"><button data-v="vert" class="on">vertical edge</button><button data-v="horz">horizontal edge</button><button data-v="blur">blur</button><button data-v="sharp">sharpen</button><button data-v="id">identity</button></div>
+<canvas id="c2" class="click" width="640" height="300"></canvas>
+<div class="btns"><button id="clr2">Clear input</button><button id="pat2">Example pattern</button></div>
+<div class="ex" id="o2" style="font-family:var(--mono);font-size:12.5px"></div></div></div>
+
+<h2><span class="n">03</span>Stride, padding and output size</h2>
+<div class="pair"><div>
+<p>Three settings decide the size of the output:</p>
+<div class="table compact leg"><table><tbody>
+<tr><td>kernel size \(k\)</td><td>size of the window (3, 5, 7…)</td></tr>
+<tr><td>padding \(p\)</td><td>zeros added around the border, so edge pixels get processed and the size can stay the same</td></tr>
+<tr><td>stride \(s\)</td><td>step between window positions. \(s=2\) halves the output size (downsampling)</td></tr>
+</tbody></table></div>
+<div class="formula">$$n_{\text{out}}=\Big\lfloor\frac{n_{\text{in}}+2p-k}{s}\Big\rfloor+1$$</div>
+<p>Common recipe: \(k=3,\ p=1,\ s=1\) keeps the size (“same” padding); \(s=2\) halves it.</p>
+<p><b>Try it:</b> change the settings and press <b>Animate</b> to watch the window slide. Grey cells are padding. Each output cell (right) corresponds to one window position.</p>
+<div class="callout tf"><b>Transformer link</b>A Vision Transformer’s first step is a convolution with kernel = stride = patch size (e.g. 16): non-overlapping windows that each become one token. Set \(k=s\) here to see the same thing.</div>
+</div><div class="fig"><h4>Sliding window</h4>
+<canvas id="c3" width="640" height="330"></canvas>
+<div class="ctl-grid">
+<div class="ctl-row"><span>input n</span><input type="range" id="n3" min="4" max="10" step="1" value="7"><output id="n3v"></output></div>
+<div class="ctl-row"><span>kernel k</span><input type="range" id="k3" min="1" max="5" step="1" value="3"><output id="k3v"></output></div>
+<div class="ctl-row"><span>padding p</span><input type="range" id="p3" min="0" max="2" step="1" value="0"><output id="p3v"></output></div>
+<div class="ctl-row"><span>stride s</span><input type="range" id="s3" min="1" max="3" step="1" value="1"><output id="s3v"></output></div></div>
+<div class="btns"><button id="an3">Animate ▶</button></div>
+<div class="out" id="o3"></div></div></div>
+
+<h2><span class="n">04</span>Feature maps on a real image, and channels</h2>
+<div class="pair"><div>
+<p>Applied to a whole picture, each kernel produces one feature map. A convolution layer has many kernels (e.g. 64), each producing its own map, so the output has 64 <b>channels</b>.</p>
+<p>Colour images already have 3 input channels (R, G, B), so each kernel is really a 3-D block \(k\times k\times C_{\text{in}}\), and its output sums over all input channels:</p>
+<div class="formula">$$Y_c[i,j]=\mathrm{ReLU}\Big(b_c+\sum_{c'=1}^{C_{\text{in}}}\sum_{m,n}X_{c'}[i+m,j+n]\,K_{c,c'}[m,n]\Big)$$<span class="cap">Parameters per layer: \(C_{\text{out}}\cdot(k\cdot k\cdot C_{\text{in}}+1)\), independent of image size.</span></div>
+<p><b>Try it:</b> switch kernels to see what each one “sees” in the scene. Tick <b>ReLU</b>: negative responses are set to 0, so only matches of the pattern remain (orange = negative, blue = positive).</p>
+<div class="callout tf"><b>Transformer link</b>Multiple kernels looking for different patterns in parallel is the same design idea as <b>multi-head attention</b>: several heads, each with its own weights, looking for different relationships, with their outputs combined.</div>
+</div><div class="fig"><h4>One image, several learned-style kernels</h4>
+<div class="two"><canvas id="c4a" width="300" height="300"></canvas><canvas id="c4b" width="300" height="300"></canvas></div>
+<div class="seg" id="kp4" style="margin-top:8px"><button data-v="vert" class="on">vertical edges</button><button data-v="horz">horizontal edges</button><button data-v="diag">diagonal</button><button data-v="blur">blur 5×5</button><button data-v="lap">outline</button></div>
+<label class="chk"><input type="checkbox" id="relu4"> apply ReLU</label>
+<div class="out" id="o4"></div></div></div>
+
+<h2><span class="n">05</span>Pooling and a complete CNN</h2>
+<div class="pair"><div>
+<p><b>Max pooling</b> shrinks a feature map by keeping only the largest value in each 2×2 block. It halves width and height, keeps the strongest responses, and makes the network less sensitive to small shifts. (Modern nets often use stride-2 convolutions instead.)</p>
+<div class="formula">$$Y[i,j]=\max_{0\le m,n<2}X[2i+m,\,2j+n]$$</div>
+<p>A classic CNN repeats <b>conv → ReLU → pool</b> a few times. The maps get smaller in space but deeper in channels. Then it flattens and finishes with an MLP and softmax. Click the stages of <b>LeNet-5</b> (1998, handwritten digits) on the right to see shapes and parameter counts.</p>
+<p><b>Training</b> is exactly as before: cross-entropy loss, backpropagation and SGD/Adam. Because a kernel is reused at every position, its gradient is the <b>sum</b> of the gradients from all positions. <b>Data augmentation</b> (random crops, flips, colour jitter) creates more training examples for free.</p>
+</div><div class="fig"><h4>Max pooling (hover) · LeNet-5 pipeline</h4>
+<canvas id="c5" class="click" width="640" height="200"></canvas>
+<svg id="ln5" viewBox="0 0 640 170"></svg>
+<div class="ex" id="o5"></div></div></div>
+
+<h2><span class="n">06</span>Receptive field: from edges to objects</h2>
+<div class="pair"><div>
+<p>One neuron in layer 1 sees a 3×3 patch. A neuron in layer 2 sees 3×3 neurons of layer 1, which together cover 5×5 pixels. Every layer widens the <b>receptive field</b>, and pooling or stride widens it faster:</p>
+<div class="formula">$$r_l=r_{l-1}+(k_l-1)\cdot j_{l-1},\qquad j_l=j_{l-1}\cdot s_l$$<span class="cap">\(r\) = receptive field in pixels, \(j\) = distance between neighbouring neurons measured in input pixels (“jump”), \(s\) = stride.</span></div>
+<p>This produces a <b>hierarchy of features</b>: early layers see small patches and detect edges and colours; middle layers combine them into textures and parts (eyes, wheels); deep layers see most of the image and respond to whole objects.</p>
+<p><b>Try it:</b> add layers and switch on stride 2 to see how quickly the highlighted area covers the image.</p>
+<div class="callout tf"><b>Transformer link</b>In a Transformer, every token can see every other token from <b>layer 1</b> on: the receptive field is global immediately. A CNN needs many layers to connect distant pixels; attention does it in one step. That is the key architectural difference.</div>
+</div><div class="fig"><h4>Receptive field of one deep neuron</h4>
+<canvas id="c6" width="640" height="360"></canvas>
+<div class="ctl-row"><span>conv layers</span><input type="range" id="l6" min="1" max="8" step="1" value="3"><output id="l6v"></output></div>
+<div class="ctl-row"><span>kernel size k</span><input type="range" id="k6" min="3" max="7" step="2" value="3"><output id="k6v"></output></div>
+<label class="chk"><input type="checkbox" id="s6"> stride 2 in every second layer</label>
+<div class="out" id="o6"></div></div></div>
+
+<h2><span class="n">07</span>From CNNs to Vision Transformers</h2>
+<div class="pair"><div>
+<p>The <b>Vision Transformer</b> (ViT, 2020) treats an image like a sentence:</p>
+<ol>
+<li>Cut the image into \(P\times P\) <b>patches</b> (e.g. 16×16 pixels).</li>
+<li>Flatten each patch and project it with one shared linear layer to a vector, a <b>patch token</b>. This is a convolution with kernel = stride = \(P\).</li>
+<li>Add position embeddings and feed the sequence of tokens to a standard <a href="/transformers">Transformer</a>.</li>
+</ol>
+<div class="formula">$$\text{tokens}=\frac{H}{P}\cdot\frac{W}{P}\qquad\text{e.g. }224/16=14\ \Rightarrow\ 196\text{ tokens}$$</div>
+<div class="table compact"><table><thead><tr><th></th><th>Convolution</th><th>Self-attention</th></tr></thead><tbody>
+<tr><td>who interacts</td><td>only neighbours (local window)</td><td>every token with every token (global)</td></tr>
+<tr><td>mixing weights</td><td>fixed after training, same everywhere</td><td>computed from the content (softmax of \(q\cdot k\))</td></tr>
+<tr><td>built-in assumption</td><td>locality, translation</td><td>almost none, so it needs more data</td></tr>
+<tr><td>cost vs. pixels / tokens</td><td>linear</td><td>quadratic in number of tokens</td></tr>
+</tbody></table></div>
+<p><b>Try it:</b> change the patch size and see the token sequence the Transformer would receive.</p>
+</div><div class="fig"><h4>Image → patches → token sequence</h4>
+<canvas id="c7" width="640" height="420"></canvas>
+<div class="ctl-row"><span>patch size P (px of 224)</span><input type="range" id="p7" min="0" max="4" step="1" value="2"><output id="p7v"></output></div>
+<div class="out" id="o7"></div></div></div>
+
+<h2><span class="n">08</span>Summary</h2>
+<div class="pair even"><div>
+<div class="table compact"><table><thead><tr><th>CNN idea</th><th>What it does</th><th>In Transformers</th></tr></thead><tbody>
+<tr><td>Kernel / filter</td><td>local pattern detector (dot product)</td><td>patch embedding is a conv with k = s = P</td></tr>
+<tr><td>Weight sharing</td><td>same weights at every position</td><td>same Q/K/V/MLP weights for every token</td></tr>
+<tr><td>Many channels</td><td>many detectors in parallel</td><td>many attention heads</td></tr>
+<tr><td>Deep hierarchy</td><td>receptive field grows layer by layer</td><td>global from layer 1 (attention)</td></tr>
+<tr><td>Residual (ResNet)</td><td>trains 100+ layers</td><td>residual stream in every block</td></tr>
+<tr><td>Cross-entropy + backprop</td><td>training</td><td>identical</td></tr>
+</tbody></table></div></div><div>
+<div class="summary"><b>Teach it in one sentence:</b> a CNN slides small learned filters over an image, sharing the same weights at every position, and stacks these layers with pooling so that features grow from edges to whole objects. Vision Transformers keep the patch idea but replace local filters with global attention.</div>
+<p>Next: <a href="/rnn">RNNs</a> share weights across <i>time</i> instead of space.</p></div></div>
+
+</div><aside class="lsn-toc"><p>On this page</p><nav></nav></aside></div>
+{% endraw %}{% include "_lesson_scripts.html" %}{% raw %}
+<script>
+(function(){
+var $=L.$,C=L.C,col=L.col,PAL=L.PAL;
+function gray(v){var c=Math.round(255*(1-L.clamp(v,0,1)));return'rgb('+c+','+c+','+c+')'}
+function signed(v,mx){var a=L.clamp(v/(mx||1),-1,1);return a>=0?'rgba(47,84,235,'+a+')':'rgba(232,89,12,'+(-a)+')'}
+
+/* ---------- 01 shift & params ---------- */
+var D7=['............','..########..','..########..','.........##.','........##..','.......##...','......##....','.....##.....','....##......','....##......','....##......','............'];
+var G1=D7.map(function(r){return r.split('').map(function(c){return c==='#'?1:0})});
+function shifted(s){return G1.map(function(r){return r.map(function(_,j){return j-s>=0?r[j-s]:0})})}
+function draw1(){var s=L.val('sh1'),A=G1,B=shifted(s),k=L.ctx('c1'),g=k.g,cs=13;
+var grid=function(M,ox,lab){for(var i=0;i<12;i++)for(var j=0;j<12;j++){g.fillStyle=M[i][j]?C.ink:'#f1f3f5';g.fillRect(ox+j*cs,22+i*cs,cs-1,cs-1)}g.fillStyle=col('--muted');g.font='12px IBM Plex Sans,system-ui,sans-serif';g.fillText(lab,ox,14)};
+grid(A,8,'original');grid(B,176,'shifted by '+s+' px');
+var a=[].concat.apply([],A),b=[].concat.apply([],B),cs2=L.dot(a,b)/(L.norm(a)*L.norm(b)||1);
+g.fillText('flattened vectors (144 numbers each):',350,14);for(var i=0;i<144;i++){var x=350+(i%36)*7.8,y=24+Math.floor(i/36)*9;g.fillStyle=a[i]?C.blue:'#e9ecef';g.fillRect(x,y,6.5,7);g.fillStyle=b[i]?C.orange:'#e9ecef';g.fillRect(x,y+44,6.5,7)}
+g.fillStyle=C.blue;g.fillText('original',350,110);g.fillStyle=C.orange;g.fillText('shifted',420,110);
+g.fillStyle=C.ink;g.font='600 15px IBM Plex Sans,system-ui,sans-serif';g.fillText('cosine similarity = '+cs2.toFixed(2),350,140);g.font='12px IBM Plex Sans,system-ui,sans-serif';g.fillStyle=col('--muted');g.fillText('(1.00 = identical vectors)',350,158);
+g.fillText('To an MLP these are different inputs; a CNN filter',8,200);g.fillText('slides over both and finds the same strokes, just shifted.',8,216);
+var n=L.val('n1'),m=L.val('m1'),mlp=n*n*3*m,cnn=m*(3*3*3+1),q=L.ctx('c1b'),gg=q.g,lg=function(v){return 120+Math.log10(v)/10*(q.W-140)};gg.font='12.5px IBM Plex Sans,system-ui,sans-serif';
+[['MLP layer',mlp,C.orange],['conv layer 3×3',cnn,C.blue]].forEach(function(r,i){var y=14+i*40;gg.fillStyle=C.ink;gg.fillText(r[0],6,y+15);gg.fillStyle=r[2];gg.fillRect(120,y,lg(r[1])-120,22);gg.fillStyle=C.ink;gg.font='600 12.5px IBM Plex Mono,ui-monospace,monospace';gg.fillText(r[1].toLocaleString(),lg(r[1])+6,y+15);gg.font='12.5px IBM Plex Sans,system-ui,sans-serif'});
+gg.fillStyle=col('--muted');gg.fillText('(log scale)',6,100);
+$('o1').innerHTML='MLP: '+n+'×'+n+'×3 inputs × '+m+' neurons = <b>'+mlp.toLocaleString()+'</b> weights · conv: '+m+' filters × (3·3·3 + 1) = <b>'+cnn.toLocaleString()+'</b> → <b>'+Math.round(mlp/cnn).toLocaleString()+'×</b> fewer, and the conv count does not depend on image size'}
+L.bind(['sh1','n1','m1'],draw1);L.reg(draw1);
+
+/* ---------- 02 convolution ---------- */
+var KP={vert:[[-1,0,1],[-1,0,1],[-1,0,1]],horz:[[-1,-1,-1],[0,0,0],[1,1,1]],blur:[[1/9,1/9,1/9],[1/9,1/9,1/9],[1/9,1/9,1/9]],sharp:[[0,-1,0],[-1,5,-1],[0,-1,0]],id:[[0,0,0],[0,1,0],[0,0,0]]};
+var N2=10,IN=[],K2=KP.vert.map(function(r){return r.slice()}),hov2=null,paint=0;
+function pat(){IN=[];for(var i=0;i<N2;i++){var r=[];for(var j=0;j<N2;j++)r.push((j>=3&&j<=6&&i>=2&&i<=7)?1:0);IN.push(r)}IN[5][1]=1;IN[5][2]=1}pat();
+function conv(I,K){var n=I.length,k=K.length,o=n-k+1,O=[];for(var i=0;i<o;i++){var r=[];for(var j=0;j<o;j++){var s=0;for(var m=0;m<k;m++)for(var q=0;q<k;q++)s+=I[i+m][j+q]*K[m][q];r.push(s)}O.push(r)}return O}
+var L2={cs:22,ix:8,iy:28,kx:262,ky:110,ox:386,oy:40};
+function draw2(){var O=conv(IN,K2),k=L.ctx('c2'),g=k.g,c=L2,mx=0;O.forEach(function(r){r.forEach(function(v){mx=Math.max(mx,Math.abs(v))})});
+g.font='600 12px IBM Plex Sans,system-ui,sans-serif';g.fillStyle=col('--muted');g.fillText('input X (10×10) · paint',c.ix,18);g.fillText('kernel K',c.kx,c.ky-10);g.fillText('feature map Y (8×8)',c.ox,30);
+for(var i=0;i<N2;i++)for(var j=0;j<N2;j++){g.fillStyle=IN[i][j]?C.ink:'#eef1f5';g.fillRect(c.ix+j*c.cs,c.iy+i*c.cs,c.cs-1,c.cs-1);g.fillStyle=IN[i][j]?'#fff':'#adb5bd';g.font='9px IBM Plex Mono,monospace';g.fillText(IN[i][j],c.ix+j*c.cs+8,c.iy+i*c.cs+14)}
+for(i=0;i<3;i++)for(j=0;j<3;j++){var v=K2[i][j];g.fillStyle=signed(v,2);g.fillRect(c.kx+j*30,c.ky+i*30,29,29);g.fillStyle=Math.abs(v)>1?'#fff':C.ink;g.font='11px IBM Plex Mono,ui-monospace,monospace';g.textAlign='center';g.fillText(Math.abs(v-1/9)<1e-9?'1/9':(+v.toFixed(2)),c.kx+j*30+14.5,c.ky+i*30+19);g.textAlign='left'}
+g.fillStyle=C.ink;g.font='22px sans-serif';g.fillText('∗',c.kx-20,c.ky+52);g.fillText('=',c.kx+100,c.ky+52);
+var oc=31;for(i=0;i<8;i++)for(j=0;j<8;j++){var v2=O[i][j];g.fillStyle=signed(v2,mx);g.fillRect(c.ox+j*oc,c.oy+i*oc,oc-1,oc-1);g.strokeStyle=col('--line');g.strokeRect(c.ox+j*oc,c.oy+i*oc,oc-1,oc-1);g.fillStyle=Math.abs(v2)/mx>.55?'#fff':C.ink;g.font='10px IBM Plex Mono,ui-monospace,monospace';g.textAlign='center';g.fillText(+v2.toFixed(1),c.ox+j*oc+15,c.oy+i*oc+19);g.textAlign='left'}
+if(hov2){var a=hov2[0],b=hov2[1];g.strokeStyle=C.orange;g.lineWidth=3;g.strokeRect(c.ix+b*c.cs-1,c.iy+a*c.cs-1,3*c.cs+1,3*c.cs+1);g.strokeRect(c.ox+b*oc-1,c.oy+a*oc-1,oc+1,oc+1);g.lineWidth=1;
+var terms=[];for(var m=0;m<3;m++)for(var q=0;q<3;q++)if(K2[m][q]!==0)terms.push(IN[a+m][b+q]+'·'+(Math.abs(K2[m][q]-1/9)<1e-9?'(1/9)':K2[m][q]));
+$('o2').innerHTML='Y['+a+','+b+'] = '+terms.join(' + ')+' = <b>'+(+O[a][b].toFixed(3))+'</b>'}
+else $('o2').innerHTML='hover over an output cell to see its computation · blue = positive, orange = negative'}
+var kp=L.seg('kp2',function(v){K2=KP[v].map(function(r){return r.slice()});draw2()});
+function hit(x,y){var c=L2;if(x>=c.ix&&x<c.ix+N2*c.cs&&y>=c.iy&&y<c.iy+N2*c.cs)return['in',Math.floor((y-c.iy)/c.cs),Math.floor((x-c.ix)/c.cs)];
+if(x>=c.kx&&x<c.kx+90&&y>=c.ky&&y<c.ky+90)return['k',Math.floor((y-c.ky)/30),Math.floor((x-c.kx)/30)];if(x>=c.ox&&x<c.ox+8*31&&y>=c.oy&&y<c.oy+8*31)return['out',Math.floor((y-c.oy)/31),Math.floor((x-c.ox)/31)];return null}
+L.pointer('c2',{down:function(x,y,e){var h=hit(x,y);if(!h)return;if(h[0]==='in'){paint=(e.button===2||e.shiftKey)?-1:1;IN[h[1]][h[2]]=paint>0?1:0;draw2()}else if(h[0]==='k'){K2[h[1]][h[2]]=Math.round((K2[h[1]][h[2]]+(e.button===2?-1:1))*100)/100;draw2()}},
+move:function(x,y,down){var h=hit(x,y);if(down&&paint&&h&&h[0]==='in'){IN[h[1]][h[2]]=paint>0?1:0;draw2();return}var nh=h&&h[0]==='out'?[h[1],h[2]]:null;if(JSON.stringify(nh)!==JSON.stringify(hov2)){hov2=nh;draw2()}},up:function(){paint=0}});
+$('clr2').onclick=function(){IN=IN.map(function(r){return r.map(function(){return 0})});draw2()};$('pat2').onclick=function(){pat();draw2()};L.reg(draw2);
+
+/* ---------- 03 stride / padding ---------- */
+var pos3=0,anim3=null;
+function draw3(){var n=L.val('n3'),k=Math.min(L.val('k3'),n+2*L.val('p3')),p=L.val('p3'),s=L.val('s3'),N=n+2*p,o=Math.floor((N-k)/s)+1,kk=L.ctx('c3'),g=kk.g,cs=Math.min(34,300/N),ox=10,oy=24,oc=Math.min(34,240/Math.max(1,o)),qx=360,qy=24;
+g.font='600 12px IBM Plex Sans,system-ui,sans-serif';g.fillStyle=col('--muted');g.fillText('input '+n+'×'+n+' + padding '+p,ox,14);g.fillText('output '+o+'×'+o,qx,14);
+for(var i=0;i<N;i++)for(var j=0;j<N;j++){var pad=i<p||j<p||i>=N-p||j>=N-p;g.fillStyle=pad?'#dee2e6':'#e6ecff';g.fillRect(ox+j*cs,oy+i*cs,cs-2,cs-2);if(pad){g.fillStyle=col('--muted');g.font='10px IBM Plex Mono,ui-monospace,monospace';g.fillText('0',ox+j*cs+cs/2-4,oy+i*cs+cs/2+3)}}
+if(o>0){var cur=pos3%(o*o),ci=Math.floor(cur/o),cj=cur%o;g.fillStyle='rgba(232,89,12,.25)';g.fillRect(ox+cj*s*cs,oy+ci*s*cs,k*cs-2,k*cs-2);g.strokeStyle=C.orange;g.lineWidth=2.5;g.strokeRect(ox+cj*s*cs,oy+ci*s*cs,k*cs-2,k*cs-2);g.lineWidth=1;
+for(i=0;i<o;i++)for(j=0;j<o;j++){var done=i*o+j<=cur;g.fillStyle=i===ci&&j===cj?C.orange:done?'#4c6ef5':'#f1f3f5';g.fillRect(qx+j*oc,qy+i*oc,oc-2,oc-2)}}
+$('o3').innerHTML='n_out = ⌊('+n+' + 2·'+p+' − '+k+') / '+s+'⌋ + 1 = <b>'+o+'</b>'+(o<=0?' (kernel larger than padded input!)':'')+(p===(k-1)/2&&s===1?' → “same” padding: size preserved':'')+(k===s?' → non-overlapping patches (ViT-style)':'')}
+L.bind(['n3','k3','p3','s3'],function(){pos3=0;draw3()});L.reg(draw3);
+$('an3').onclick=function(){if(anim3){clearInterval(anim3);anim3=null;return}pos3=0;anim3=setInterval(function(){pos3++;var n=L.val('n3'),N=n+2*L.val('p3'),o=Math.floor((N-Math.min(L.val('k3'),N))/L.val('s3'))+1;if(pos3>=o*o){clearInterval(anim3);anim3=null;pos3=o*o-1}draw3()},220)};
+
+/* ---------- 04 real image filters ---------- */
+var S4=150,GR=null,SCENE=document.createElement('canvas');
+(function(){var k=L.ctx('c4a'),g=k.g;g.fillStyle='#a5d8ff';g.fillRect(0,0,300,300);g.fillStyle='#fff3bf';g.beginPath();g.arc(240,60,30,0,7);g.fill();
+g.fillStyle='#868e96';g.fillRect(40,120,110,130);g.fillStyle='#495057';g.beginPath();g.moveTo(30,122);g.lineTo(95,60);g.lineTo(160,122);g.fill();g.fillStyle='#ffe066';for(var i=0;i<2;i++)for(var j=0;j<2;j++)g.fillRect(58+j*50,140+i*45,26,26);g.fillStyle='#343a40';g.fillRect(84,215,24,35);
+g.fillStyle='#2b8a3e';g.fillRect(0,250,300,50);g.fillStyle='#5c940d';g.beginPath();g.arc(220,190,40,0,7);g.fill();g.fillStyle='#5f3dc4';g.fillRect(214,215,12,40);
+g.strokeStyle='#212529';g.lineWidth=4;g.beginPath();g.moveTo(170,250);g.lineTo(290,140);g.stroke();
+var off=document.createElement('canvas');off.width=S4;off.height=S4;var og=off.getContext('2d');og.drawImage(k.c,0,0,k.c.width,k.c.height,0,0,S4,S4);var d=og.getImageData(0,0,S4,S4).data;GR=[];for(i=0;i<S4;i++){var r=[];for(j=0;j<S4;j++){var p=(i*S4+j)*4;r.push((.299*d[p]+.587*d[p+1]+.114*d[p+2])/255)}GR.push(r)}
+SCENE.width=k.c.width;SCENE.height=k.c.height;SCENE.getContext('2d').drawImage(k.c,0,0);g.fillStyle=C.ink;g.font='600 12px IBM Plex Sans,system-ui,sans-serif';g.fillText('input (grey values used)',6,16)})();
+var K4={vert:[[-1,0,1],[-2,0,2],[-1,0,1]],horz:[[-1,-2,-1],[0,0,0],[1,2,1]],diag:[[0,1,2],[-1,0,1],[-2,-1,0]],blur:(function(){var a=[];for(var i=0;i<5;i++){a.push([]);for(var j=0;j<5;j++)a[i].push(1/25)}return a})(),lap:[[-1,-1,-1],[-1,8,-1],[-1,-1,-1]]},kp4='vert';
+function draw4(){var K=K4[kp4],O=conv(GR,K),relu=$('relu4').checked,n=O.length,mx=0;O.forEach(function(r){r.forEach(function(v){mx=Math.max(mx,Math.abs(v))})});
+var k=L.ctx('c4b'),g=k.g,off=document.createElement('canvas');off.width=n;off.height=n;var og=off.getContext('2d'),im=og.createImageData(n,n),pos=0,neg=0;
+for(var i=0;i<n;i++)for(var j=0;j<n;j++){var v=O[i][j];if(relu)v=Math.max(0,v);var p=(i*n+j)*4;
+if(kp4==='blur'){var c=Math.round(255*(1-L.clamp(v,0,1)));c=255-c;im.data[p]=im.data[p+1]=im.data[p+2]=255-Math.round(255*(1-L.clamp(v,0,1)))}
+else{var a=L.clamp(v/(mx*.6),-1,1);if(a>=0){im.data[p]=255-a*208;im.data[p+1]=255-a*171;im.data[p+2]=255-a*20}else{im.data[p]=255+a*23;im.data[p+1]=255+a*166;im.data[p+2]=255+a*243}}im.data[p+3]=255;if(v>.05)pos++;if(v<-.05)neg++}
+og.putImageData(im,0,0);g.imageSmoothingEnabled=false;g.drawImage(off,0,0,k.W,k.H);g.fillStyle=C.ink;g.font='600 12px IBM Plex Sans,system-ui,sans-serif';g.fillText('feature map'+(relu?' after ReLU':''),6,16);
+$('o4').innerHTML='kernel '+K.length+'×'+K.length+': ['+K.map(function(r){return r.map(function(v){return Math.abs(v-.04)<1e-9?'1/25':v}).join(' ')}).join(' ; ')+']<br>strong positive responses: <b>'+pos+'</b> pixels · negative: <b>'+neg+'</b>'+(relu?' (all removed by ReLU)':'')}
+L.seg('kp4',function(v){kp4=v;draw4()});$('relu4').onchange=draw4;L.reg(draw4);
+
+/* ---------- 05 pooling + LeNet ---------- */
+var FM=[];(function(){var r=L.rng(4);for(var i=0;i<6;i++){var row=[];for(var j=0;j<6;j++)row.push(Math.round(r()*9));FM.push(row)}})();var hov5=null;
+function draw5(){var k=L.ctx('c5'),g=k.g,cs=28,ox=20,oy=20,px=300,pc=42;g.font='600 12px IBM Plex Sans,system-ui,sans-serif';g.fillStyle=col('--muted');g.fillText('feature map 6×6',ox,14);g.fillText('after 2×2 max-pool → 3×3',px,14);
+for(var i=0;i<6;i++)for(var j=0;j<6;j++){var b=[Math.floor(i/2),Math.floor(j/2)],on=hov5&&hov5[0]===b[0]&&hov5[1]===b[1],blk=FM.slice(b[0]*2,b[0]*2+2).map(function(r){return r.slice(b[1]*2,b[1]*2+2)}),mx=Math.max.apply(null,[].concat.apply([],blk)),isMax=FM[i][j]===mx;
+g.fillStyle=on?(isMax?C.orange:'#ffe8cc'):((b[0]+b[1])%2?'#f1f3f5':'#e6ecff');g.fillRect(ox+j*cs,oy+i*cs,cs-2,cs-2);g.fillStyle=on&&isMax?'#fff':C.ink;g.font='12px IBM Plex Mono,ui-monospace,monospace';g.fillText(FM[i][j],ox+j*cs+10,oy+i*cs+18)}
+for(i=0;i<3;i++)for(j=0;j<3;j++){var m=Math.max(FM[2*i][2*j],FM[2*i][2*j+1],FM[2*i+1][2*j],FM[2*i+1][2*j+1]),on2=hov5&&hov5[0]===i&&hov5[1]===j;g.fillStyle=on2?C.orange:'#4c6ef5';g.fillRect(px+j*pc,oy+i*pc,pc-3,pc-3);g.fillStyle='#fff';g.font='600 15px IBM Plex Mono,ui-monospace,monospace';g.fillText(m,px+j*pc+15,oy+i*pc+26)}
+g.fillStyle=col('--muted');g.font='12px IBM Plex Sans,system-ui,sans-serif';g.fillText('hover over a block →',ox,k.H-10)}
+L.pointer('c5',{move:function(x,y){var i=Math.floor((y-20)/28),j=Math.floor((x-20)/28),h=null;if(i>=0&&i<6&&j>=0&&j<6)h=[Math.floor(i/2),Math.floor(j/2)];else{i=Math.floor((y-20)/42);j=Math.floor((x-300)/42);if(i>=0&&i<3&&j>=0&&j<3)h=[i,j]}if(JSON.stringify(h)!==JSON.stringify(hov5)){hov5=h;draw5()}}});L.reg(draw5);
+var LN=[['input','28×28×1','784 values · a grey digit',0],['conv 5×5, 6 filters','24×24×6','6·(5·5·1+1) = 156 params',156],['max-pool 2×2','12×12×6','0 params',0],['conv 5×5, 16 filters','8×8×16','16·(5·5·6+1) = 2,416 params',2416],['max-pool 2×2','4×4×16','0 params → flatten to 256',0],['fully connected','120','256·120+120 = 30,840 params',30840],['fully connected','84','120·84+84 = 10,164 params',10164],['softmax','10','84·10+10 = 850 params · one probability per digit',850]],sel5=1;
+function svg5(){var h='<g font-family="IBM Plex Sans,sans-serif">';LN.forEach(function(l,i){var x=6+i*79,hgt=i===0?90:i<5?[0,80,56,44,30][i]:[0,0,0,0,0,26,20,14][i],y=70-hgt/2,on=i===sel5;
+h+='<g data-i="'+i+'" style="cursor:pointer"><rect x="'+x+'" y="'+y+'" width="68" height="'+hgt+'" rx="5" fill="'+(on?'#e8590c':i<5?'#4c6ef5':'#9c36b5')+'" opacity="'+(on?1:.8)+'"/><text x="'+(x+34)+'" y="135" text-anchor="middle" font-size="10.5" fill="#171b24">'+l[1]+'</text><text x="'+(x+34)+'" y="150" text-anchor="middle" font-size="9.5" fill="#5d6675">'+l[0].split(',')[0]+'</text></g>'});
+h+='</g>';$('ln5').innerHTML=h;$('ln5').querySelectorAll('g[data-i]').forEach(function(e){e.onclick=function(){sel5=+e.dataset.i;svg5()}});
+var tot=LN.reduce(function(a,l){return a+l[3]},0);$('o5').innerHTML='<b>'+LN[sel5][0]+'</b> → output shape <b>'+LN[sel5][1]+'</b> · '+LN[sel5][2]+'<br>LeNet-5 total ≈ <b>'+tot.toLocaleString()+'</b> parameters (an MLP with one 120-unit layer on raw 28×28 pixels already needs 94,200). Click a stage.'}svg5();
+
+/* ---------- 06 receptive field ---------- */
+function draw6(){var Ln=L.val('l6'),k=L.val('k6'),st=$('s6').checked,r=1,j=1,rows=[];for(var l=1;l<=Ln;l++){r+=(k-1)*j;var s=st&&l%2===0?2:1;rows.push([l,r,j]);j*=s}
+var kk=L.ctx('c6'),g=kk.g,N=32,cs=Math.min(10.5,(kk.H-20)/N),ox=10,oy=10,c=Math.floor(N/2);
+for(var a=0;a<N;a++)for(var b=0;b<N;b++){g.fillStyle=(a+b)%2?'#f1f3f5':'#e9ecef';g.fillRect(ox+b*cs,oy+a*cs,cs,cs)}
+rows.slice().reverse().forEach(function(q,i){var rr=Math.min(q[1],N),lo=c-Math.floor(rr/2);g.fillStyle='rgba(47,84,235,'+(.12+.1*(q[0]/Ln))+')';g.fillRect(ox+lo*cs,oy+lo*cs,rr*cs,rr*cs);g.strokeStyle=PAL[(q[0]-1)%8];g.lineWidth=1.5;g.strokeRect(ox+lo*cs,oy+lo*cs,rr*cs,rr*cs)});
+g.fillStyle=C.orange;g.fillRect(ox+c*cs,oy+c*cs,cs,cs);
+var tx=ox+N*cs+20;g.font='600 12.5px IBM Plex Sans,system-ui,sans-serif';g.fillStyle=C.ink;g.fillText('layer   receptive field',tx,24);g.font='12.5px IBM Plex Mono,ui-monospace,monospace';
+rows.forEach(function(q,i){g.fillStyle=PAL[(q[0]-1)%8];g.fillRect(tx,34+i*24,12,12);g.fillStyle=C.ink;g.fillText('  '+q[0]+'        '+q[1]+'×'+q[1]+(q[1]>N?' (beyond view)':''),tx+14,45+i*24)});
+var last=rows[rows.length-1][1];$('o6').innerHTML='after <b>'+Ln+'</b> layers of '+k+'×'+k+(st?' with stride-2 every second layer':'')+', one neuron sees <b>'+last+'×'+last+'</b> input pixels. Without stride the field grows by only '+(k-1)+' per layer (linear); with stride it grows exponentially.'}
+L.bind(['l6','k6'],draw6);$('s6').onchange=draw6;L.reg(draw6);
+
+/* ---------- 07 ViT patches ---------- */
+var PS=[8,14,16,28,32];
+function draw7(){var P=PS[L.val('p7')],n=224/P,tok=n*n,k=L.ctx('c7'),g=k.g,sz=210,sc=sz/224,src=SCENE;
+g.drawImage(src,0,0,src.width,src.height,6,6,sz,sz);g.strokeStyle='rgba(255,255,255,.95)';g.lineWidth=1;for(var i=1;i<n;i++){g.beginPath();g.moveTo(6+i*P*sc,6);g.lineTo(6+i*P*sc,6+sz);g.moveTo(6,6+i*P*sc);g.lineTo(6+sz,6+i*P*sc);g.stroke()}
+g.fillStyle=col('--muted');g.font='12px IBM Plex Sans,system-ui,sans-serif';g.fillText('224×224 image, '+n+'×'+n+' grid of '+P+'×'+P+' patches',6,sz+24);
+var show=Math.min(tok,14),pw=Math.min(40,(k.W-250)/show*1);g.fillText('token sequence ('+show+' of '+tok+' tokens, evenly sampled):',240,20);
+for(i=0;i<show;i++){var ti=Math.round(i*(tok-1)/(show-1)),r=Math.floor(ti/n),c=ti%n,x=240+(i%7)*54,y=34+Math.floor(i/7)*70;g.drawImage(src,c*P*src.width/224*(224/224),r*P*src.height/224,P*src.width/224,P*src.height/224,x,y,42,42);g.strokeStyle=C.ink;g.strokeRect(x,y,42,42);g.fillStyle=C.ink;g.font='10.5px IBM Plex Mono,ui-monospace,monospace';g.fillText('t'+(ti+1),x+10,y+56)}
+g.fillStyle=col('--muted');g.font='12.5px IBM Plex Sans,system-ui,sans-serif';var y0=200;g.fillText('each patch: '+P+'×'+P+'×3 = '+(P*P*3)+' numbers → linear → 768-d token',240,y0);
+g.fillText('+ position embedding, then a standard Transformer',240,y0+20);
+var att=tok*tok,bx=240,by=y0+46;g.fillStyle=C.ink;g.font='600 13px IBM Plex Sans,system-ui,sans-serif';g.fillText('attention matrix: '+tok+' × '+tok+' = '+att.toLocaleString()+' scores per head per layer',bx,by);
+var w=Math.min(380,Math.sqrt(att)/28*60);g.fillStyle='rgba(47,84,235,.25)';g.fillRect(bx,by+12,Math.min(380,w),Math.min(140,w));g.strokeStyle=C.blue;g.strokeRect(bx,by+12,Math.min(380,w),Math.min(140,w));
+$('o7').innerHTML='P = <b>'+P+'</b> → <b>'+tok+'</b> tokens (ViT-Base uses P = 16 → 196 tokens). Halving P gives 4× more tokens and 16× more attention cost: the quadratic price of global attention.'}
+var o7=$('p7v');L.bind('p7',function(){o7.textContent=PS[L.val('p7')];draw7()});o7.textContent=PS[L.val('p7')];L.reg(draw7);
+})();
+</script>
+{% endraw %}{% endblock %}

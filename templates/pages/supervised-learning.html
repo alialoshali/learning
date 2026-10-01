@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+{% block head %}{% include "_lesson_head.html" %}{% endblock %}
+{% block h1 %}Supervised Learning{% endblock %}
+{% block lead %}<div class="meta"><span class="tag">labelled data</span><span class="tag">regression · classification</span><span class="tag">k-NN</span><span class="tag">metrics</span><span class="tag">→ fine-tuning LLMs</span></div>
+<p class="lead"><b>Why it exists:</b> for many problems we already have examples with the correct answer: house sales with prices, emails marked spam, photos tagged “cat”. Supervised learning uses these <b>(input, correct answer)</b> pairs to learn a function that gives the answer for <i>new</i> inputs. It is the most widely used kind of machine learning, and it is the training signal inside every language model: “here is the context, the correct next token is X”.</p>{% endblock %}
+{% block content %}{% raw %}
+<div class="lsn"><div class="lsn-main">
+
+<h2><span class="n">01</span>The setting: learn a function from labelled examples</h2>
+<div class="pair"><div>
+<p>We are given a <b>training set</b> of \(N\) labelled examples and want a function that maps inputs to outputs:</p>
+<div class="formula">$$\mathcal D=\{(x_1,y_1),\dots,(x_N,y_N)\}\qquad\text{find } f_\theta \text{ such that } f_\theta(x)\approx y$$</div>
+<div class="table compact leg"><table><thead><tr><th>Symbol</th><th>Meaning</th><th>Example</th></tr></thead><tbody>
+<tr><td>\(x\)</td><td>input / features (a vector)</td><td>size and age of a flat</td></tr>
+<tr><td>\(y\)</td><td>label / target (the correct answer)</td><td>its sale price</td></tr>
+<tr><td>\(f_\theta\)</td><td>model with parameters \(\theta\)</td><td>a line \(w^\top x+b\)</td></tr>
+<tr><td>\(\hat y=f_\theta(x)\)</td><td>prediction</td><td>€212,000</td></tr>
+</tbody></table></div>
+<p>There are two main types, depending on what \(y\) is:</p>
+<ul>
+<li><b>Regression</b>: \(y\) is a <b>number</b> (price, temperature). The model draws a curve <i>through</i> the data.</li>
+<li><b>Classification</b>: \(y\) is a <b>category</b> (spam/not spam, digit 0–9, next word). The model draws a <b>boundary between</b> the classes.</li>
+</ul>
+<p><b>Try it:</b> click on the plot to add your own examples. In regression mode the best line refits immediately. In classification mode pick a class first, then click; the background shows the predicted probability of class A.</p>
+<div class="callout tf"><b>Transformer link</b>Next-token prediction is <b>classification</b> with about 50,000 classes, one per vocabulary token. Predicting a number, such as a reward score in RLHF, is <b>regression</b>. Same framework, different output head.</div>
+</div><div class="fig"><h4>Click to add training examples</h4>
+<div class="seg" id="m1"><button data-v="reg" class="on">Regression</button><button data-v="cls">Classification</button></div>
+<span id="cls1" hidden><span class="seg" id="k1"><button data-v="1" class="on">add class A (blue)</button><button data-v="0">add class B (orange)</button></span></span>
+<canvas id="c1" class="click" width="640" height="380"></canvas>
+<div class="btns"><button id="clr1">Clear</button><button id="rnd1">Random data</button></div>
+<div class="out" id="o1"></div></div></div>
+
+<h2><span class="n">02</span>Loss functions: how wrong is a prediction?</h2>
+<div class="pair"><div>
+<p>The loss \(\ell(\hat y, y)\) turns one prediction into a penalty. Training minimises the average loss over the training set:</p>
+<div class="formula">$$\mathcal L(\theta)=\frac1N\sum_{i=1}^N \ell\big(f_\theta(x_i),y_i\big)$$</div>
+<div class="table compact"><table><thead><tr><th>Loss</th><th>Formula</th><th>Used for</th></tr></thead><tbody>
+<tr><td>Squared error (MSE)</td><td>\((\hat y-y)^2\)</td><td>regression; big errors punished heavily</td></tr>
+<tr><td>Absolute error (MAE)</td><td>\(|\hat y-y|\)</td><td>regression robust to outliers</td></tr>
+<tr><td>Huber</td><td>squared when small, absolute when large</td><td>a compromise between the two</td></tr>
+<tr><td>Cross-entropy</td><td>\(-\log \hat p_{\,y}\)</td><td>classification (probabilities)</td></tr>
+</tbody></table></div>
+<p><b>Why the choice matters:</b> squaring makes one huge error count as much as many small ones. Drag the <b>outlier</b> slider and compare the MSE line (purple) with the MAE line (green). The MSE line is pulled towards the outlier; the MAE line hardly moves.</p>
+<p><b>Where the losses come from.</b> MSE is what you get from <i>maximum likelihood</i> if you assume Gaussian noise on \(y\). Cross-entropy is maximum likelihood for categories. So choosing a loss is the same as choosing an assumption about the noise.</p>
+<div class="callout tf"><b>Transformer link</b>LLMs use cross-entropy, \(-\log p(\text{correct token})\), averaged over every position of every sequence. A loss of 2.0 means that on average the model gave the correct token a probability of \(e^{-2}\approx 0.135\).</div>
+</div><div class="fig"><h4>Loss shape · and its effect on the fit</h4>
+<canvas id="c2a" width="640" height="210"></canvas>
+<canvas id="c2b" width="640" height="250"></canvas>
+<div class="ctl-row"><span>outlier height</span><input type="range" id="out2" min="0" max="12" step="0.1" value="8"><output id="out2v"></output></div>
+<div class="out" id="o2"></div></div></div>
+
+<h2><span class="n">03</span>A first model: k-nearest neighbours</h2>
+<div class="pair"><div>
+<p>The simplest supervised learner just <b>remembers</b> the training set. To label a new point, it finds the \(k\) closest training points and takes a majority vote:</p>
+<div class="formula">$$\hat y(x)=\text{majority}\{\,y_i : x_i\in \mathcal N_k(x)\,\}\qquad d(x,x_i)=\lVert x-x_i\rVert_2$$</div>
+<ul>
+<li><b>k = 1</b>: a very jagged boundary that fits every training point, including the noise (overfitting).</li>
+<li><b>Large k</b>: a smooth boundary that may ignore real detail (underfitting).</li>
+</ul>
+<p><b>Soft version (tick the box):</b> instead of a hard vote of \(k\) neighbours, <b>every</b> training point votes with a weight that decays with distance, normalised by a softmax:</p>
+<div class="formula">$$w_i=\frac{e^{-d(x,x_i)^2/\tau}}{\sum_j e^{-d(x,x_j)^2/\tau}},\qquad \hat p(x)=\sum_i w_i\,y_i$$</div>
+<p>Move the mouse over the plot to see which training points the query (★) is looking at. Its neighbours are highlighted.</p>
+<div class="callout tf"><b>Transformer link</b>The soft version <b>is attention</b>. A query compares itself with every key (here: training points), turns the similarities into weights with a softmax, and returns the weighted average of the values (here: labels). The difference in a Transformer is that the similarity is a learned dot product \(q\cdot k\) instead of a fixed distance.</div>
+</div><div class="fig"><h4>k-NN decision regions (hover = query point)</h4>
+<canvas id="c3" class="click" width="640" height="420"></canvas>
+<div class="ctl-row"><span>k neighbours</span><input type="range" id="k3" min="1" max="25" step="1" value="5"><output id="k3v"></output></div>
+<div class="ctl-row"><span>soft: temperature τ</span><input type="range" id="t3" min="0.02" max="2" step="0.02" value="0.3"><output id="t3v"></output></div>
+<label class="chk"><input type="checkbox" id="soft3"> soft weights (attention-style)</label>
+<div class="out" id="o3"></div></div></div>
+
+<h2><span class="n">04</span>Choosing the model: validation curves</h2>
+<div class="pair"><div>
+<p>Training error alone is misleading: k-NN with \(k=1\) always scores 100% on its own training data. To choose a <b>hyper-parameter</b> such as \(k\), we measure error on a separate <b>validation</b> set.</p>
+<div class="formula">$$k^\star=\arg\min_k\ \text{Err}_{\text{val}}(k)$$</div>
+<p>The plot shows both error curves as \(k\) changes. Read it from right to left:</p>
+<ul>
+<li>Large \(k\) (right): both errors are high, so the model is too simple.</li>
+<li>Small \(k\) (left): training error falls to 0 but validation error climbs back up. That gap is <b>overfitting</b>.</li>
+<li>The best \(k\) sits at the bottom of the validation curve.</li>
+</ul>
+<p>With small datasets one split is noisy, so we use <b>k-fold cross-validation</b>: split the data into 5 parts, train on 4, validate on 1, rotate, and average.</p>
+<div class="callout tf"><b>Transformer link</b>When training an LLM, you cannot afford to try many sizes. Engineers fit <b>scaling laws</b> (validation loss vs. model size and data) on small runs and extrapolate. It is the same idea as this plot, done at very large scale.</div>
+</div><div class="fig"><h4>Error vs. k (train and validation)</h4>
+<canvas id="c4" width="640" height="300"></canvas>
+<div class="ctl-row"><span>label noise</span><input type="range" id="n4" min="0" max="0.35" step="0.01" value="0.15"><output id="n4v"></output></div>
+<div class="btns"><button id="new4">New dataset ↻</button></div>
+<div class="out" id="o4"></div></div></div>
+
+<h2><span class="n">05</span>Regularisation: keep the weights small</h2>
+<div class="pair"><div>
+<p>A flexible model can fit noise by using <b>huge, finely balanced weights</b>. Regularisation adds a penalty for large weights to the loss:</p>
+<div class="formula">$$\mathcal L_{\text{reg}}(\theta)=\underbrace{\frac1N\sum_i(\hat y_i-y_i)^2}_{\text{fit the data}}+\underbrace{\lambda\lVert\theta\rVert_2^2}_{\text{stay simple}}$$</div>
+<p>\(\lambda\) is a hyper-parameter: 0 means no penalty, large means “prefer weights close to 0”. On the right, a degree-12 polynomial is fitted to 12 noisy points. Move \(\lambda\) (log scale) and watch two things:</p>
+<ul><li>the curve smooths out, and</li><li>the coefficient bars underneath shrink, from thousands down to small values.</li></ul>
+<p>In gradient descent the penalty adds a term \(2\lambda\theta\) to the gradient, which shrinks every weight a little at every step. This is why it is also called <b>weight decay</b>.</p>
+<div class="callout tf"><b>Transformer link</b>“AdamW”, the standard optimizer for Transformers, is Adam plus <b>W</b>eight decay. Dropout (randomly switching off neurons during training) is another regulariser used in Transformers.</div>
+</div><div class="fig"><h4>Degree-12 fit with L2 penalty</h4>
+<canvas id="c5" width="640" height="280"></canvas>
+<canvas id="c5b" width="640" height="130"></canvas>
+<div class="ctl-row"><span>log₁₀ λ</span><input type="range" id="l5" min="-9" max="1" step="0.1" value="-9"><output id="l5v"></output></div>
+<div class="out" id="o5"></div></div></div>
+
+<h2><span class="n">06</span>Measuring a classifier: beyond accuracy</h2>
+<div class="pair"><div>
+<p>A classifier outputs a score (for example \(\hat p\)), and we choose a <b>threshold</b>: above it, predict “positive”. Every prediction then falls into one of four boxes, the <b>confusion matrix</b>:</p>
+<div class="formula">$$\text{precision}=\frac{TP}{TP+FP}\qquad\text{recall}=\frac{TP}{TP+FN}$$$$F_1=\frac{2\cdot\text{precision}\cdot\text{recall}}{\text{precision}+\text{recall}}$$<span class="cap">Precision: of the cases flagged, how many were real? Recall: of the real cases, how many did we catch?</span></div>
+<p><b>Experiments:</b></p>
+<ol>
+<li>Move the threshold. Recall and precision trade off against each other. The dot moves along the <b>ROC curve</b>.</li>
+<li>Set the positive rate to 1% (e.g. a rare disease). A model that always says “negative” gets 99% accuracy and is useless. <b>Accuracy misleads on imbalanced data.</b></li>
+<li>Increase the separation: a better model pushes the ROC curve to the top-left corner, giving AUC → 1.</li>
+</ol>
+<div class="callout tf"><b>Transformer link</b>LLM evaluation uses the same tools: precision and recall for retrieval in RAG systems, AUC for safety classifiers, and calibration (does “90% sure” mean right 90% of the time?) for model confidence.</div>
+</div><div class="fig"><h4>Score distributions · threshold · ROC</h4>
+<canvas id="c6" width="640" height="220"></canvas>
+<div class="two"><canvas id="c6b" width="320" height="260"></canvas><div id="cm6" style="font-size:13px"></div></div>
+<div class="ctl-row"><span>threshold</span><input type="range" id="th6" min="-3" max="5" step="0.05" value="1"><output id="th6v"></output></div>
+<div class="ctl-row"><span>class separation</span><input type="range" id="d6" min="0" max="4" step="0.05" value="2"><output id="d6v"></output></div>
+<div class="ctl-row"><span>positive rate</span><input type="range" id="pr6" min="0.01" max="0.5" step="0.01" value="0.3"><output id="pr6v"></output></div></div></div>
+
+<h2><span class="n">07</span>Supervised fine-tuning (SFT) of a language model</h2>
+<div class="pair"><div>
+<p>After pre-training, a chatbot is taught to follow instructions with <b>supervised fine-tuning</b>. People write example conversations (prompt → ideal answer), and the model is trained to produce the answer. These are ordinary labelled pairs:</p>
+<div class="formula">$$x=\text{prompt},\qquad y=\text{ideal response}=(y_1,\dots,y_T)$$$$\mathcal L=-\frac1T\sum_{t=1}^{T}\log p_\theta\big(y_t\mid x,\,y_{\lt t}\big)$$</div>
+<ul>
+<li>The model reads the prompt and the correct answer so far (<b>teacher forcing</b>) and must predict the next answer token.</li>
+<li>The loss is applied <b>only to the answer tokens</b>. The prompt tokens are masked, because we want the model to learn to <i>answer</i>, not to write user questions.</li>
+<li>Each answer token is one classification problem over the vocabulary, so a 10-token answer gives 10 supervised examples.</li>
+</ul>
+<p>Click a token on the right to see what the model sees as input and what it must predict.</p>
+<div class="callout tf"><b>Transformer link</b>This is supervised learning with exactly the cross-entropy loss from logistic regression. It is applied to a Transformer, and one example sentence gives many training targets at once.</div>
+</div><div class="fig"><h4>One SFT example, token by token</h4>
+<div id="tok7" style="line-height:2.1"></div>
+<label class="chk" style="margin-top:6px"><input type="checkbox" id="mask7" checked> mask the loss on prompt tokens</label>
+<canvas id="c7" width="640" height="200" style="margin-top:6px"></canvas>
+<div class="ex" id="o7"></div></div></div>
+
+<h2><span class="n">08</span>Summary</h2>
+<div class="pair even"><div>
+<div class="table compact"><table><thead><tr><th>Concept</th><th>Key idea</th><th>In Transformers</th></tr></thead><tbody>
+<tr><td>Labelled pairs</td><td>\((x,y)\) with known answer</td><td>(context, next token); (prompt, answer)</td></tr>
+<tr><td>Regression / classification</td><td>number vs. category</td><td>reward model / next-token head</td></tr>
+<tr><td>Loss</td><td>MSE, cross-entropy</td><td>cross-entropy over the vocabulary</td></tr>
+<tr><td>k-NN, soft k-NN</td><td>look up similar examples</td><td>attention = soft lookup</td></tr>
+<tr><td>Validation</td><td>choose hyper-parameters honestly</td><td>validation loss, scaling laws</td></tr>
+<tr><td>Regularisation</td><td>penalise big weights</td><td>AdamW weight decay, dropout</td></tr>
+<tr><td>Metrics</td><td>precision, recall, AUC</td><td>evals, safety classifiers, RAG retrieval</td></tr>
+</tbody></table></div></div><div>
+<div class="summary"><b>Teach it in one sentence:</b> supervised learning fits a function to examples whose answers are known, by minimising a loss that compares predictions with those answers, while checking on held-out data that it also works on new inputs.</div>
+<p>Next: <a href="/linear-regression">Linear regression</a> and <a href="/logistic-regression">Logistic regression</a> go deep on the two basic supervised models. <a href="/unsupervised-learning">Unsupervised learning</a> covers what to do when there are <i>no</i> labels.</p></div></div>
+
+</div><aside class="lsn-toc"><p>On this page</p><nav></nav></aside></div>
+{% endraw %}{% include "_lesson_scripts.html" %}{% raw %}
+<script>
+(function(){
+var $=L.$,C=L.C,col=L.col,S=L.sigmoid;
+
+/* ---------- 01 click to add ---------- */
+var mode='reg',cls=1,RP=[],CP=[],LG={w1:0,w2:0,b:0};
+function rnd1(){var r=L.rng(Math.floor(Math.random()*1e6)+1);RP=[];CP=[];for(var i=0;i<14;i++){var x=.5+r()*9;RP.push([x,1.5+.7*x+r.g()*1.1])}for(i=0;i<30;i++){var c=i%2;CP.push([(c?6.5:3.5)+r.g()*1.4,(c?6:3.8)+r.g()*1.4,c])}}
+rnd1();
+function trainLog(){var w1=0,w2=0,b=0;if(!CP.length)return;for(var k=0;k<800;k++){var g1=0,g2=0,g0=0;CP.forEach(function(q){var e=S(w1*(q[0]-5)+w2*(q[1]-5)+b)-q[2];g1+=e*(q[0]-5);g2+=e*(q[1]-5);g0+=e});var n=CP.length;w1-=.3*g1/n;w2-=.3*g2/n;b-=.3*g0/n}LG={w1:w1,w2:w2,b:b}}
+function linfit(P){var n=P.length,sx=0,sy=0,sxy=0,sxx=0;P.forEach(function(q){sx+=q[0];sy+=q[1];sxy+=q[0]*q[1];sxx+=q[0]*q[0]});var d=n*sxx-sx*sx;if(n<2||Math.abs(d)<1e-9)return null;var m=(n*sxy-sx*sy)/d;return[m,(sy-m*sx)/n]}
+function draw1(){if(mode==='reg'){var p=L.plot('c1',{x:[0,10],y:[0,10],xl:'x (e.g. flat size)',yl:'y (e.g. price)'}),f=linfit(RP);
+if(f){RP.forEach(function(q){p.seg(q[0],q[1],q[0],f[0]*q[0]+f[1],C.orange,1.5,[3,3])});p.line(function(x){return f[0]*x+f[1]},C.purple,3)}
+RP.forEach(function(q){p.dot(q[0],q[1],C.blue,6)});
+var mse=0;if(f)RP.forEach(function(q){var e=f[0]*q[0]+f[1]-q[1];mse+=e*e});
+$('o1').innerHTML=RP.length+' examples · '+(f?'fit: ŷ = <b>'+f[0].toFixed(2)+'</b>·x + <b>'+f[1].toFixed(2)+'</b> · MSE <b>'+(mse/RP.length).toFixed(2)+'</b> (dashed = residuals)':'add at least 2 points')}
+else{var p=L.plot('c1',{x:[0,10],y:[0,10],xl:'feature x₁',yl:'feature x₂'});
+p.field(function(x,y){var q=S(LG.w1*(x-5)+LG.w2*(y-5)+LG.b);return[q>.5?C.blue:C.orange,Math.abs(q-.5)*.55]},70);
+if(Math.abs(LG.w2)>1e-6)p.line(function(x){return 5-(LG.w1*(x-5)+LG.b)/LG.w2},C.ink,2);
+CP.forEach(function(q){p.dot(q[0],q[1],q[2]?C.blue:C.orange,6)});
+var acc=CP.filter(function(q){return (S(LG.w1*(q[0]-5)+LG.w2*(q[1]-5)+LG.b)>.5?1:0)===q[2]}).length;
+$('o1').innerHTML=CP.length+' examples · logistic regression boundary (black line) · training accuracy <b>'+acc+'/'+CP.length+'</b>'}}
+L.seg('m1',function(v){mode=v;$('cls1').hidden=v!=='cls';if(v==='cls')trainLog();draw1()});
+L.seg('k1',function(v){cls=+v});
+L.pointer('c1',{down:function(x,y,e){var p=L.coords('c1',{x:[0,10],y:[0,10],xl:'a',yl:'b'}),X=p.ix(x),Y=p.iy(y);if(X<0||X>10||Y<0||Y>10){draw1();return}
+if(mode==='reg')RP.push([X,Y]);else{CP.push([X,Y,e.button===2?1-cls:cls]);trainLog()}draw1()}});
+$('clr1').onclick=function(){if(mode==='reg')RP=[];else{CP=[];LG={w1:0,w2:0,b:0}}draw1()};
+$('rnd1').onclick=function(){rnd1();trainLog();draw1()};
+draw1();
+
+/* ---------- 02 losses ---------- */
+var P2=[];(function(){var r=L.rng(4);for(var i=0;i<12;i++){var x=.5+i*.7;P2.push([x,1+.5*x+r.g()*.35])}})();
+function fitL(P,kind){var w=0,b=0;for(var it=0;it<4000;it++){var gw=0,gb=0;P.forEach(function(q){var e=w*q[0]+b-q[1],g=kind==='mse'?2*e:Math.sign(e);gw+=g*q[0];gb+=g});var lr=kind==='mse'?.01:.02*(1-it/4000)+.001;w-=lr*gw/P.length;b-=lr*gb/P.length*4}return[w,b]}
+function draw2(){var p=L.plot('c2a',{x:[-3,3],y:[0,4],xl:'error  ŷ − y',yl:'penalty'});
+p.line(function(e){return e*e},C.purple,2.5);p.line(function(e){return Math.abs(e)},C.green,2.5);p.line(function(e){var a=Math.abs(e);return a<1?.5*e*e:a-.5},C.teal,2,[5,4]);
+p.ptext('MSE (e²)',p.L+10,p.T+16,C.purple,'left','600 12px IBM Plex Sans,system-ui,sans-serif');p.ptext('MAE |e|',p.L+80,p.T+16,C.green,'left','600 12px IBM Plex Sans,system-ui,sans-serif');p.ptext('Huber',p.L+150,p.T+16,C.teal,'left','600 12px IBM Plex Sans,system-ui,sans-serif');
+var oh=L.val('out2'),D=P2.concat([[7.5,oh]]),q=L.plot('c2b',{x:[0,9],y:[0,12],xl:'x',yl:'y'}),a=fitL(D,'mse'),b=fitL(D,'mae');
+q.line(function(x){return a[0]*x+a[1]},C.purple,3);q.line(function(x){return b[0]*x+b[1]},C.green,3);
+P2.forEach(function(t){q.dot(t[0],t[1],C.blue,5)});q.dot(7.5,oh,C.red,8);q.text('outlier',7.7,oh+.3,C.red);
+$('o2').innerHTML='MSE fit slope <b>'+a[0].toFixed(2)+'</b> · MAE fit slope <b>'+b[0].toFixed(2)+'</b> · true slope ≈ 0.50<br>The outlier’s squared error is so large that MSE bends the whole line towards it.'}
+L.bind('out2',draw2);L.reg(draw2);
+
+/* ---------- 03 kNN ---------- */
+var K3=[];(function(){var r=L.rng(21);for(var i=0;i<70;i++){var x=r()*10,y=r()*10,c=(Math.sin(x*.7)*2+5>y)?1:0;if(r()<.1)c=1-c;K3.push([x,y,c])}})();
+var hov=null,cache=null,ck='';
+function knn(x,y,k,soft,t){var d=K3.map(function(q){return[(q[0]-x)*(q[0]-x)+(q[1]-y)*(q[1]-y),q[2]]});
+if(soft){var z=d.map(function(q){return -q[0]/(t*10)}),w=L.softmax(z),s=0;for(var i=0;i<d.length;i++)s+=w[i]*d[i][1];return{p:s,w:w}}
+d.sort(function(a,b){return a[0]-b[0]});var s=0;for(i=0;i<k;i++)s+=d[i][1];return{p:s/k}}
+function draw3(){var k=L.val('k3'),t=L.val('t3'),soft=$('soft3').checked,p=L.plot('c3',{x:[0,10],y:[0,10],xl:'x₁',yl:'x₂'});
+p.field(function(x,y){var q=knn(x,y,k,soft,t).p;return[q>.5?C.blue:C.orange,Math.abs(q-.5)*.6+.05]},soft?55:80);
+if(hov){var X=hov[0],Y=hov[1],r=knn(X,Y,k,soft,t);
+if(soft){K3.forEach(function(q,i){var w=r.w[i];if(w>.01){p.seg(X,Y,q[0],q[1],C.ink,Math.min(5,w*25),[]);}})}
+else{var d=K3.map(function(q){return[(q[0]-X)*(q[0]-X)+(q[1]-Y)*(q[1]-Y),q]}).sort(function(a,b){return a[0]-b[0]});d.slice(0,k).forEach(function(q){p.seg(X,Y,q[1][0],q[1][1],C.ink,1.5,[3,3])});p.ring(X,Y,col('--muted'),p.X(Math.sqrt(d[k-1][0]))-p.X(0),1)}}
+K3.forEach(function(q,i){var big=hov&&soft&&knn(hov[0],hov[1],k,true,t).w[i]>.02;p.dot(q[0],q[1],q[2]?C.blue:C.orange,big?8:5.5)});
+if(hov){p.g.font='22px sans-serif';p.g.fillStyle=C.ink;p.g.textAlign='center';p.g.fillText('★',p.X(hov[0]),p.Y(hov[1])+8);p.g.textAlign='left';var pr=knn(hov[0],hov[1],k,soft,t).p;
+$('o3').innerHTML='query at ('+hov[0].toFixed(1)+', '+hov[1].toFixed(1)+') → P(blue) = <b>'+pr.toFixed(2)+'</b> → predict <b>'+(pr>.5?'blue':'orange')+'</b>'+(soft?'<br>line thickness = attention weight wᵢ (sums to 1 over all points)':'<br>dashed = its '+k+' nearest neighbours')}
+else{var tr=K3.filter(function(q){return (knn(q[0],q[1],k,soft,t).p>.5?1:0)===q[2]}).length;$('o3').innerHTML='training accuracy <b>'+tr+'/'+K3.length+'</b> · hover over the plot to query a point · click to add a blue point (right-click: orange)'}}
+L.bind(['k3','t3'],draw3);$('soft3').onchange=draw3;L.reg(draw3);
+L.pointer('c3',{move:function(x,y){var p=L.coords('c3',{x:[0,10],y:[0,10],xl:'a',yl:'b'});hov=[L.clamp(p.ix(x),0,10),L.clamp(p.iy(y),0,10)];draw3()},
+down:function(x,y,e){var p=L.coords('c3',{x:[0,10],y:[0,10],xl:'a',yl:'b'});K3.push([p.ix(x),p.iy(y),e.button===2?0:1]);draw3()}});
+$('c3').addEventListener('pointerleave',function(){hov=null;draw3()});
+
+/* ---------- 04 validation curve ---------- */
+var seed4=3,TR4=[],VA4=[];
+function data4(){var r=L.rng(seed4),nz=L.val('n4');function mk(n){var A=[];for(var i=0;i<n;i++){var x=r()*10,y=r()*10,c=(Math.hypot(x-5,y-5)<3.2)?1:0;if(r()<nz)c=1-c;A.push([x,y,c])}return A}TR4=mk(120);VA4=mk(200)}
+function err4(k,T,V,self){var e=0;V.forEach(function(q){var d=T.map(function(t){return[(t[0]-q[0])*(t[0]-q[0])+(t[1]-q[1])*(t[1]-q[1]),t[2]]}).sort(function(a,b){return a[0]-b[0]}),s=0;for(var i=0;i<k;i++)s+=d[i][1];if((s/k>.5?1:0)!==q[2])e++});return e/V.length}
+function draw4(){var tr=[],va=[],best=1,bk=1;for(var k=1;k<=61;k+=2){var a=err4(k,TR4,TR4),b=err4(k,TR4,VA4);tr.push([k,a]);va.push([k,b]);if(b<best){best=b;bk=k}}
+var p=L.plot('c4',{x:[0,62],y:[0,.5],xl:'k (number of neighbours)  →  simpler model',yl:'error rate'});
+p.path(tr,C.blue,2.5);p.path(va,C.orange,2.5);p.vl(bk,C.green,[4,3],2);p.dot(bk,best,C.green,7);
+p.text('best k = '+bk,bk+1,best+.05,C.green,'left','600 13px IBM Plex Sans,system-ui,sans-serif');p.ptext('train',p.R-110,p.T+16,C.blue,'left','600 12px IBM Plex Sans,system-ui,sans-serif');p.ptext('validation',p.R-70,p.T+16,C.orange,'left','600 12px IBM Plex Sans,system-ui,sans-serif');
+p.text('overfitting',2,.46,C.red);p.text('underfitting',46,.07,C.red);
+$('o4').innerHTML='k = 1: train error <b>'+(tr[0][1]*100).toFixed(0)+'%</b>, validation <b>'+(va[0][1]*100).toFixed(0)+'%</b> · best k = <b>'+bk+'</b> with validation error <b>'+(best*100).toFixed(1)+'%</b> (label noise alone gives ≈'+(L.val('n4')*100).toFixed(0)+'%)'}
+L.bind('n4',function(){data4();draw4()});data4();L.reg(draw4);$('new4').onclick=function(){seed4++;data4();draw4()};
+
+/* ---------- 05 ridge ---------- */
+var P5=[];(function(){var r=L.rng(9);for(var i=0;i<12;i++){var x=-1+2*i/11+r.g()*.03;P5.push([x,Math.sin(2.5*x)+r.g()*.25])}})();
+function solve(A,b){var n=b.length;A=A.map(function(r){return r.slice()});b=b.slice();for(var i=0;i<n;i++){var mx=i;for(var r=i+1;r<n;r++)if(Math.abs(A[r][i])>Math.abs(A[mx][i]))mx=r;var t=A[i];A[i]=A[mx];A[mx]=t;t=b[i];b[i]=b[mx];b[mx]=t;for(r=i+1;r<n;r++){var f=A[r][i]/A[i][i];for(var c=i;c<n;c++)A[r][c]-=f*A[i][c];b[r]-=f*b[i]}}var x=new Array(n);for(i=n-1;i>=0;i--){var s=b[i];for(c=i+1;c<n;c++)s-=A[i][c]*x[c];x[i]=s/A[i][i]}return x}
+function draw5(){var lam=Math.pow(10,L.val('l5')),d=12,n=d+1,A=[],b=new Array(n).fill(0);for(var i=0;i<n;i++)A.push(new Array(n).fill(0));
+P5.forEach(function(q){var t=[];for(var k=0;k<n;k++)t.push(Math.pow(q[0],k));for(i=0;i<n;i++){b[i]+=t[i]*q[1]/P5.length;for(var j=0;j<n;j++)A[i][j]+=t[i]*t[j]/P5.length}});
+for(i=0;i<n;i++)A[i][i]+=lam+1e-12;var w=solve(A,b),f=function(x){var s=0;for(var k=0;k<n;k++)s+=w[k]*Math.pow(x,k);return s};
+var p=L.plot('c5',{x:[-1.05,1.05],y:[-2,2],xl:'x',yl:'y'});p.line(function(x){return Math.sin(2.5*x)},C.gray,2,[6,5]);p.line(f,C.purple,3);P5.forEach(function(q){p.dot(q[0],q[1],C.blue,6)});
+var k=L.ctx('c5b'),g=k.g,mx=Math.max.apply(null,w.map(Math.abs)),bw=(k.W-60)/n;g.font='11px IBM Plex Mono,ui-monospace,monospace';g.fillStyle=col('--muted');g.fillText('coefficients w₀…w₁₂ (bar height ∝ log size)',8,12);
+w.forEach(function(v,i){var h=Math.max(1,Math.log10(1+Math.abs(v)*100)/Math.log10(1+1e6)*90);g.fillStyle=v>0?C.blue:C.orange;g.fillRect(40+i*bw,k.H-18-h,bw-6,h);g.fillStyle=col('--muted');g.fillText('w'+i,40+i*bw,k.H-4)});
+var l2=w.reduce(function(a,v){return a+v*v},0);$('o5').innerHTML='λ = <b>'+lam.toExponential(1)+'</b> · largest |w| = <b>'+mx.toFixed(mx>100?0:2)+'</b> · ‖w‖² = <b>'+l2.toExponential(2)+'</b>'}
+L.bind('l5',draw5);L.reg(draw5);
+
+/* ---------- 06 ROC ---------- */
+function Phi(x){var t=1/(1+.3275911*Math.abs(x)/Math.SQRT2),y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-.284496736)*t+.254829592)*t*Math.exp(-x*x/2);return .5*(1+(x>=0?y:-y))}
+function draw6(){var th=L.val('th6'),d=L.val('d6'),pr=L.val('pr6'),N=1000,np=pr*N,nn=N-np,pdf=function(x,m){return Math.exp(-(x-m)*(x-m)/2)/2.5066};
+var p=L.plot('c6',{x:[-3,6],y:[0,.42],xl:'model score  (predict positive if score > threshold)',yt:false});
+p.path([[th,0]].concat(Array.from({length:60},function(_,i){var x=th+(6-th)*i/59;return[x,pdf(x,0)*(1-pr)]})).concat([[6,0]]),null,0,null,C.red,.25);
+p.path([[-3,0]].concat(Array.from({length:60},function(_,i){var x=-3+(th+3)*i/59;return[x,pdf(x,d)*pr]})).concat([[th,0]]),null,0,null,C.yellow,.35);
+p.line(function(x){return pdf(x,0)*(1-pr)},C.orange,2.5);p.line(function(x){return pdf(x,d)*pr},C.blue,2.5);p.vl(th,C.ink,[5,4],2);
+p.ptext('negatives',p.L+8,p.T+16,C.orange,'left','600 12px IBM Plex Sans,system-ui,sans-serif');p.ptext('positives',p.L+80,p.T+16,C.blue,'left','600 12px IBM Plex Sans,system-ui,sans-serif');p.ptext('shaded red = false positives, yellow = false negatives',p.L+150,p.T+16,col('--muted'));
+var TP=np*(1-Phi(th-d)),FN=np-TP,FP=nn*(1-Phi(th)),TN=nn-FP,P=TP/(TP+FP||1),R=TP/(np||1),F1=2*P*R/(P+R||1),acc=(TP+TN)/N;
+var q=L.plot('c6b',{x:[0,1],y:[0,1],xl:'false positive rate',yl:'true positive rate',m:[10,10,38,46]}),roc=[],auc=0,prev=null;
+for(var t=6;t>=-4;t-=.05){var pt=[1-Phi(t),1-Phi(t-d)];if(prev)auc+=(pt[0]-prev[0])*(pt[1]+prev[1])/2;prev=pt;roc.push(pt)}
+q.seg(0,0,1,1,col('--line'),1,[4,4]);q.path(roc,C.purple,2.5);q.dot(FP/nn,TP/np,C.ink,6);q.text('AUC = '+auc.toFixed(3),.45,.12,C.purple,'left','600 13px IBM Plex Sans,system-ui,sans-serif');
+var cell=function(v,lab,bg){return'<td style="background:'+bg+';text-align:center;padding:8px"><b style="font-size:16px">'+Math.round(v)+'</b><br><span style="color:var(--muted)">'+lab+'</span></td>'};
+$('cm6').innerHTML='<table style="font-size:12.5px;margin-top:6px"><tr><th></th><th>pred +</th><th>pred −</th></tr><tr><th>true +</th>'+cell(TP,'TP','#e6ecff')+cell(FN,'FN','#fff3bf')+'</tr><tr><th>true −</th>'+cell(FP,'FP','#ffe3e3')+cell(TN,'TN','#f1f3f5')+'</tr></table>'+
+'<div class="out">accuracy <b>'+(acc*100).toFixed(1)+'%</b><br>precision <b>'+(P*100).toFixed(1)+'%</b><br>recall <b>'+(R*100).toFixed(1)+'%</b><br>F1 <b>'+F1.toFixed(3)+'</b><br>“always negative” accuracy: <b>'+((1-pr)*100).toFixed(0)+'%</b></div>'}
+L.bind(['th6','d6','pr6'],draw6);L.reg(draw6);
+
+/* ---------- 07 SFT ---------- */
+var T7=[['User:',0],[' What',0],[' is',0],[' the',0],[' capital',0],[' of',0],[' France',0],['?',0],['\nAssistant:',0],[' The',1],[' capital',1],[' is',1],[' Paris',1],['.',1],['<end>',1]];
+var PR7=[.02,.05,.4,.3,.02,.6,.2,.3,.6,.55,.7,.9,.62,.85,.9],sel7=12;
+function draw7(){var mask=$('mask7').checked;
+$('tok7').innerHTML=T7.map(function(t,i){var c='tok'+(i===sel7?' on':i===sel7+1?' tgt':'')+(t[1]?'':'');return'<span class="'+c+'" data-i="'+i+'" style="cursor:pointer;'+(t[1]?'':'opacity:.75;')+'">'+t[0].replace('\n','↵ ').replace('<','&lt;').replace('>','&gt;')+'</span>'}).join('');
+$('tok7').querySelectorAll('.tok').forEach(function(e){e.onclick=function(){sel7=Math.min(+e.dataset.i,T7.length-2);draw7()}});
+var k=L.ctx('c7'),g=k.g,bw=(k.W-20)/(T7.length-1),tot=0,cnt=0;g.font='10.5px IBM Plex Mono,ui-monospace,monospace';
+for(var i=0;i<T7.length-1;i++){var tgt=T7[i+1],on=!mask||tgt[1],l=-Math.log(PR7[i+1]),h=l/4*120;g.fillStyle=on?(i===sel7?C.orange:C.blue):'#d0d5dd';g.globalAlpha=on?1:.6;g.fillRect(10+i*bw+3,150-h,bw-6,h);g.globalAlpha=1;g.fillStyle=col('--muted');g.save();g.translate(10+i*bw+bw/2,158);g.rotate(.6);g.fillText(tgt[0].trim().slice(0,8),0,0);g.restore();if(on){tot+=l;cnt++}}
+g.fillStyle=col('--muted');g.font='12px IBM Plex Sans,system-ui,sans-serif';g.fillText('loss −log p(target) at each position (grey = masked, no gradient)',10,14);
+var t=T7[sel7+1];$('o7').innerHTML='<b>Input</b> (everything up to the highlighted token): “'+T7.slice(0,sel7+1).map(function(x){return x[0]}).join('').replace('\n',' ')+'”<br><b>Target</b>: “'+t[0].trim()+'” · model gave it p = <b>'+PR7[sel7+1]+'</b> · loss = −log '+PR7[sel7+1]+' = <b>'+(-Math.log(PR7[sel7+1])).toFixed(2)+'</b>'+(mask&&!t[1]?' <span style="color:var(--red)">(masked: prompt token, not trained)</span>':'')+'<br>Average loss over trained positions: <b>'+(tot/cnt).toFixed(3)+'</b> over '+cnt+' tokens'}
+$('mask7').onchange=draw7;L.reg(draw7);
+})();
+</script>
+{% endraw %}{% endblock %}

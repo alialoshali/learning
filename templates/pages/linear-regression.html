@@ -1,0 +1,1699 @@
+{% extends "base.html" %}
+
+{% block h1 %}Linear Regression{% endblock %}
+
+{% block lead %}
+<p class="lead">Linear regression is a statistical method used to predict the value of one variable based on the value of another.</p>
+{% endblock %}
+
+{% block content %}
+<style>
+  .lr-page {
+    --lr-bg: #f6f7f9;
+    --lr-surface: #ffffff;
+    --lr-text: #171b24;
+    --lr-muted: #5d6675;
+    --lr-line: #dfe3ea;
+    --lr-accent: #2f54eb;
+    --lr-accent-soft: #e6ecff;
+    --lr-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --lr-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color: var(--lr-text);
+    font-family: var(--lr-sans);
+    line-height: 1.7;
+  }
+
+  .lr-page *,
+  .lr-page *::before,
+  .lr-page *::after {
+    box-sizing: border-box;
+  }
+
+  .lr-page .lr-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 20px;
+  }
+
+  .lr-page .lr-tag {
+    font-family: var(--lr-mono);
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 99px;
+    background: var(--lr-accent-soft);
+    color: var(--lr-accent);
+  }
+
+  .lr-page .lr-wrap {
+    max-width: 1560px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 190px;
+    gap: 40px;
+    align-items: start;
+  }
+
+  .lr-page article {
+    min-width: 0;
+    max-width: none;
+  }
+
+  .lr-page article h2 {
+    color: var(--lr-text);
+    font-size: 1.6em;
+    letter-spacing: -.02em;
+    line-height: 1.25;
+    margin: 2em 0 .5em;
+  }
+
+  .lr-page article h2:first-child {
+    margin-top: 0;
+  }
+
+  .lr-page article h3 {
+    color: var(--lr-text);
+  }
+
+  .lr-page article p,
+  .lr-page article li {
+    max-width: 75ch;
+  }
+
+  .lr-page code {
+    font-family: var(--lr-mono);
+    font-size: .85em;
+    background: var(--lr-accent-soft);
+    color: var(--lr-accent);
+    padding: .1em .4em;
+    border-radius: 5px;
+  }
+
+  .lr-page .callout {
+    border-left: 3px solid var(--lr-accent);
+    background: var(--lr-surface);
+    border-radius: 0 10px 10px 0;
+    padding: 14px 20px;
+    margin: 1.2em 0;
+  }
+
+  .lr-page .callout b {
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  .lr-page .formula {
+    background: var(--lr-surface);
+    border: 1px solid var(--lr-line);
+    border-radius: 14px;
+    padding: 18px 20px;
+    text-align: center;
+    margin: 1.2em 0;
+    overflow-x: auto;
+  }
+
+  .lr-page .eq {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(1.15rem, 2.2vw, 1.55rem);
+    letter-spacing: .01em;
+    white-space: nowrap;
+    color: var(--lr-text);
+  }
+
+  .lr-page .eq .op,
+  .lr-page .eq .fn {
+    color: var(--lr-accent);
+  }
+
+  .lr-page .eq-note {
+    margin: 9px auto 0;
+    max-width: 72ch;
+    color: var(--lr-muted);
+    font-size: .82rem;
+    line-height: 1.5;
+    text-align: left;
+    font-family: var(--lr-sans);
+  }
+
+  .lr-page .symbols {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+    gap: 7px 12px;
+    margin-top: 11px;
+    text-align: left;
+  }
+
+  .lr-page .symbol {
+    border-top: 1px solid var(--lr-line);
+    padding-top: 7px;
+    font-size: .78rem;
+    color: var(--lr-muted);
+  }
+
+  .lr-page .symbol b {
+    color: var(--lr-text);
+    font-family: var(--lr-mono);
+    font-size: .8rem;
+  }
+
+  .lr-page .source-note {
+    font-size: .78rem;
+    color: var(--lr-muted);
+    margin-top: 8px;
+    text-align: left;
+  }
+
+  .lr-page .source-note b {
+    color: var(--lr-text);
+  }
+
+  .lr-page .table {
+    overflow-x: auto;
+    margin: 1.2em 0;
+    border: 1px solid var(--lr-line);
+    border-radius: 10px;
+    background: var(--lr-surface);
+  }
+
+  .lr-page table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: .9em;
+  }
+
+  .lr-page th,
+  .lr-page td {
+    text-align: left;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--lr-line);
+  }
+
+  .lr-page tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .lr-page th {
+    color: var(--lr-muted);
+    font-weight: 500;
+  }
+
+  .lr-page .lr-aside {
+    position: sticky;
+    top: 92px;
+    align-self: start;
+    font-size: 14px;
+  }
+
+  .lr-page .lr-aside p {
+    margin: 0 0 10px;
+    color: var(--lr-muted);
+    font-weight: 500;
+  }
+
+  .lr-page .lr-aside a {
+    display: block;
+    padding: 5px 0 5px 14px;
+    color: var(--lr-muted);
+    text-decoration: none;
+    border-left: 2px solid var(--lr-line);
+    line-height: 1.4;
+  }
+
+  .lr-page .lr-aside a:hover {
+    color: var(--lr-text);
+  }
+
+  .lr-page .lr-aside a.on {
+    color: var(--lr-accent);
+    border-left-color: var(--lr-accent);
+    font-weight: 500;
+  }
+
+  .lr-page .split {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    gap: 32px;
+    align-items: start;
+    margin: 1em 0 2em;
+  }
+
+  .lr-page .split p {
+    max-width: none;
+  }
+
+  .lr-page .card {
+    background: var(--lr-surface);
+    border: 1px solid var(--lr-line);
+    border-radius: 12px;
+    padding: 14px;
+    position: sticky;
+    top: 84px;
+  }
+
+  .lr-page canvas {
+    width: 100%;
+    height: 250px;
+    display: block;
+  }
+
+  .lr-page #cFlat {
+    height: 230px;
+  }
+
+  .lr-page .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    align-items: center;
+    font-size: 14px;
+    margin-top: 8px;
+    font-family: var(--lr-mono);
+  }
+
+  .lr-page .row label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .lr-page .row input[type=range] {
+    accent-color: var(--lr-accent);
+    width: 140px;
+  }
+
+  .lr-page .row button {
+    font: inherit;
+    font-size: 13px;
+    color: var(--lr-text);
+    background: var(--lr-surface);
+    border: 1px solid var(--lr-line);
+    border-radius: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+  }
+
+  .lr-page .row button:hover {
+    border-color: var(--lr-accent);
+  }
+
+  .lr-page .row button:focus-visible,
+  .lr-page input:focus-visible,
+  .lr-page a:focus-visible {
+    outline: 2px solid var(--lr-accent);
+    outline-offset: 2px;
+  }
+
+  .lr-page .cap {
+    font-size: 13px;
+    color: var(--lr-muted);
+    margin: 4px 0 0;
+    font-family: var(--lr-sans);
+  }
+
+  .lr-page canvas.chart-hover {
+    cursor: crosshair;
+    touch-action: none;
+  }
+
+  .lr-page .step-explain {
+    margin-top: 14px;
+    border-top: 1px solid var(--lr-line);
+    padding-top: 14px;
+    text-align: left;
+  }
+
+  .lr-page .step-explain h3 {
+    margin: 0 0 10px;
+    font-size: .95rem;
+  }
+
+  .lr-page .step-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .lr-page .calc-card {
+    background: var(--lr-bg);
+    border: 1px solid var(--lr-line);
+    border-radius: 9px;
+    padding: 9px 10px;
+  }
+
+  .lr-page .calc-title {
+    font-size: .72rem;
+    color: var(--lr-muted);
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .lr-page .calc-line {
+    font-family: var(--lr-mono);
+    font-size: .73rem;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+  }
+
+  .lr-page .calc-note {
+    color: var(--lr-muted);
+    font-size: .72rem;
+    line-height: 1.45;
+    margin-top: 4px;
+  }
+
+  @media (max-width: 1000px) {
+    .lr-page .lr-wrap {
+      grid-template-columns: 1fr;
+      gap: 0;
+    }
+
+    .lr-page .lr-aside {
+      display: none;
+    }
+
+    .lr-page .split {
+      grid-template-columns: 1fr;
+    }
+
+    .lr-page .card {
+      position: static;
+    }
+  }
+
+  @media (max-width: 700px) {
+    .lr-page .step-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<div class="lr-page">
+  <div class="lr-meta">
+    <span class="lr-tag">Module 1</span>
+    <span class="lr-tag">Supervised learning</span>
+    <span class="lr-tag">Path to Transformers</span>
+  </div>
+
+  <div class="lr-wrap" id="lr-wrap">
+
+    <article id="lr-content">
+
+      <h2>1. The idea: fit a line</h2>
+
+      <div class="split">
+        <div>
+          <p><b>Problem.</b> Imagine you have a bunch of data points—say, the square footage of different houses and their sale prices. If you plot them on a graph. We have pairs (x, y), for example house size and price. We want a rule that predicts y for a new x.</p>
+
+          <p><b>Model.</b> The goal of linear regression is to find a single straight line that minimizes the total distance between itself and all those scattered data points. The algorithm looks at the errors (the vertical distance from each point to the line, called "residuals") and adjusts the line until the sum of those squared errors is as small as possible.</p>
+
+          <div class="formula" aria-label="Linear regression model equation">
+            <div class="eq">ŷ <span class="op">=</span> w·x <span class="op">+</span> b</div>
+            <div class="eq-note"><b>Model:</b> the prediction is the slope-weighted input plus an intercept.</div>
+
+            <div class="symbols">
+              <div class="symbol"><b>ŷ</b> = predicted output</div>
+              <div class="symbol"><b>w</b> = slope / weight</div>
+              <div class="symbol"><b>x</b> = input feature</div>
+              <div class="symbol"><b>b</b> = intercept / bias</div>
+            </div>
+
+            <div class="source-note"><b>Where it came from:</b> the straight-line model used in linear regression; in the lesson it is also the scalar form of a single <code>nn.Linear</code> layer.</div>
+          </div>
+
+          <p><b>Residual.</b> For each point, the vertical gap between the prediction ŷ and the truth y is the error <code>eᵢ = ŷᵢ − yᵢ</code>. The red segments in the plot are residuals.</p>
+
+          <p><b>Try it:</b> drag <code>w</code> and <code>b</code> and watch the MSE. Then press "Best fit". Turn on "squares" to see why big misses hurt so much.</p>
+
+          <div class="callout">
+            <b>Transformer link</b>
+            ŷ = w·x + b is exactly one <code>nn.Linear</code> layer with a single input and output. A transformer is mostly huge stacks of linear layers (Q, K, V projections and the feed-forward block), just with vectors and matrices instead of single numbers.
+          </div>
+        </div>
+
+        <div class="card">
+          <canvas id="c1"></canvas>
+
+          <div class="row">
+            <label>
+              w
+              <input type="range" id="w" min="-1" max="5" step="0.05" value="0.5">
+              <b id="wv"></b>
+            </label>
+
+            <label>
+              b
+              <input type="range" id="b" min="-6" max="10" step="0.1" value="8">
+              <b id="bv"></b>
+            </label>
+          </div>
+
+          <div class="row">
+            <span>MSE = <b id="mse"></b></span>
+            <label><input type="checkbox" id="sq"> squares</label>
+            <button id="best">Best fit</button>
+          </div>
+        </div>
+      </div>
+
+      <h2>2. The loss: one number for "how wrong"</h2>
+
+      <div class="split">
+        <div>
+          <p>To learn, the machine needs a single score of how bad the current line is. We average the squared residuals: the <b>Mean Squared Error</b>.</p>
+
+          <div class="formula" aria-label="Mean squared error equation">
+            <div class="eq">L(w,b) <span class="op">=</span> <span class="fn">1/N</span> · Σᵢ (w·xᵢ <span class="op">+</span> b <span class="op">−</span> yᵢ)²</div>
+            <div class="eq-note"><b>Loss:</b> square each prediction error and average those squared errors over all N examples.</div>
+
+            <div class="symbols">
+              <div class="symbol"><b>L(w,b)</b> = loss for the current parameters</div>
+              <div class="symbol"><b>N</b> = number of training examples</div>
+              <div class="symbol"><b>Σᵢ</b> = add over every example i</div>
+              <div class="symbol"><b>xᵢ</b> = input of example i</div>
+              <div class="symbol"><b>yᵢ</b> = true output of example i</div>
+              <div class="symbol"><b>w·xᵢ+b</b> = prediction ŷᵢ</div>
+              <div class="symbol"><b>²</b> = square the residual</div>
+            </div>
+
+            <div class="source-note"><b>Where it came from:</b> this is the Mean Squared Error definition applied to the linear model ŷᵢ = w·xᵢ+b.</div>
+          </div>
+
+          <p>Why squared? (1) errors never cancel, (2) big misses are punished more, (3) it is smooth, so we can differentiate it.</p>
+
+          <p>Fix <code>b</code> and vary only <code>w</code>: the loss forms a <b>bowl</b> (a parabola). Linear regression has exactly one bottom and no traps. The dot on the right follows the <code>w</code> slider from section 1. Move it to the bottom of the bowl.</p>
+
+          <div class="callout">
+            <b>Transformer link</b>
+            Training is always "define a loss, make it small". Language models use cross-entropy (how surprised the model is by the true next token) instead of MSE, but the loop is identical. Real loss surfaces are not clean bowls, but we still walk downhill on them.
+          </div>
+        </div>
+
+        <div class="card">
+          <canvas id="c2"></canvas>
+
+          <div class="row">
+            <span>Selected <b id="bowlW">w</b> = <b id="bowlWV"></b></span>
+            <span>loss = <b id="bowlL"></b></span>
+          </div>
+
+          <p class="cap">Interactive: move the pointer over the curve or tap it to inspect the slope <i>w</i> and loss. The dot still follows the section-1 slider.</p>
+        </div>
+      </div>
+
+      <h2>3. Learning: gradient descent</h2>
+
+      <div class="split">
+        <div>
+          <p>Instead of guessing, use calculus. The <b>gradient</b> tells us which way the loss rises fastest; we step the opposite way.</p>
+
+          <div class="formula" aria-label="Gradient equations">
+            <div class="eq">∂L/∂w <span class="op">=</span> (2/N) Σᵢ (ŷᵢ <span class="op">−</span> yᵢ)·xᵢ</div>
+            <div class="eq">∂L/∂b <span class="op">=</span> (2/N) Σᵢ (ŷᵢ <span class="op">−</span> yᵢ)</div>
+            <div class="eq-note"><b>Gradient:</b> these derivatives tell us how the loss changes when we change the slope w or bias b.</div>
+
+            <div class="symbols">
+              <div class="symbol"><b>∂L/∂w</b> = slope of the loss with respect to w</div>
+              <div class="symbol"><b>∂L/∂b</b> = slope of the loss with respect to b</div>
+              <div class="symbol"><b>ŷᵢ−yᵢ</b> = residual for example i</div>
+              <div class="symbol"><b>2/N</b> = derivative of the square + averaging factor</div>
+            </div>
+
+            <div class="source-note"><b>Where it came from:</b> differentiate the MSE formula above with respect to w and b using the chain rule.</div>
+          </div>
+
+          <div class="formula" aria-label="Gradient descent update equations">
+            <div class="eq">w <span class="op">←</span> w <span class="op">−</span> η·∂L/∂w</div>
+            <div class="eq">b <span class="op">←</span> b <span class="op">−</span> η·∂L/∂b</div>
+            <div class="eq-note"><b>Update:</b> move each parameter in the direction that lowers the loss.</div>
+
+            <div class="symbols">
+              <div class="symbol"><b>η</b> = learning rate / step size</div>
+              <div class="symbol"><b>←</b> = replace the old value with the new value</div>
+              <div class="symbol"><b>−</b> = move opposite the gradient</div>
+            </div>
+
+            <div class="source-note"><b>Where it came from:</b> the standard gradient-descent rule θ ← θ − η∇L, written separately for w and b.</div>
+          </div>
+
+          <p><code>η</code> (eta) is the <b>learning rate</b>, the step size. The training loop is: predict → compute loss → compute gradient → update → repeat.</p>
+
+          <p><b>Experiment:</b> (1) η = 0.01, press "×50": smooth descent. (2) η = 0.001: painfully slow. (3) η = 0.04: the loss <em>explodes</em>, because steps overshoot the bowl. The graph is MSE by default; you can switch on <b>log₁₀ display</b> only when the range becomes too large to see comfortably.</p>
+
+          <div class="callout">
+            <b>Transformer link</b>
+            This is precisely how transformers train, with three upgrades: gradients come from backpropagation (the chain rule applied automatically), updates use Adam (gradient descent with momentum and per-parameter step sizes), and data arrives in mini-batches. Learning-rate tuning and warmup schedules exist because of the explosion you just saw.
+          </div>
+        </div>
+
+        <div class="card">
+          <canvas id="c3"></canvas>
+          <canvas id="c4" class="chart-hover" style="height:190px"></canvas>
+
+          <div class="row">
+            <span>Selected step <b id="lossStep">0</b></span>
+            <span>MSE = <b id="lossValue">—</b></span>
+            <label><input type="checkbox" id="logLoss"> log₁₀ display</label>
+          </div>
+
+          <p class="cap">The loss is always calculated as MSE. The optional log₁₀ view only changes the vertical display so very large and small values can fit on the same graph.</p>
+
+          <div class="row">
+            <label>
+              η
+              <input type="range" id="lr" min="0.001" max="0.04" step="0.001" value="0.01">
+              <b id="lrv"></b>
+            </label>
+            <button id="s1">Step</button>
+            <button id="s50">×50</button>
+            <button id="rs">Reset</button>
+          </div>
+
+          <div class="row">
+            <span>step <b id="st">0</b></span>
+            <span>w = <b id="gw"></b></span>
+            <span>b = <b id="gb"></b></span>
+            <span>loss = <b id="gl"></b></span>
+          </div>
+
+          <p class="cap">Top: the line moving toward the data. Bottom: loss per step. Select a point to inspect it.</p>
+
+          <div class="step-explain">
+            <h3>One gradient-descent step, calculated from the same data</h3>
+
+            <div class="step-grid">
+              <div class="calc-card">
+                <div class="calc-title">1. Start</div>
+                <div class="calc-line"><span>w</span> = <b id="ex-w0">0.00</b>, <span>b</span> = <b id="ex-b0">0.00</b></div>
+                <div class="calc-line"><span>η</span> = <b id="ex-lr">0.010</b></div>
+              </div>
+
+              <div class="calc-card">
+                <div class="calc-title">2. Compute predictions</div>
+                <div class="calc-line">ŷᵢ = w·xᵢ + b</div>
+                <div class="calc-note">For every training example, plug its xᵢ into the current line.</div>
+              </div>
+
+              <div class="calc-card">
+                <div class="calc-title">3. Compute MSE</div>
+                <div class="calc-line">L = (1/N) Σᵢ (ŷᵢ − yᵢ)²</div>
+                <div class="calc-line">current MSE = <b id="ex-loss0">—</b></div>
+              </div>
+
+              <div class="calc-card">
+                <div class="calc-title">4. Compute gradients</div>
+                <div class="calc-line">∂L/∂w = <b id="ex-dw">—</b></div>
+                <div class="calc-line">∂L/∂b = <b id="ex-db">—</b></div>
+              </div>
+
+              <div class="calc-card">
+                <div class="calc-title">5. Update parameters</div>
+                <div class="calc-line">w ← w − η·∂L/∂w = <b id="ex-w1">—</b></div>
+                <div class="calc-line">b ← b − η·∂L/∂b = <b id="ex-b1">—</b></div>
+              </div>
+
+              <div class="calc-card">
+                <div class="calc-title">6. New point on the graph</div>
+                <div class="calc-line">new MSE = <b id="ex-loss1">—</b></div>
+                <div class="calc-note">That new MSE is the point plotted at the next training step.</div>
+              </div>
+            </div>
+
+            <div class="source-note">
+              <b>Exactly what the graph does:</b>
+              each click on <b>Step</b> repeats steps 2–6 for the current <i>w</i>, <i>b</i>, and learning rate.
+              The line above shows the calculation symbolically; the numbers here are generated from the lesson's actual 25 training examples.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h2>4 Concrete example: use flat size + age to predict price</h2>
+
+      <div class="split">
+        <div>
+          <p><b>Question.</b> Suppose we want to estimate the sale price of a flat. We know two things about each flat:</p>
+
+          <ul>
+            <li><b>Size</b> in square metres (m²).</li>
+            <li><b>Age</b> in years.</li>
+          </ul>
+
+          <p>We use both features at the same time. A simple linear model says:</p>
+
+          <div class="formula" aria-label="Apartment price prediction equation">
+            <div class="eq">Pricê <span class="op">=</span> w<sub>size</sub>·Size <span class="op">+</span> w<sub>age</sub>·Age <span class="op">+</span> b</div>
+            <div class="eq-note"><b>Idea:</b> start with a base price, add an amount for every square metre, and subtract an amount for every year of age.</div>
+
+            <div class="symbols">
+              <div class="symbol"><b>Pricê</b> = predicted price</div>
+              <div class="symbol"><b>Size</b> = flat area in m²</div>
+              <div class="symbol"><b>Age</b> = flat age in years</div>
+              <div class="symbol"><b>w<sub>size</sub></b> = price change per m²</div>
+              <div class="symbol"><b>w<sub>age</sub></b> = price change per year</div>
+              <div class="symbol"><b>b</b> = base/intercept price</div>
+            </div>
+
+            <div class="source-note"><b>Where it came from:</b> this is the same linear model ŷ = w·x + b, extended from one input feature to two input features.</div>
+          </div>
+
+          <div class="callout">
+            <b>Read the signs carefully</b>
+            A positive <code>w<sub>size</sub></code> means a larger flat increases the prediction.
+            A negative <code>w<sub>age</sub></code> means an older flat decreases the prediction, all else equal.
+          </div>
+
+          <h3 style="font-size:1.05em;margin-top:1.4em">A tiny training dataset</h3>
+
+          <div class="table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Flat</th>
+                  <th>Size (m²)</th>
+                  <th>Age (years)</th>
+                  <th>Actual price (€k)</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                <tr><td>A</td><td>50</td><td>30</td><td>235</td></tr>
+                <tr><td>B</td><td>70</td><td>20</td><td>345</td></tr>
+                <tr><td>C</td><td>80</td><td>10</td><td>445</td></tr>
+                <tr><td>D</td><td>100</td><td>15</td><td>500</td></tr>
+                <tr><td>E</td><td>120</td><td>5</td><td>600</td></tr>
+                <tr><td>F</td><td>60</td><td>40</td><td>210</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p><b>Example calculation.</b> Suppose our current model is:</p>
+
+          <div class="formula" aria-label="Concrete apartment model calculation">
+            <div class="eq">Pricê = 4.0·Size − 1.5·Age + 100</div>
+            <div class="eq-note"><b>Units:</b> prices are in thousands of euros (€k), so 4.0 means €4,000 per m² and −1.5 means −€1,500 per year of age.</div>
+          </div>
+
+          <div class="formula" aria-label="Concrete apartment prediction example">
+            <div class="eq">70 m², 20 years</div>
+            <div class="eq">Pricê = 4.0·70 − 1.5·20 + 100</div>
+            <div class="eq"><span class="op">=</span> 280 − 30 + 100 <span class="op">=</span> <b>350 €k</b></div>
+            <div class="eq-note"><b>Interpretation:</b> the model predicts about <b>€350,000</b> for this flat.</div>
+            <div class="source-note"><b>How the number was generated:</b> 70 m² contributes €280k, age contributes −€30k, and the base price contributes €100k.</div>
+          </div>
+
+          <p>This is exactly what a machine-learning model does during prediction: it takes the input features, multiplies each by its learned weight, adds the bias, and produces one number.</p>
+        </div>
+
+        <div class="card">
+          <canvas id="cFlat"></canvas>
+
+          <div class="row">
+            <label>
+              Size
+              <input type="range" id="flatSize" min="30" max="150" step="1" value="70">
+              <b id="flatSizeV"></b> m²
+            </label>
+          </div>
+
+          <div class="row">
+            <label>
+              Age
+              <input type="range" id="flatAge" min="0" max="60" step="1" value="20">
+              <b id="flatAgeV"></b> years
+            </label>
+          </div>
+
+          <div class="row">
+            <span>Predicted price = <b id="flatPred"></b></span>
+          </div>
+
+          <div class="formula" style="margin-top:12px">
+            <div class="eq" id="flatCalc">Pricê = 4.0·70 − 1.5·20 + 100 = 350 €k</div>
+          </div>
+
+          <p class="cap">Drag the two inputs. The prediction updates immediately. The model weights are kept fixed so you can focus on what the <b>inputs</b> do.</p>
+        </div>
+      </div>
+
+      <div class="callout">
+        <b>Why this is a bigger step than the first example</b>
+        With one feature we had <code>ŷ = w·x + b</code>. Now there are two features:
+        <code>Pricê = w<sub>size</sub>·Size + w<sub>age</sub>·Age + b</code>.
+        The structure is unchanged; we simply have one weighted term for each input feature.
+      </div>
+
+      <h2>5. Many features, and the bridge to transformers</h2>
+
+      <div class="split">
+        <div>
+          <p>Real inputs have many features (size, rooms, age…). Stack them into a vector <b>x</b> and the weights into a vector <b>w</b>; for a whole dataset, use a matrix <b>X</b> (one row per example).</p>
+
+          <div class="formula" aria-label="Vector and matrix linear model equations">
+            <div class="eq">ŷ <span class="op">=</span> X·w <span class="op">+</span> b</div>
+            <div class="eq">Y <span class="op">=</span> X·W <span class="op">+</span> b</div>
+            <div class="eq-note"><b>Vector/matrix form:</b> the same linear idea works when an input contains many features or the model has many outputs.</div>
+
+            <div class="symbols">
+              <div class="symbol"><b>X</b> = data matrix (rows = examples)</div>
+              <div class="symbol"><b>w</b> = vector of feature weights</div>
+              <div class="symbol"><b>W</b> = matrix of weights for many outputs</div>
+              <div class="symbol"><b>Y / ŷ</b> = target / predicted outputs</div>
+              <div class="symbol"><b>b</b> = bias term(s)</div>
+            </div>
+
+            <div class="source-note"><b>Where it came from:</b> matrix notation for the same linear model; the scalar equation is recovered when there is one input feature and one output.</div>
+          </div>
+
+          <p>For linear regression only, the minimum has a closed form, the <b>normal equation</b>. Gradient descent is used anyway because it scales to models where no closed form exists.</p>
+
+          <div class="formula" aria-label="Normal equation">
+            <div class="eq">w* <span class="op">=</span> (XᵀX)⁻¹ Xᵀy</div>
+            <div class="eq-note"><b>Normal equation:</b> for ordinary linear regression, this gives the least-squares solution directly instead of iterating with gradient descent.</div>
+
+            <div class="symbols">
+              <div class="symbol"><b>w*</b> = optimal weight vector</div>
+              <div class="symbol"><b>Xᵀ</b> = transpose of X</div>
+              <div class="symbol"><b>(XᵀX)⁻¹</b> = inverse of XᵀX, when it exists</div>
+              <div class="symbol"><b>y</b> = vector of target values</div>
+            </div>
+
+            <div class="source-note"><b>Where it came from:</b> solving the least-squares objective analytically by setting its gradient with respect to w to zero.</div>
+          </div>
+
+          <p><b>Practical rule:</b> scale features to similar ranges (e.g. mean 0, std 1). If one feature is 1000× larger, its bowl direction is steep and the learning rate must shrink for everything, so training crawls. Transformers get the same benefit from LayerNorm.</p>
+        </div>
+
+        <div>
+          <div class="table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Linear regression</th>
+                  <th>Transformer</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                <tr><td>ŷ = X·w + b</td><td><code>nn.Linear</code> layers: Q, K, V, output, feed-forward</td></tr>
+                <tr><td>2 parameters (or a few)</td><td>Millions to billions, same idea</td></tr>
+                <tr><td>MSE loss</td><td>Cross-entropy on the next token</td></tr>
+                <tr><td>Gradient by hand</td><td>Backpropagation (automatic)</td></tr>
+                <tr><td>Gradient descent</td><td>Adam / AdamW, mini-batches</td></tr>
+                <tr><td>Feature scaling</td><td>LayerNorm</td></tr>
+                <tr><td>No nonlinearity</td><td>GELU/ReLU and softmax added</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout">
+            <b>Why nonlinearity matters</b>
+            Stack two linear layers and you get another linear layer: W₂(W₁x) = (W₂W₁)x.
+            Without activation functions, a deep network is secretly just linear regression.
+            Attention's softmax and the feed-forward activation are what give transformers their power.
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <b>Recap to teach</b>
+        1) Model: ŷ = w·x + b.
+        2) Loss: MSE measures error.
+        3) Gradient descent: nudge parameters against the gradient.
+        4) A transformer repeats this same loop with far more parameters, a different loss, and nonlinearities.
+        <br>
+        <span class="source-note">
+          <b>Equation trail:</b>
+          model definition → MSE definition → derivatives of MSE → gradient-descent update.
+          Each equation above identifies its symbols and its mathematical origin.
+        </span>
+      </div>
+
+    </article>
+
+    <aside id="lr-aside" class="lr-aside" aria-label="On this page">
+      <p>On this page</p>
+      <nav id="lr-toc"></nav>
+    </aside>
+
+  </div>
+</div>
+
+<script>
+(function () {
+  var $ = function (i) { return document.getElementById(i); };
+  var sizeEl = $('flatSize'), ageEl = $('flatAge');
+
+  if (sizeEl && ageEl) {
+    var sizeWeight = 4.0;
+    var ageWeight = -1.5;
+    var bias = 100.0;
+
+    function setupFlatCanvas() {
+      var c = $('cFlat');
+      var d = devicePixelRatio || 1;
+      var w = c.clientWidth, h = c.clientHeight;
+
+      c.width = w * d;
+      c.height = h * d;
+
+      var g = c.getContext('2d');
+      g.setTransform(d, 0, 0, d, 0, 0);
+      g.clearRect(0, 0, w, h);
+
+      return { g: g, w: w, h: h };
+    }
+
+    function drawFlat() {
+      var c = setupFlatCanvas();
+      var g = c.g, W = c.w, H = c.h;
+      var size = +sizeEl.value;
+      var age = +ageEl.value;
+      var pred = sizeWeight * size + ageWeight * age + bias;
+
+      var pageStyle = getComputedStyle(document.querySelector('.lr-page'));
+      var text = pageStyle.getPropertyValue('--lr-text').trim();
+      var muted = pageStyle.getPropertyValue('--lr-muted').trim();
+      var line = pageStyle.getPropertyValue('--lr-line').trim();
+      var accent = pageStyle.getPropertyValue('--lr-accent').trim();
+
+      var parts = [
+        { label: 'Size contribution', value: sizeWeight * size, note: size + ' × 4.0' },
+        { label: 'Age contribution', value: ageWeight * age, note: age + ' × −1.5' },
+        { label: 'Base price', value: bias, note: 'b = 100' }
+      ];
+
+      var maxAbs = Math.max(
+        100,
+        Math.abs(parts[0].value),
+        Math.abs(parts[1].value)
+      );
+
+      var barStart = 155;
+      var barEnd = W - 18;
+      var scale = (barEnd - barStart) / maxAbs;
+
+      g.fillStyle = text;
+      g.font = '600 13px sans-serif';
+      g.fillText('Where the prediction comes from', 12, 22);
+
+      parts.forEach(function (p, idx) {
+        var y = 60 + idx * 48;
+
+        g.fillStyle = muted;
+        g.font = '11px sans-serif';
+        g.fillText(p.label, 12, y - 10);
+
+        g.strokeStyle = line;
+        g.beginPath();
+        g.moveTo(barStart, y);
+        g.lineTo(barEnd, y);
+        g.stroke();
+
+        g.fillStyle = accent;
+        g.fillRect(
+          barStart,
+          y - 7,
+          Math.max(2, Math.abs(p.value) * scale),
+          14
+        );
+
+        g.fillStyle = text;
+        g.font = '11px monospace';
+        g.fillText(
+          (p.value >= 0 ? '+' : '') + p.value.toFixed(1) + ' €k',
+          barStart + Math.max(2, Math.abs(p.value) * scale) + 6,
+          y + 4
+        );
+
+        g.fillStyle = muted;
+        g.font = '10px sans-serif';
+        g.fillText(p.note, barStart, y + 16);
+      });
+
+      g.fillStyle = text;
+      g.font = '700 15px sans-serif';
+      g.fillText(
+        'Predicted price: ' + pred.toFixed(1) + ' €k',
+        12,
+        H - 13
+      );
+
+      $('flatSizeV').textContent = size;
+      $('flatAgeV').textContent = age;
+      $('flatPred').textContent =
+        '€' + Math.round(pred * 1000).toLocaleString();
+
+      $('flatCalc').innerHTML =
+        'Pricê = 4.0·' + size +
+        ' − 1.5·' + age +
+        ' + 100 = <b>' +
+        pred.toFixed(1) +
+        ' €k</b>';
+    }
+
+    sizeEl.addEventListener('input', drawFlat);
+    ageEl.addEventListener('input', drawFlat);
+    addEventListener('resize', drawFlat);
+
+    drawFlat();
+  }
+})();
+
+/* ---------- Lesson widgets ---------- */
+(function () {
+  var $ = function (i) { return document.getElementById(i); };
+  var X = [], Y = [], N = 25, s = 7, i;
+
+  function rnd() {
+    s = (s * 16807) % 2147483647;
+    return s / 2147483647;
+  }
+
+  for (i = 0; i < N; i++) {
+    var x = 0.4 + rnd() * 9.2;
+    X.push(x);
+    Y.push(
+      2 * x +
+      1 +
+      (rnd() + rnd() + rnd() - 1.5) * 4
+    );
+  }
+
+  function mse(w, b) {
+    var t = 0, e;
+
+    for (var k = 0; k < N; k++) {
+      e = w * X[k] + b - Y[k];
+      t += e * e;
+    }
+
+    return t / N;
+  }
+
+  function best() {
+    var mx = 0, my = 0, k, c = 0, v = 0;
+
+    for (k = 0; k < N; k++) {
+      mx += X[k] / N;
+      my += Y[k] / N;
+    }
+
+    for (k = 0; k < N; k++) {
+      c += (X[k] - mx) * (Y[k] - my);
+      v += (X[k] - mx) * (X[k] - mx);
+    }
+
+    return [c / v, my - c / v * mx];
+  }
+
+  function col(n) {
+    return getComputedStyle(
+      document.querySelector('.lr-page')
+    ).getPropertyValue(n).trim();
+  }
+
+  function setup(id) {
+    var c = $(id);
+    var d = devicePixelRatio || 1;
+    var w = c.clientWidth;
+    var h = c.clientHeight;
+
+    c.width = w * d;
+    c.height = h * d;
+
+    var g = c.getContext('2d');
+    g.setTransform(d, 0, 0, d, 0, 0);
+    g.clearRect(0, 0, w, h);
+    g.font = '11px sans-serif';
+
+    return { g: g, w: w, h: h };
+  }
+
+  function drawFit(id, w, b, sq) {
+    var c = setup(id);
+    var g = c.g, W = c.w, H = c.h, v;
+
+    var tx = function (x) {
+      return 40 + x / 10 * (W - 52);
+    };
+
+    var ty = function (y) {
+      return H - 24 - (y + 4) / 30 * (H - 38);
+    };
+
+    g.strokeStyle = col('--lr-line');
+    g.fillStyle = col('--lr-muted');
+    g.lineWidth = 1;
+
+    for (v = 0; v <= 10; v += 2) {
+      g.beginPath();
+      g.moveTo(tx(v), 8);
+      g.lineTo(tx(v), H - 24);
+      g.stroke();
+      g.fillText(v, tx(v) - 3, H - 9);
+    }
+
+    for (v = 0; v <= 24; v += 8) {
+      g.beginPath();
+      g.moveTo(40, ty(v));
+      g.lineTo(W - 12, ty(v));
+      g.stroke();
+      g.fillText(v, 12, ty(v) + 3);
+    }
+
+    g.fillText('x', W - 10, H - 9);
+    g.fillText('y', 4, 12);
+
+    for (var k = 0; k < N; k++) {
+      var px = tx(X[k]);
+      var py = ty(Y[k]);
+      var pr = ty(w * X[k] + b);
+      var d = Math.abs(pr - py);
+
+      g.strokeStyle = g.fillStyle = '#e5484d';
+
+      if (sq) {
+        g.globalAlpha = .2;
+        g.fillRect(px, Math.min(py, pr), d, d);
+        g.globalAlpha = 1;
+      }
+
+      g.beginPath();
+      g.moveTo(px, py);
+      g.lineTo(px, pr);
+      g.stroke();
+    }
+
+    g.fillStyle = col('--lr-accent');
+
+    for (k = 0; k < N; k++) {
+      g.beginPath();
+      g.arc(tx(X[k]), ty(Y[k]), 3.5, 0, 6.3);
+      g.fill();
+    }
+
+    g.strokeStyle = '#12a594';
+    g.lineWidth = 3;
+    g.beginPath();
+    g.moveTo(tx(0), ty(b));
+    g.lineTo(tx(10), ty(w * 10 + b));
+    g.stroke();
+  }
+
+  var bowlState = {
+    w: 0,
+    b: 0,
+    hoverW: null
+  };
+
+  function drawBowl(w, b, hoverW) {
+    var c = setup('c2');
+    var g = c.g, W = c.w, H = c.h;
+    var pts = [], mx = 0, k, wv;
+
+    var canvas = $('c2');
+    canvas.classList.add('chart-hover');
+
+    bowlState.w = w;
+    bowlState.b = b;
+    bowlState.hoverW =
+      hoverW == null ? bowlState.hoverW : hoverW;
+
+    for (k = 0; k <= 100; k++) {
+      wv = -1 + k * 0.06;
+
+      var l = mse(wv, b);
+
+      pts.push(l);
+
+      if (l > mx) {
+        mx = l;
+      }
+    }
+
+    var tx = function (v) {
+      return 40 + (v + 1) / 6 * (W - 52);
+    };
+
+    var ty = function (l) {
+      return H - 24 - l / mx * (H - 38);
+    };
+
+    g.strokeStyle = col('--lr-line');
+    g.fillStyle = col('--lr-muted');
+    g.lineWidth = 1;
+
+    for (var v = -1; v <= 5; v++) {
+      g.beginPath();
+      g.moveTo(tx(v), 8);
+      g.lineTo(tx(v), H - 24);
+      g.stroke();
+      g.fillText(v, tx(v) - 3, H - 9);
+    }
+
+    g.fillText('w', W - 10, H - 9);
+    g.fillText('L', 12, 14);
+
+    g.strokeStyle = col('--lr-accent');
+    g.lineWidth = 3;
+    g.beginPath();
+
+    pts.forEach(function (l, idx) {
+      var X0 = tx(-1 + idx * 0.06);
+
+      if (idx) {
+        g.lineTo(X0, ty(l));
+      } else {
+        g.moveTo(X0, ty(l));
+      }
+    });
+
+    g.stroke();
+
+    var selectedW =
+      bowlState.hoverW == null ? w : bowlState.hoverW;
+
+    var selectedL = mse(selectedW, b);
+
+    g.strokeStyle = col('--lr-muted');
+    g.setLineDash([4, 4]);
+    g.lineWidth = 1;
+
+    g.beginPath();
+    g.moveTo(tx(selectedW), 8);
+    g.lineTo(tx(selectedW), H - 24);
+    g.stroke();
+
+    g.setLineDash([]);
+
+    g.fillStyle = '#e5484d';
+    g.beginPath();
+    g.arc(tx(selectedW), ty(selectedL), 6, 0, 6.3);
+    g.fill();
+
+    $('bowlWV').textContent = selectedW.toFixed(2);
+    $('bowlL').textContent = selectedL.toFixed(2);
+  }
+
+  function bowlPointer(ev) {
+    var c = $('c2');
+    var r = c.getBoundingClientRect();
+    var x = ev.clientX - r.left;
+    var W = r.width;
+
+    var plotLeft = 40;
+    var plotRight = W - 12;
+
+    if (x < plotLeft || x > plotRight) {
+      return;
+    }
+
+    var nextW =
+      -1 +
+      (x - plotLeft) /
+      (plotRight - plotLeft) *
+      6;
+
+    nextW = Math.max(-1, Math.min(5, nextW));
+
+    nextW = Math.round(nextW / 0.05) * 0.05;
+
+    bowlState.hoverW = nextW;
+
+    drawBowl(
+      bowlState.w,
+      bowlState.b,
+      nextW
+    );
+  }
+
+  function upd1() {
+    var w = +$('w').value;
+    var b = +$('b').value;
+
+    $('wv').textContent = w.toFixed(2);
+    $('bv').textContent = b.toFixed(1);
+    $('mse').textContent = mse(w, b).toFixed(2);
+
+    drawFit('c1', w, b, $('sq').checked);
+    drawBowl(w, b);
+  }
+
+  ['w', 'b', 'sq'].forEach(function (id) {
+    $(id).oninput = upd1;
+  });
+
+  $('best').onclick = function () {
+    var p = best();
+
+    $('w').value = p[0];
+    $('b').value = p[1];
+
+    bowlState.hoverW = null;
+
+    upd1();
+  };
+
+  $('c2').addEventListener(
+    'pointermove',
+    bowlPointer
+  );
+
+  $('c2').addEventListener(
+    'pointerdown',
+    function (ev) {
+      ev.preventDefault();
+      bowlPointer(ev);
+    }
+  );
+
+  $('c2').addEventListener(
+    'pointerleave',
+    function () {
+      bowlState.hoverW = null;
+      drawBowl(
+        bowlState.w,
+        bowlState.b,
+        null
+      );
+    }
+  );
+
+  var gw, gb, hist;
+
+  function reset() {
+    gw = 0;
+    gb = 0;
+    hist = [mse(0, 0)];
+    lossHoverStep = null;
+    upd2();
+  }
+
+  function step() {
+    var lr = +$('lr').value;
+    var dw = 0;
+    var db = 0;
+    var e;
+
+    for (var k = 0; k < N; k++) {
+      e = gw * X[k] + gb - Y[k];
+
+      dw += 2 * e * X[k] / N;
+      db += 2 * e / N;
+    }
+
+    gw -= lr * dw;
+    gb -= lr * db;
+
+    var l = mse(gw, gb);
+
+    hist.push(
+      isFinite(l)
+        ? Math.min(l, 1e12)
+        : 1e12
+    );
+  }
+
+  var lossHoverStep = null;
+
+  function drawLoss() {
+    var c = setup('c4');
+    var g = c.g, W = c.w, H = c.h;
+
+    var useLog = $('logLoss').checked;
+
+    var vals = hist.map(function (l) {
+      return useLog
+        ? Math.log10(Math.max(l, 1e-3))
+        : l;
+    });
+
+    var lo = Math.min.apply(null, vals);
+    var hi = Math.max.apply(null, vals);
+
+    var pad = (hi - lo) * .08;
+
+    if (!isFinite(pad) || pad < .001) {
+      pad = useLog
+        ? .2
+        : Math.max(1, Math.abs(hi) * .08);
+    }
+
+    lo -= pad;
+    hi += pad;
+
+    var n = Math.max(1, hist.length - 1);
+
+    var tx = function (k) {
+      return 40 + k / n * (W - 52);
+    };
+
+    var ty = function (v) {
+      return H - 22 -
+        (v - lo) /
+        Math.max(.001, hi - lo) *
+        (H - 34);
+    };
+
+    g.strokeStyle = col('--lr-line');
+    g.fillStyle = col('--lr-muted');
+    g.lineWidth = 1;
+
+    g.strokeRect(
+      40,
+      8,
+      W - 52,
+      H - 30
+    );
+
+    g.fillText(
+      useLog ? 'log₁₀(MSE)' : 'MSE',
+      4,
+      12
+    );
+
+    g.fillText(
+      'step',
+      W - 30,
+      H - 6
+    );
+
+    g.fillText(
+      formatLossAxis(hi, useLog),
+      8,
+      22
+    );
+
+    g.fillText(
+      formatLossAxis(lo, useLog),
+      8,
+      H - 24
+    );
+
+    g.strokeStyle = '#e5484d';
+    g.lineWidth = 2.5;
+    g.beginPath();
+
+    vals.forEach(function (v, k) {
+      if (k) {
+        g.lineTo(tx(k), ty(v));
+      } else {
+        g.moveTo(tx(k), ty(v));
+      }
+    });
+
+    g.stroke();
+
+    var selected =
+      lossHoverStep == null
+        ? hist.length - 1
+        : Math.max(
+            0,
+            Math.min(
+              hist.length - 1,
+              lossHoverStep
+            )
+          );
+
+    var sx = tx(selected);
+    var sy = ty(vals[selected]);
+
+    g.strokeStyle = col('--lr-muted');
+    g.setLineDash([4, 4]);
+    g.lineWidth = 1;
+
+    g.beginPath();
+    g.moveTo(sx, 8);
+    g.lineTo(sx, H - 22);
+    g.stroke();
+
+    g.setLineDash([]);
+
+    g.fillStyle = '#e5484d';
+    g.beginPath();
+    g.arc(sx, sy, 5.5, 0, 6.3);
+    g.fill();
+
+    $('lossStep').textContent = selected;
+
+    $('lossValue').textContent =
+      hist[selected] >= 1e12
+        ? 'exploded'
+        : hist[selected].toFixed(4);
+  }
+
+  function formatLossAxis(v, useLog) {
+    if (useLog) {
+      return v.toFixed(1);
+    }
+
+    if (Math.abs(v) >= 1000) {
+      return v.toExponential(1);
+    }
+
+    if (Math.abs(v) >= 10) {
+      return v.toFixed(0);
+    }
+
+    return v.toFixed(2);
+  }
+
+  function lossPointer(ev) {
+    var c = $('c4');
+    var r = c.getBoundingClientRect();
+    var x = ev.clientX - r.left;
+    var W = r.width;
+
+    var left = 40;
+    var right = W - 12;
+
+    if (
+      x < left ||
+      x > right ||
+      hist.length < 1
+    ) {
+      return;
+    }
+
+    var n = Math.max(1, hist.length - 1);
+
+    lossHoverStep = Math.round(
+      (x - left) /
+      (right - left) *
+      n
+    );
+
+    lossHoverStep = Math.max(
+      0,
+      Math.min(n, lossHoverStep)
+    );
+
+    drawLoss();
+  }
+
+  function upd2() {
+    $('lrv').textContent =
+      (+$('lr').value).toFixed(3);
+
+    $('st').textContent =
+      hist.length - 1;
+
+    var l = hist[hist.length - 1];
+
+    $('gw').textContent =
+      Math.abs(gw) > 1e6
+        ? '∞'
+        : gw.toFixed(2);
+
+    $('gb').textContent =
+      Math.abs(gb) > 1e6
+        ? '∞'
+        : gb.toFixed(2);
+
+    $('gl').textContent =
+      l >= 1e12
+        ? 'exploded'
+        : l.toFixed(2);
+
+    drawFit(
+      'c3',
+      isFinite(gw) ? gw : 0,
+      isFinite(gb) ? gb : 0,
+      false
+    );
+
+    drawLoss();
+    updateStepExplanation();
+  }
+
+  function updateStepExplanation() {
+    var lr = +$('lr').value;
+    var w0 = gw;
+    var b0 = gb;
+
+    var dw = 0;
+    var db = 0;
+    var e;
+
+    for (var k = 0; k < N; k++) {
+      e = w0 * X[k] + b0 - Y[k];
+
+      dw += 2 * e * X[k] / N;
+      db += 2 * e / N;
+    }
+
+    var loss0 = mse(w0, b0);
+
+    var w1 = w0 - lr * dw;
+    var b1 = b0 - lr * db;
+
+    var loss1 = mse(w1, b1);
+
+    $('ex-w0').textContent =
+      isFinite(w0)
+        ? w0.toFixed(4)
+        : '∞';
+
+    $('ex-b0').textContent =
+      isFinite(b0)
+        ? b0.toFixed(4)
+        : '∞';
+
+    $('ex-lr').textContent =
+      lr.toFixed(3);
+
+    $('ex-loss0').textContent =
+      isFinite(loss0)
+        ? loss0.toFixed(4)
+        : 'exploded';
+
+    $('ex-dw').textContent =
+      isFinite(dw)
+        ? dw.toFixed(4)
+        : '∞';
+
+    $('ex-db').textContent =
+      isFinite(db)
+        ? db.toFixed(4)
+        : '∞';
+
+    $('ex-w1').textContent =
+      isFinite(w1)
+        ? w1.toFixed(4)
+        : '∞';
+
+    $('ex-b1').textContent =
+      isFinite(b1)
+        ? b1.toFixed(4)
+        : '∞';
+
+    $('ex-loss1').textContent =
+      isFinite(loss1)
+        ? loss1.toFixed(4)
+        : 'exploded';
+  }
+
+  $('s1').onclick = function () {
+    lossHoverStep = null;
+    step();
+    upd2();
+  };
+
+  $('s50').onclick = function () {
+    lossHoverStep = null;
+
+    for (var k = 0; k < 50; k++) {
+      step();
+    }
+
+    upd2();
+  };
+
+  $('rs').onclick = function () {
+    lossHoverStep = null;
+    reset();
+  };
+
+  $('lr').oninput = upd2;
+  $('logLoss').onchange = drawLoss;
+
+  $('c4').addEventListener(
+    'pointermove',
+    lossPointer
+  );
+
+  $('c4').addEventListener(
+    'pointerdown',
+    function (ev) {
+      ev.preventDefault();
+      lossPointer(ev);
+    }
+  );
+
+  $('c4').addEventListener(
+    'pointerleave',
+    function () {
+      lossHoverStep = null;
+      drawLoss();
+    }
+  );
+
+  function all() {
+    upd1();
+    upd2();
+  }
+
+  addEventListener('resize', all);
+
+  reset();
+  upd1();
+})();
+
+/* ---------- Page TOC ---------- */
+(function () {
+  var toc = document.getElementById('lr-toc');
+  var heads = document.querySelectorAll('#lr-content h2');
+  var aside = document.getElementById('lr-aside');
+
+  if (!toc || !aside || !heads.length) {
+    if (aside) {
+      aside.style.display = 'none';
+    }
+    return;
+  }
+
+  heads.forEach(function (h, i) {
+    h.id = h.id || 'lr-sec-' + (i + 1);
+
+    var a = document.createElement('a');
+    a.href = '#' + h.id;
+    a.textContent = h.textContent;
+
+    toc.appendChild(a);
+  });
+
+  var links = toc.querySelectorAll('a');
+
+  function onScroll() {
+    var cur = 0;
+
+    heads.forEach(function (h, i) {
+      if (h.getBoundingClientRect().top < 140) {
+        cur = i;
+      }
+    });
+
+    links.forEach(function (l, i) {
+      l.classList.toggle('on', i === cur);
+    });
+  }
+
+  addEventListener('scroll', onScroll, {
+    passive: true
+  });
+
+  onScroll();
+})();
+</script>
+
+{% endblock %}

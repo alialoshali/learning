@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+{% block head %}{% include "_lesson_head.html" %}{% endblock %}
+{% block h1 %}Clustering{% endblock %}
+{% block lead %}<div class="meta"><span class="tag">unsupervised</span><span class="tag">distance · similarity</span><span class="tag">k-means</span><span class="tag">DBSCAN</span><span class="tag">soft assignment → attention</span></div>
+<p class="lead"><b>Why it exists:</b> we often have lots of data and no labels, and want to know <b>which items naturally belong together</b>: customer segments, topics in documents, species in gene data, colours in an image. Clustering splits data into groups so that items in a group are similar. Along the way it introduces two ideas every Transformer depends on: <b>measuring similarity between vectors</b>, and <b>softly assigning</b> a point to the things it is similar to, which is attention.</p>{% endblock %}
+{% block content %}{% raw %}
+<div class="lsn"><div class="lsn-main">
+
+<h2><span class="n">01</span>Similarity: distance, dot product, cosine</h2>
+<div class="pair"><div>
+<p>“Similar” must become a number. For two vectors \(a,b\in\mathbb R^d\) there are three standard choices:</p>
+<div class="formula">$$\text{distance: }\lVert a-b\rVert=\sqrt{\textstyle\sum_j(a_j-b_j)^2}$$$$\text{dot product: }a\cdot b=\textstyle\sum_j a_jb_j\qquad\text{cosine: }\cos\theta=\frac{a\cdot b}{\lVert a\rVert\,\lVert b\rVert}$$</div>
+<ul>
+<li><b>Distance</b>: small = similar. Depends on position and length.</li>
+<li><b>Dot product</b>: large = similar. Grows with the lengths of both vectors.</li>
+<li><b>Cosine</b>: only the <b>angle</b>. +1 = same direction, 0 = unrelated (perpendicular), −1 = opposite.</li>
+</ul>
+<p>They are tied together by \(\lVert a-b\rVert^2=\lVert a\rVert^2+\lVert b\rVert^2-2\,a\cdot b\): for vectors of equal length, a small distance means a large dot product.</p>
+<p><b>Try it:</b> drag the tips of the two arrows on the right and watch the three numbers change. Make them point the same way but with different lengths: cosine stays at 1, distance does not.</p>
+<div class="callout tf"><b>Transformer link</b>Attention scores are <b>dot products</b> \(q\cdot k\) between a query and every key, divided by \(\sqrt{d}\) to keep their size under control. Retrieval for RAG ranks documents by <b>cosine</b> similarity of embeddings.</div>
+</div><div class="fig"><h4>Drag the arrow tips</h4>
+<canvas id="c1" class="click" width="640" height="400"></canvas>
+<div class="out" id="o1"></div></div></div>
+
+<h2><span class="n">02</span>k-means, step by step</h2>
+<div class="pair"><div>
+<p><b>k-means</b> represents each of \(K\) clusters by its centre (the <b>centroid</b> \(\mu_k\)) and alternates two simple steps:</p>
+<ol>
+<li><b>Assign</b>: each point joins its nearest centroid.
+<div class="formula">$$c_i=\arg\min_{k}\ \lVert x_i-\mu_k\rVert^2$$</div></li>
+<li><b>Update</b>: each centroid moves to the mean of its points.
+<div class="formula">$$\mu_k=\frac{1}{|S_k|}\sum_{i\in S_k}x_i$$</div></li>
+</ol>
+<p>Repeat until nothing changes. The coloured background shows which centroid “owns” each region (a Voronoi diagram). The boundaries are always straight lines halfway between two centroids.</p>
+<p><b>Try it:</b> press <b>Step</b> repeatedly and read the phase label. Then try <b>Run</b>, change \(K\), click to add points, and switch datasets. On “moons” and “rings” k-means fails, because it can only make round, convex groups.</p>
+</div><div class="fig"><h4 id="h2">k-means</h4>
+<div class="seg" id="ds2"><button data-v="blobs" class="on">blobs</button><button data-v="aniso">stretched</button><button data-v="moons">moons</button><button data-v="rings">rings</button><button data-v="unif">no structure</button></div>
+<canvas id="c2" class="click" width="640" height="400"></canvas>
+<canvas id="c2b" width="640" height="110"></canvas>
+<div class="ctl-row"><span>K clusters</span><input type="range" id="k2" min="1" max="8" step="1" value="3"><output id="k2v"></output></div>
+<div class="btns"><button id="st2">Step</button><button id="run2">Run ▶</button><button id="ini2">New random start ↻</button><button id="pp2">k-means++ start</button></div>
+<div class="out" id="o2"></div></div></div>
+
+<h2><span class="n">03</span>The objective, convergence and bad starts</h2>
+<div class="pair"><div>
+<p>k-means is minimising one number, the <b>within-cluster sum of squares</b> (inertia):</p>
+<div class="formula">$$J(c,\mu)=\sum_{i=1}^{N}\lVert x_i-\mu_{c_i}\rVert^2$$</div>
+<ul>
+<li>The <b>assign</b> step minimises \(J\) over \(c\) with \(\mu\) fixed.</li>
+<li>The <b>update</b> step minimises \(J\) over \(\mu\) with \(c\) fixed (the mean is the point with the smallest total squared distance).</li>
+</ul>
+<p>So \(J\) never goes up, and the algorithm always stops. This is <b>coordinate descent</b>. But it only finds a <b>local</b> minimum: a bad start can leave two centroids sharing one blob while another blob is split.</p>
+<p><b>Try it:</b> press <b>30 restarts</b> to run k-means from 30 random starts on the 5-blob data. The histogram shows how often each final \(J\) occurs. <b>k-means++</b> picks starting centroids far apart (each new one chosen with probability ∝ squared distance to the nearest existing one) and finds the best solution far more often.</p>
+<div class="callout tf"><b>Transformer link</b>Training a neural network is also descent on a non-convex loss with many local minima. There we rely on a good random <b>initialisation</b> (Xavier/He) and on noise from mini-batches, the same lesson as k-means++.</div>
+</div><div class="fig"><h4>Final J over 30 restarts</h4>
+<canvas id="c3" width="640" height="230"></canvas>
+<div class="two"><canvas id="c3a" width="320" height="250"></canvas><canvas id="c3b" width="320" height="250"></canvas></div>
+<div class="btns"><button id="go3r">30 restarts (random)</button><button id="go3p">30 restarts (k-means++)</button></div>
+<div class="out" id="o3"></div></div></div>
+
+<h2><span class="n">04</span>How many clusters? Elbow and silhouette</h2>
+<div class="pair"><div>
+<p>\(K\) is a hyper-parameter, and \(J\) cannot choose it: \(J\) always gets smaller as \(K\) grows, reaching 0 when every point is its own cluster. Two common tools:</p>
+<ul>
+<li><b>Elbow method</b>: plot \(J\) against \(K\). Choose the \(K\) where the curve bends and adding clusters stops helping much.</li>
+<li><b>Silhouette score</b>: for each point, compare \(a\) = mean distance to its own cluster with \(b\) = mean distance to the nearest other cluster:
+<div class="formula">$$s_i=\frac{b_i-a_i}{\max(a_i,b_i)}\in[-1,1]$$</div>
+The average \(s\) is high when clusters are tight and well separated. Pick the \(K\) with the highest score.</li>
+</ul>
+<p>Change the dataset in section 02 and look at both curves here. On “no structure” there is no clear elbow and silhouettes are low. That is an honest answer: <b>there are no real clusters</b>.</p>
+<div class="callout"><b>Teaching tip</b>Clustering always returns <i>some</i> grouping, even for random noise. Always check whether the groups are real (silhouette, stability across restarts, domain sense).</div>
+</div><div class="fig"><h4>Model selection for K (dataset from section 02)</h4>
+<canvas id="c4" width="640" height="220"></canvas>
+<canvas id="c4b" width="640" height="200"></canvas>
+<div class="out" id="o4"></div></div></div>
+
+<h2><span class="n">05</span>Beyond k-means: density-based clustering (DBSCAN)</h2>
+<div class="pair"><div>
+<p>k-means assumes round clusters of similar size. <b>DBSCAN</b> defines a cluster as a <b>dense region</b> of points, whatever its shape:</p>
+<ul>
+<li>A point is a <b>core</b> point if at least <code>minPts</code> points lie within radius \(\varepsilon\).</li>
+<li>Core points within \(\varepsilon\) of each other are joined into the same cluster, and their neighbours are added as <b>border</b> points.</li>
+<li>Everything else is <b>noise</b> (grey). No \(K\) is needed.</li>
+</ul>
+<p><b>Try it:</b> on moons and rings, DBSCAN finds the true shapes where k-means fails. Make \(\varepsilon\) too small and everything becomes noise; too large and everything merges into one cluster.</p>
+<div class="table compact"><table><thead><tr><th></th><th>k-means</th><th>DBSCAN</th></tr></thead><tbody>
+<tr><td>needs K</td><td>yes</td><td>no (needs ε, minPts)</td></tr>
+<tr><td>cluster shape</td><td>round, convex</td><td>any shape</td></tr>
+<tr><td>outliers</td><td>forced into a cluster</td><td>labelled noise</td></tr>
+<tr><td>cost</td><td>fast, \(O(NKd)\) per step</td><td>\(O(N\log N)\) with an index</td></tr>
+</tbody></table></div>
+</div><div class="fig"><h4>DBSCAN vs. k-means on the same data</h4>
+<div class="seg" id="ds5"><button data-v="moons" class="on">moons</button><button data-v="rings">rings</button><button data-v="blobs">blobs</button></div>
+<div class="two"><canvas id="c5a" width="320" height="320"></canvas><canvas id="c5b" width="320" height="320"></canvas></div>
+<div class="ctl-row"><span>radius ε</span><input type="range" id="e5" min="0.15" max="2" step="0.05" value="0.6"><output id="e5v"></output></div>
+<div class="ctl-row"><span>minPts</span><input type="range" id="m5" min="2" max="15" step="1" value="5"><output id="m5v"></output></div>
+<div class="out" id="o5"></div></div></div>
+
+<h2><span class="n">06</span>Soft assignment: k-means meets attention</h2>
+<div class="pair"><div>
+<p>k-means makes a <b>hard</b> choice: each point belongs 100% to one centroid. A <b>soft</b> version gives every point a weight for every centroid, using a softmax over negative squared distances with temperature \(T\):</p>
+<div class="formula">$$r_{ik}=\frac{\exp\!\big(-\lVert x_i-\mu_k\rVert^2/T\big)}{\sum_{j}\exp\!\big(-\lVert x_i-\mu_j\rVert^2/T\big)}\qquad\mu_k=\frac{\sum_i r_{ik}\,x_i}{\sum_i r_{ik}}$$</div>
+<p>As \(T\to0\) this becomes ordinary k-means. With larger \(T\), points near a boundary are shared. (A Gaussian mixture model trained with the EM algorithm is the probabilistic version of the same idea.)</p>
+<p>Now compare it with attention:</p>
+<div class="formula">$$\text{Attention}(q)=\sum_k\underbrace{\mathrm{softmax}_k\!\Big(\frac{q\cdot k_k}{\sqrt d}\Big)}_{\text{weights, sum to 1}}\;v_k$$</div>
+<p>Same structure: a <b>similarity</b> between the query and each key, a <b>softmax</b> to turn similarities into weights, then a <b>weighted average</b>. Hover over any point to see its weight bars.</p>
+<div class="callout tf"><b>Transformer link</b>An attention head performs a soft, learned “which group of tokens am I most similar to?” lookup at every layer. Some research even shows trained attention heads behaving like soft clustering of tokens. Lowering the temperature (or scaling up \(q\cdot k\)) makes attention “harder”, just as here.</div>
+</div><div class="fig"><h4>Soft k-means · colour = mixture of cluster colours</h4>
+<canvas id="c6" class="click" width="640" height="400"></canvas>
+<div class="ctl-row"><span>temperature T</span><input type="range" id="t6" min="0.1" max="30" step="0.1" value="6"><output id="t6v"></output></div>
+<div class="out" id="o6"></div></div></div>
+
+<h2><span class="n">07</span>Application: colour quantisation (vector quantisation)</h2>
+<div class="pair"><div>
+<p>Cluster the <b>pixels</b> of an image by colour: each pixel is a 3-D vector (R, G, B). With \(K\) clusters, replace every pixel by its centroid colour. The image is now stored as a <b>palette of K colours</b> plus one small index per pixel, which is a big compression.</p>
+<p>This is called <b>vector quantisation</b>: map a continuous vector to the nearest entry of a learned <b>codebook</b>.</p>
+<p><b>Try it:</b> lower \(K\). At \(K=2\) to \(4\) you get a poster-like image; around 16 colours most viewers can hardly tell the difference.</p>
+<div class="callout tf"><b>Transformer link</b>Vector quantisation is how images and audio are turned into <b>discrete tokens</b> for Transformers: VQ-VAE / VQ-GAN codebooks map each image patch to one of a few thousand codebook vectors, and the Transformer then models those token ids like words. Vector databases for RAG use the same trick (product quantisation) to search billions of embeddings quickly.</div>
+</div><div class="fig"><h4>Image colours clustered with k-means</h4>
+<div class="two"><canvas id="c7a" width="300" height="300"></canvas><canvas id="c7b" width="300" height="300"></canvas></div>
+<canvas id="c7c" width="640" height="40" style="margin-top:6px"></canvas>
+<div class="ctl-row"><span>K colours</span><input type="range" id="k7" min="1" max="24" step="1" value="6"><output id="k7v"></output></div>
+<div class="out" id="o7"></div></div></div>
+
+<h2><span class="n">08</span>Summary</h2>
+<div class="pair even"><div>
+<div class="table compact"><table><thead><tr><th>Concept</th><th>Formula</th><th>In Transformers</th></tr></thead><tbody>
+<tr><td>Similarity</td><td>\(a\cdot b,\ \cos\theta\)</td><td>attention scores \(q\cdot k/\sqrt d\)</td></tr>
+<tr><td>Hard assignment</td><td>\(\arg\min_k\lVert x-\mu_k\rVert\)</td><td>VQ tokenisation of images/audio</td></tr>
+<tr><td>Soft assignment</td><td>\(\mathrm{softmax}(-\lVert x-\mu\rVert^2/T)\)</td><td>attention weights</td></tr>
+<tr><td>Weighted mean</td><td>\(\sum r_{ik}x_i/\sum r_{ik}\)</td><td>attention output \(\sum w_k v_k\)</td></tr>
+<tr><td>Local minima, init</td><td>k-means++</td><td>weight initialisation</td></tr>
+</tbody></table></div></div><div>
+<div class="summary"><b>Teach it in one sentence:</b> clustering groups unlabelled points by similarity. k-means alternates “assign each point to its nearest centre” and “move each centre to its points’ mean”, and its soft, softmax-weighted version is the same computation as attention.</div>
+<p>Next: <a href="/pca">PCA</a> looks for the main <i>directions</i> in data rather than groups.</p></div></div>
+
+</div><aside class="lsn-toc"><p>On this page</p><nav></nav></aside></div>
+{% endraw %}{% include "_lesson_scripts.html" %}{% raw %}
+<script>
+(function(){
+var $=L.$,C=L.C,col=L.col,PAL=L.PAL;
+function d2(a,b){var s=0;for(var i=0;i<a.length;i++)s+=(a[i]-b[i])*(a[i]-b[i]);return s}
+
+/* ---------- datasets ---------- */
+function makeData(kind,seed){var r=L.rng(seed||1),P=[],i;
+if(kind==='blobs'){var c=[[2.5,2.5],[7.5,3],[5,7.5]];for(i=0;i<150;i++){var k=i%3;P.push([c[k][0]+r.g()*.8,c[k][1]+r.g()*.8])}}
+if(kind==='blobs5'){c=[[2,2],[8,2],[5,5],[2,8],[8,8]];for(i=0;i<200;i++){k=i%5;P.push([c[k][0]+r.g()*.6,c[k][1]+r.g()*.6])}}
+if(kind==='aniso'){c=[[3,3],[6.5,5],[4,7.8]];for(i=0;i<150;i++){k=i%3;var u=r.g()*1.6,v=r.g()*.3;P.push([c[k][0]+u*.8-v*.6,c[k][1]+u*.6+v*.8])}}
+if(kind==='moons'){for(i=0;i<200;i++){var t=r()*Math.PI;if(i%2)P.push([3.2+2.4*Math.cos(t)+r.g()*.2,4.6+2.4*Math.sin(t)+r.g()*.2]);else P.push([5.6-2.4*Math.cos(t)+r.g()*.2,5.6-2.4*Math.sin(t)+r.g()*.2])}}
+if(kind==='rings'){for(i=0;i<220;i++){t=r()*6.2832;var rad=i%2?3.8:1.5;P.push([5+rad*Math.cos(t)+r.g()*.18,5+rad*Math.sin(t)+r.g()*.18])}}
+if(kind==='unif'){for(i=0;i<150;i++)P.push([.5+r()*9,.5+r()*9])}
+return P.map(function(p){return[L.clamp(p[0],.1,9.9),L.clamp(p[1],.1,9.9)]})}
+function assign(P,M){return P.map(function(p){var b=0,bd=1e18;M.forEach(function(m,k){var d=d2(p,m);if(d<bd){bd=d;b=k}});return b})}
+function update(P,A,M){return M.map(function(m,k){var s=[0,0],n=0;P.forEach(function(p,i){if(A[i]===k){s[0]+=p[0];s[1]+=p[1];n++}});return n?[s[0]/n,s[1]/n]:m.slice()})}
+function inertia(P,A,M){var s=0;P.forEach(function(p,i){s+=d2(p,M[A[i]])});return s}
+function initRandom(P,K,r){var M=[];for(var k=0;k<K;k++)M.push(P[r.int(P.length)].slice());return M}
+function initPP(P,K,r){var M=[P[r.int(P.length)].slice()];while(M.length<K){var D=P.map(function(p){return Math.min.apply(null,M.map(function(m){return d2(p,m)}))}),s=D.reduce(function(a,b){return a+b},0),u=r()*s,a=0;for(var i=0;i<P.length;i++){a+=D[i];if(a>=u){M.push(P[i].slice());break}}if(i===P.length)M.push(P[P.length-1].slice())}return M}
+function kmeans(P,K,init,r){var M=init(P,K,r),A;for(var it=0;it<60;it++){A=assign(P,M);var M2=update(P,A,M);var moved=M2.some(function(m,k){return d2(m,M[k])>1e-12});M=M2;if(!moved)break}A=assign(P,M);return{A:A,M:M,J:inertia(P,A,M)}}
+
+/* ---------- 01 vectors ---------- */
+var VA=[6,2.2],VB=[3.2,5.4],drag=null,O=[0,0];
+function draw1(){var p=L.plot('c1',{x:[-1,8],y:[-1,7],xl:'dimension 1',yl:'dimension 2'});
+p.seg(-1,0,8,0,col('--muted'),1);p.seg(0,-1,0,7,col('--muted'),1);
+var ang=Math.acos(L.clamp(L.dot(VA,VB)/(L.norm(VA)*L.norm(VB)),-1,1)),a1=Math.atan2(VA[1],VA[0]),a2=Math.atan2(VB[1],VB[0]),g=p.g;
+g.beginPath();g.strokeStyle=C.purple;g.lineWidth=2;g.arc(p.X(0),p.Y(0),40,-Math.max(a1,a2),-Math.min(a1,a2));g.stroke();
+p.seg(VA[0],VA[1],VB[0],VB[1],C.green,2,[5,4]);p.arrow(0,0,VA[0],VA[1],C.blue,3);p.arrow(0,0,VB[0],VB[1],C.orange,3);
+p.dot(VA[0],VA[1],C.blue,9);p.dot(VB[0],VB[1],C.orange,9);p.text('a',VA[0]+.2,VA[1]+.2,C.blue,'left','700 16px IBM Plex Sans,system-ui,sans-serif');p.text('b',VB[0]+.2,VB[1]+.2,C.orange,'left','700 16px IBM Plex Sans,system-ui,sans-serif');
+p.text('θ = '+(ang*180/Math.PI).toFixed(0)+'°',.6,.4,C.purple,'left','600 13px IBM Plex Sans,system-ui,sans-serif');var mid=[(VA[0]+VB[0])/2,(VA[1]+VB[1])/2];p.text('‖a − b‖',mid[0]+.15,mid[1],C.green,'left','600 13px IBM Plex Sans,system-ui,sans-serif');
+var dt=L.dot(VA,VB),cs=dt/(L.norm(VA)*L.norm(VB));
+$('o1').innerHTML='a = ('+VA.map(function(v){return v.toFixed(1)})+') · b = ('+VB.map(function(v){return v.toFixed(1)})+')<br>distance ‖a−b‖ = <b>'+Math.sqrt(d2(VA,VB)).toFixed(2)+'</b> · dot a·b = <b>'+dt.toFixed(2)+'</b> · cosine = <b>'+cs.toFixed(3)+'</b>'}
+var cf1={x:[-1,8],y:[-1,7],xl:'a',yl:'b'};
+L.pointer('c1',{down:function(x,y){var p=L.coords('c1',cf1),X=p.ix(x),Y=p.iy(y);drag=Math.hypot(X-VA[0],Y-VA[1])<Math.hypot(X-VB[0],Y-VB[1])?VA:VB;drag[0]=X;drag[1]=Y;draw1()},
+move:function(x,y,down){if(!down||!drag)return;var p=L.coords('c1',cf1);drag[0]=L.clamp(p.ix(x),-.9,7.9);drag[1]=L.clamp(p.iy(y),-.9,6.9);draw1()},up:function(){drag=null}});
+L.reg(draw1);
+
+/* ---------- 02 k-means step by step ---------- */
+var ds='blobs',P2=makeData('blobs',3),K2=3,r2=L.rng(5),S={M:[],A:null,phase:'init',J:[],it:0};
+function restart(pp){K2=L.val('k2');S={M:(pp?initPP:initRandom)(P2,K2,r2),A:null,phase:'assign',J:[],it:0}}
+function step2(){if(S.phase==='assign'){S.A=assign(P2,S.M);S.J.push(inertia(P2,S.A,S.M));S.phase='update'}else{var M2=update(P2,S.A,S.M),moved=M2.some(function(m,k){return d2(m,S.M[k])>1e-10});S.prev=S.M;S.M=M2;S.it++;S.phase=moved?'assign':'done';if(!moved)S.phase='done'}}
+function draw2(){var p=L.plot('c2',{x:[0,10],y:[0,10],xl:'x₁',yl:'x₂'});
+p.field(function(x,y){var b=0,bd=1e9;S.M.forEach(function(m,k){var d=(x-m[0])*(x-m[0])+(y-m[1])*(y-m[1]);if(d<bd){bd=d;b=k}});return[PAL[b%8],.13]},90);
+if(S.A&&S.phase==='update')P2.forEach(function(q,i){var m=S.M[S.A[i]];p.seg(q[0],q[1],m[0],m[1],PAL[S.A[i]%8],.6)});
+P2.forEach(function(q,i){p.dot(q[0],q[1],S.A?PAL[S.A[i]%8]:col('--muted'),4.5)});
+if(S.prev&&S.phase!=='update')S.M.forEach(function(m,k){if(S.prev[k])p.arrow(S.prev[k][0],S.prev[k][1],m[0],m[1],C.ink,2)});
+S.M.forEach(function(m,k){p.dot(m[0],m[1],PAL[k%8],11,C.ink);p.text('μ'+(k+1),m[0]+.25,m[1]+.25,C.ink,'left','700 13px IBM Plex Sans,system-ui,sans-serif')});
+var ph={assign:'next: ASSIGN each point to its nearest centroid',update:'next: UPDATE each centroid to the mean of its points (lines show membership)',done:'converged: no centroid moved ✓',init:''}[S.phase];
+p.ptext(ph,p.L+8,p.T+16,C.ink,'left','600 12.5px IBM Plex Sans,system-ui,sans-serif');
+var q=L.plot('c2b',{x:[0,Math.max(6,S.J.length)],y:[0,Math.max(1,S.J[0]||1)*1.05],xl:'iteration',yl:'J'});q.path(S.J.map(function(v,i){return[i+1,v]}),C.purple,2.5);S.J.forEach(function(v,i){q.dot(i+1,v,C.purple,3.5)});
+$('o2').innerHTML='iteration <b>'+S.it+'</b> · inertia J = <b>'+(S.J.length?S.J[S.J.length-1].toFixed(1):'—')+'</b> · '+P2.length+' points · click the plot to add a point';draw4()}
+L.seg('ds2',function(v){ds=v;P2=makeData(v,3);restart(false);draw2();resetEl()});
+L.bind('k2',function(){restart(false);draw2();resetEl()});
+$('st2').onclick=function(){if(S.phase!=='done')step2();draw2()};
+L.runner('run2',function(){if(S.phase==='done')return false;step2();draw2()},350);
+$('ini2').onclick=function(){restart(false);draw2()};$('pp2').onclick=function(){restart(true);draw2()};
+L.pointer('c2',{down:function(x,y){var p=L.coords('c2',{x:[0,10],y:[0,10],xl:'a',yl:'b'});P2.push([L.clamp(p.ix(x),0,10),L.clamp(p.iy(y),0,10)]);if(S.A){S.phase='assign'}resetEl();draw2()}});
+
+/* ---------- 03 restarts ---------- */
+var P3=makeData('blobs5',8),R3=null;
+function restarts(pp){var r=L.rng(pp?77:13),out=[];for(var i=0;i<30;i++)out.push(kmeans(P3,5,pp?initPP:initRandom,r));R3={res:out,pp:pp};draw3()}
+function mini(id,res,title){var p=L.plot(id,{x:[0,10],y:[0,10],grid:false,ticks:false,m:[22,4,4,4]});P3.forEach(function(q,i){p.dot(q[0],q[1],PAL[res.A[i]],3.5,false)});res.M.forEach(function(m,k){p.dot(m[0],m[1],PAL[k],8,C.ink)});p.ptext(title,6,15,C.ink,'left','600 12px IBM Plex Sans,system-ui,sans-serif')}
+function draw3(){var p=L.plot('c3',{x:[0,1],y:[0,30],xl:'final inertia J (lower = better)',yl:'count',xt:false});
+if(!R3){p.ptext('press a button below',p.L+20,p.T+30,col('--muted'));return}
+var Js=R3.res.map(function(r){return r.J}),mn=Math.min.apply(null,Js),mx=Math.max.apply(null,Js);mx=Math.max(mx,mn*1.05);
+var nb=12,cnt=new Array(nb).fill(0);Js.forEach(function(j){cnt[Math.min(nb-1,Math.floor((j-mn)/(mx-mn+1e-9)*nb))]++});
+var q=L.plot('c3',{x:[mn-.02*(mx-mn),mx+.02*(mx-mn)],y:[0,30],xl:'final inertia J (lower = better)',yl:'runs'});
+cnt.forEach(function(c,b){q.rect(mn+b*(mx-mn)/nb,0,mn+(b+.9)*(mx-mn)/nb,c,b===0?C.green:C.orange,.85)});
+var best=R3.res[Js.indexOf(mn)],worst=R3.res[Js.indexOf(mx)];mini('c3a',best,'best J = '+mn.toFixed(0));mini('c3b',worst,'worst J = '+mx.toFixed(0));
+var good=Js.filter(function(j){return j<mn*1.02}).length;$('o3').innerHTML=(R3.pp?'k-means++':'random')+' starts: <b>'+good+'/30</b> runs reached the best solution · worst run is <b>'+(mx/mn).toFixed(1)+'×</b> worse'}
+$('go3r').onclick=function(){restarts(false)};$('go3p').onclick=function(){restarts(true)};L.reg(draw3);
+
+/* ---------- 04 elbow & silhouette ---------- */
+var EL=null;function resetEl(){EL=null}
+function sil(P,A,K){if(K<2)return 0;var s=0;P.forEach(function(p,i){var sum=new Array(K).fill(0),cnt=new Array(K).fill(0);P.forEach(function(q,j){if(i===j)return;var d=Math.sqrt(d2(p,q));sum[A[j]]+=d;cnt[A[j]]++});
+var a=cnt[A[i]]?sum[A[i]]/cnt[A[i]]:0,b=1e9;for(var k=0;k<K;k++)if(k!==A[i]&&cnt[k])b=Math.min(b,sum[k]/cnt[k]);s+=b===1e9?0:(b-a)/Math.max(a,b)});return s/P.length}
+function draw4(){if(!EL){var r=L.rng(4);EL=[];for(var k=1;k<=8;k++){var best=null;for(var t=0;t<4;t++){var res=kmeans(P2,k,initPP,r);if(!best||res.J<best.J)best=res}EL.push([k,best.J,sil(P2,best.A,k)])}}
+var p=L.plot('c4',{x:[.5,8.5],y:[0,EL[0][1]*1.05],xl:'K',yl:'inertia J'});p.path(EL.map(function(e){return[e[0],e[1]]}),C.purple,2.5);EL.forEach(function(e){p.dot(e[0],e[1],C.purple,5)});
+var cur=L.val('k2');p.vl(cur,C.ink,[3,3]);
+var q=L.plot('c4b',{x:[.5,8.5],y:[0,.8],xl:'K',yl:'silhouette'}),bs=EL.slice(1).reduce(function(a,b){return b[2]>a[2]?b:a});
+EL.slice(1).forEach(function(e){q.rect(e[0]-.3,0,e[0]+.3,Math.max(0,e[2]),e===bs?C.green:C.blue,.8)});q.vl(cur,C.ink,[3,3]);
+$('o4').innerHTML='dataset: <b>'+ds+'</b> · best silhouette at K = <b>'+bs[0]+'</b> (score '+bs[2].toFixed(2)+') · dashed line = K chosen in section 02'}
+L.reg(function(){});
+
+/* ---------- 05 DBSCAN ---------- */
+var ds5='moons',P5=makeData('moons',3);
+function dbscan(P,eps,mp){var n=P.length,lab=new Array(n).fill(-2),e2=eps*eps,c=-1,core=new Array(n).fill(false);
+var nb=P.map(function(p){var a=[];P.forEach(function(q,j){if(d2(p,q)<=e2)a.push(j)});return a});nb.forEach(function(a,i){core[i]=a.length>=mp});
+for(var i=0;i<n;i++){if(lab[i]!==-2||!core[i])continue;c++;var st=[i];lab[i]=c;while(st.length){var j=st.pop();if(!core[j])continue;nb[j].forEach(function(k){if(lab[k]===-2||lab[k]===-1){lab[k]=c;st.push(k)}})}}
+for(i=0;i<n;i++)if(lab[i]===-2)lab[i]=-1;return{lab:lab,core:core,nc:c+1}}
+function draw5(){var eps=L.val('e5'),mp=L.val('m5'),res=dbscan(P5,eps,mp),K=ds5==='blobs'?3:2,km=kmeans(P5,K,initPP,L.rng(2));
+var p=L.plot('c5a',{x:[0,10],y:[0,10],grid:false,ticks:false,m:[22,4,4,4]});P5.forEach(function(q,i){var l=res.lab[i];p.dot(q[0],q[1],l<0?'#ced4da':PAL[l%8],res.core[i]?4.5:3,false)});
+p.ring(P5[0][0],P5[0][1],C.ink,p.X(eps)-p.X(0),1);p.ptext('DBSCAN: '+res.nc+' clusters',6,15,C.ink,'left','600 12px IBM Plex Sans,system-ui,sans-serif');
+var q=L.plot('c5b',{x:[0,10],y:[0,10],grid:false,ticks:false,m:[22,4,4,4]});P5.forEach(function(t,i){q.dot(t[0],t[1],PAL[km.A[i]],3.5,false)});km.M.forEach(function(m,k){q.dot(m[0],m[1],PAL[k],7,C.ink)});q.ptext('k-means, K = '+K,6,15,C.ink,'left','600 12px IBM Plex Sans,system-ui,sans-serif');
+var noise=res.lab.filter(function(l){return l<0}).length;$('o5').innerHTML='DBSCAN found <b>'+res.nc+'</b> clusters and <b>'+noise+'</b> noise points (grey) · circle = ε-neighbourhood of one point'}
+L.seg('ds5',function(v){ds5=v;P5=makeData(v,3);draw5()});L.bind(['e5','m5'],draw5);L.reg(draw5);
+
+/* ---------- 06 soft k-means ---------- */
+var P6=makeData('blobs',11),M6=kmeans(P6,3,initPP,L.rng(3)).M,hov6=null;
+function resp(p,T){return L.softmax(M6.map(function(m){return -d2(p,m)/T}))}
+function mix(w){var c=w.reduce(function(a,v,k){var q=L.rgb(PAL[k]);return[a[0]+v*q[0],a[1]+v*q[1],a[2]+v*q[2]]},[0,0,0]);return'rgb('+c.map(Math.round).join(',')+')'}
+function draw6(){var T=L.val('t6'),p=L.plot('c6',{x:[0,10],y:[0,10],xl:'x₁',yl:'x₂'});
+p.field(function(x,y){return[mix(resp([x,y],T)),.22]},70);
+P6.forEach(function(q){p.dot(q[0],q[1],mix(resp(q,T)),5)});
+if(hov6){var w=resp(hov6,T);M6.forEach(function(m,k){p.seg(hov6[0],hov6[1],m[0],m[1],PAL[k],1+w[k]*8)});p.dot(hov6[0],hov6[1],C.ink,7)}
+M6.forEach(function(m,k){p.dot(m[0],m[1],PAL[k],12,C.ink);p.text('μ'+(k+1),m[0]+.3,m[1]+.3,C.ink,'left','700 13px IBM Plex Sans,system-ui,sans-serif')});
+var ent=0;P6.forEach(function(q){resp(q,T).forEach(function(v){if(v>1e-9)ent-=v*Math.log(v)})});
+if(hov6){var w=resp(hov6,T);$('o6').innerHTML='weights r = softmax(−‖x−μ‖²/T) = [ '+w.map(function(v,k){return'<b style="color:'+PAL[k]+'">'+v.toFixed(3)+'</b>'}).join(', ')+' ] (sum = 1)<br>line thickness ∝ weight'}
+else $('o6').innerHTML='average assignment entropy <b>'+(ent/P6.length).toFixed(3)+'</b> nats (0 = hard k-means, '+Math.log(3).toFixed(2)+' = completely uncertain) · hover over the plot'}
+L.bind('t6',draw6);L.reg(draw6);
+L.pointer('c6',{move:function(x,y){var p=L.coords('c6',{x:[0,10],y:[0,10],xl:'a',yl:'b'});hov6=[L.clamp(p.ix(x),0,10),L.clamp(p.iy(y),0,10)];draw6()}});$('c6').addEventListener('pointerleave',function(){hov6=null;draw6()});
+
+/* ---------- 07 colour quantisation ---------- */
+var S7=300,IMG=null,PIX=[];
+(function(){var k=L.ctx('c7a'),g=k.g,gr=g.createLinearGradient(0,0,0,170);gr.addColorStop(0,'#ff922b');gr.addColorStop(.6,'#f783ac');gr.addColorStop(1,'#748ffc');g.fillStyle=gr;g.fillRect(0,0,300,300);
+g.fillStyle='#ffe066';g.beginPath();g.arc(150,150,48,0,7);g.fill();var sea=g.createLinearGradient(0,170,0,300);sea.addColorStop(0,'#1864ab');sea.addColorStop(1,'#0b2e4f');g.fillStyle=sea;g.fillRect(0,170,300,130);
+for(var i=0;i<14;i++){g.fillStyle='rgba(255,224,102,'+(.7-i*.045)+')';g.fillRect(150-40+i*3+((i*37)%11),178+i*8,80-i*6,3)}
+g.fillStyle='#212529';g.beginPath();g.moveTo(0,170);g.lineTo(40,120);g.lineTo(75,150);g.lineTo(110,105);g.lineTo(140,170);g.fill();g.fillStyle='#2b8a3e';g.beginPath();g.moveTo(190,170);g.lineTo(240,110);g.lineTo(300,160);g.lineTo(300,170);g.fill();
+var off=document.createElement('canvas');off.width=S7;off.height=S7;var og=off.getContext('2d');og.drawImage(k.c,0,0,k.c.width,k.c.height,0,0,S7,S7);IMG=og.getImageData(0,0,S7,S7);
+var r=L.rng(3);for(i=0;i<2500;i++){var p=r.int(S7*S7)*4;PIX.push([IMG.data[p],IMG.data[p+1],IMG.data[p+2]])}
+g.fillStyle='#fff';g.font='600 12px IBM Plex Sans,system-ui,sans-serif';g.fillText('original',6,16)})();
+function kmeans3(P,K){var r=L.rng(5),M=[P[r.int(P.length)].slice()];while(M.length<K){var D=P.map(function(p){return Math.min.apply(null,M.map(function(m){return d2(p,m)}))}),s=D.reduce(function(a,b){return a+b},0),u=r()*s,a=0;for(var i=0;i<P.length;i++){a+=D[i];if(a>=u)break}M.push(P[Math.min(i,P.length-1)].slice())}
+for(var it=0;it<15;it++){var S=M.map(function(){return[0,0,0,0]});P.forEach(function(p){var b=0,bd=1e18;M.forEach(function(m,k){var d=d2(p,m);if(d<bd){bd=d;b=k}});S[b][0]+=p[0];S[b][1]+=p[1];S[b][2]+=p[2];S[b][3]++});M=M.map(function(m,k){return S[k][3]?[S[k][0]/S[k][3],S[k][1]/S[k][3],S[k][2]/S[k][3]]:m})}return M}
+function draw7(){var K=L.val('k7'),M=kmeans3(PIX,K),out=new ImageData(S7,S7),err=0;
+for(var p=0;p<IMG.data.length;p+=4){var px=[IMG.data[p],IMG.data[p+1],IMG.data[p+2]],b=0,bd=1e18;for(var k=0;k<K;k++){var d=d2(px,M[k]);if(d<bd){bd=d;b=k}}err+=bd;out.data[p]=M[b][0];out.data[p+1]=M[b][1];out.data[p+2]=M[b][2];out.data[p+3]=255}
+var kk=L.ctx('c7b'),off=document.createElement('canvas');off.width=S7;off.height=S7;off.getContext('2d').putImageData(out,0,0);kk.g.drawImage(off,0,0,kk.W,kk.H);kk.g.fillStyle='#fff';kk.g.font='600 12px IBM Plex Sans,system-ui,sans-serif';kk.g.fillText(K+' colours',6,16);
+var pc=L.ctx('c7c'),w=pc.W/K;M.forEach(function(m,k){pc.g.fillStyle='rgb('+m.map(Math.round).join(',')+')';pc.g.fillRect(k*w,4,w-2,32)});
+var bits=Math.max(1,Math.ceil(Math.log2(K)));$('o7').innerHTML='palette (codebook) above · each pixel stored as <b>'+bits+' bit'+(bits>1?'s':'')+'</b> instead of 24 → <b>'+(24/bits).toFixed(1)+'×</b> smaller · RMS colour error <b>'+Math.sqrt(err/(S7*S7)/3).toFixed(1)+'</b> / 255'}
+L.bind('k7',draw7);L.reg(draw7);
+
+restart(false);draw2();restarts(false);
+})();
+</script>
+{% endraw %}{% endblock %}

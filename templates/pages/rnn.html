@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+{% block head %}{% include "_lesson_head.html" %}{% endblock %}
+{% block h1 %}Recurrent Neural Networks (RNNs){% endblock %}
+{% block lead %}<div class="meta"><span class="tag">sequences</span><span class="tag">hidden state</span><span class="tag">backprop through time</span><span class="tag">LSTM · GRU</span><span class="tag">seq2seq → attention</span><span class="tag">→ Transformers</span></div>
+<p class="lead"><b>Why it exists:</b> text, speech, music, stock prices and DNA are <b>sequences</b>. Their length varies and their <b>order carries meaning</b> (“dog bites man” ≠ “man bites dog”). An RNN reads a sequence one element at a time and carries a <b>memory vector</b> (the hidden state) from step to step, using the <b>same weights at every step</b>. RNNs were the state of the art for language until 2017. Their limits, slow sequential processing and fading memory, are exactly the problems the Transformer was invented to solve.</p>{% endblock %}
+{% block content %}{% raw %}
+<div class="lsn"><div class="lsn-main">
+
+<h2><span class="n">01</span>Why order matters</h2>
+<div class="pair"><div>
+<p>The simplest way to feed a sentence to an MLP is to <b>average its word vectors</b> (“bag of words”). It handles any length, but it throws away the order:</p>
+<div class="formula">$$\bar x=\frac1T\sum_{t=1}^{T}x_t$$$$\Rightarrow\ \ \bar x(\text{dog bites man})=\bar x(\text{man bites dog})$$</div>
+<p>An RNN processes words <b>in order</b>, so the final hidden state depends on the sequence and not only on the set of words.</p>
+<p><b>Try it:</b> compare the two sentences on the right. The averaged vectors are identical (cosine 1.000). The RNN’s final states are different. Type your own pair to test it.</p>
+<div class="callout tf"><b>Transformer link</b>Attention on its own also ignores order: it is a weighted average over a <b>set</b> of tokens. That is why Transformers must add <b>positional encodings</b>. RNNs get order for free from processing step by step.</div>
+</div><div class="fig"><h4>Bag of words vs. RNN</h4>
+<input id="sa1" type="text" value="dog bites man" style="width:48%;font:inherit;padding:6px 9px;border:1px solid var(--line);border-radius:8px"> <input id="sb1" type="text" value="man bites dog" style="width:48%;font:inherit;padding:6px 9px;border:1px solid var(--line);border-radius:8px">
+<canvas id="c1" width="640" height="300" style="margin-top:8px"></canvas>
+<div class="out" id="o1"></div></div></div>
+
+<h2><span class="n">02</span>The recurrence: one cell, reused at every step</h2>
+<div class="pair"><div>
+<p>At each time step the RNN combines the new input \(x_t\) with its previous memory \(h_{t-1}\):</p>
+<div class="formula">$$h_t=\tanh\big(W_{hh}\,h_{t-1}+W_{xh}\,x_t+b_h\big)$$$$\hat y_t=\mathrm{softmax}(W_{hy}\,h_t+b_y)$$</div>
+<div class="table compact leg"><table><tbody>
+<tr><td>\(x_t\)</td><td>input at step \(t\) (e.g. a word embedding)</td></tr>
+<tr><td>\(h_t\)</td><td><b>hidden state</b>, a fixed-size summary of everything read so far</td></tr>
+<tr><td>\(W_{xh},W_{hh},W_{hy}\)</td><td>weights, <b>shared across all time steps</b></td></tr>
+<tr><td>\(\hat y_t\)</td><td>output at step \(t\) (e.g. prediction of the next word)</td></tr>
+</tbody></table></div>
+<p>“Unrolling” the loop over time gives a very deep feed-forward network with one layer per time step, all layers sharing the same weights. That is the same trick as a CNN sharing weights across <b>space</b>, applied to <b>time</b>.</p>
+<p><b>Try it:</b> step through the sentence. The heat map shows the hidden state (rows = 16 hidden units, columns = time). Each new column is computed from the previous column plus the new word.</p>
+<div class="callout tf"><b>Transformer link</b>An RNN squeezes the entire history into one vector \(h_t\) of fixed size. A Transformer keeps <b>all</b> previous token vectors and lets each new token look back at any of them directly. In practice this is the KV-cache.</div>
+</div><div class="fig"><h4>Unrolled RNN, step by step</h4>
+<input id="s2" type="text" value="the cat sat on the warm mat" style="width:100%;font:inherit;padding:6px 9px;border:1px solid var(--line);border-radius:8px">
+<canvas id="c2" width="640" height="350" style="margin-top:8px"></canvas>
+<div class="btns"><button id="st2">Step ▶</button><button id="all2">All steps</button><button id="rs2">Reset</button></div>
+<div class="out" id="o2"></div></div></div>
+
+<h2><span class="n">03</span>Training a character-level language model (live)</h2>
+<div class="pair"><div>
+<p>The classic RNN task: read text <b>one character at a time</b> and predict the next character. At every step the output is a softmax over the alphabet, and the loss is the cross-entropy summed over the sequence:</p>
+<div class="formula">$$\mathcal L=-\frac1T\sum_{t=1}^{T}\log \hat y_t[x_{t+1}]$$</div>
+<p>During training the model always receives the <b>true</b> previous character (<b>teacher forcing</b>). During generation it receives its <b>own</b> sampled output.</p>
+<p><b>Try it:</b> press <b>Train</b>. A real RNN (32 hidden units, about 2,000 parameters) is trained in your browser with backpropagation through time and Adam. Every few hundred steps it writes a sample. Watch it go from random characters, to the right letter frequencies, to real words from the corpus. You can replace the training text.</p>
+<div class="callout tf"><b>Transformer link</b>This is the <b>same objective as GPT</b>, next-token cross-entropy with sampling at a temperature, only with characters instead of word pieces and an RNN instead of a Transformer. Andrej Karpathy’s famous “char-rnn” (2015) led directly to his later nanoGPT.</div>
+</div><div class="fig"><h4>char-RNN training in your browser</h4>
+<textarea id="corp3" rows="3" style="width:100%;font:12.5px var(--mono);padding:8px;border:1px solid var(--line);border-radius:8px;resize:vertical">the cat sat on the mat. the dog sat on the log. the cat saw the dog. the dog saw the cat. a cat and a dog sat on a mat. </textarea>
+<canvas id="c3" width="640" height="150"></canvas>
+<div class="ctl-row"><span>sampling temperature</span><input type="range" id="t3" min="0.2" max="1.5" step="0.05" value="0.7"><output id="t3v"></output></div>
+<div class="btns"><button id="run3">Train ▶</button><button id="smp3">Sample now</button><button id="rs3">Reset weights</button></div>
+<div class="ex" id="g3" style="font-family:var(--mono);font-size:13px;min-height:3.2em;white-space:pre-wrap"></div>
+<div class="out" id="o3"></div></div></div>
+
+<h2><span class="n">04</span>Backprop through time and vanishing gradients</h2>
+<div class="pair"><div>
+<p>Training uses <b>backpropagation through time</b> (BPTT): unroll the network and apply ordinary backprop. To learn that a word at step \(t\) matters for a prediction at step \(T\), the gradient must flow back through every step in between:</p>
+<div class="formula">$$\frac{\partial h_T}{\partial h_t}=\prod_{k=t+1}^{T}\frac{\partial h_k}{\partial h_{k-1}}=\prod_{k=t+1}^{T}\mathrm{diag}\big(\tanh'(\cdot)\big)\,W_{hh}$$</div>
+<p>It is the <b>same matrix multiplied again and again</b>. If its largest scaling factor (spectral radius \(\rho\)) is below 1, the gradient shrinks exponentially, like \(\rho^{T-t}\): it <b>vanishes</b>. Above 1, it <b>explodes</b>.</p>
+<ul>
+<li>Exploding: fixed by <b>gradient clipping</b> (rescale the gradient if its norm is too large).</li>
+<li>Vanishing: much harder. The RNN effectively forgets anything more than about 10–20 steps back. This led to the LSTM.</li>
+</ul>
+<p><b>Try it:</b> set \(\rho\) and the sequence length. The curve is computed by multiplying real random matrices.</p>
+<div class="callout tf"><b>Transformer link</b>In a Transformer, the path from token 1 to token 1000 is <b>one</b> attention step, not 999 multiplications. That short gradient path is a big reason why Transformers learn long-range dependencies so much better.</div>
+</div><div class="fig"><h4>Gradient size flowing back in time (log scale)</h4>
+<canvas id="c4" width="640" height="300"></canvas>
+<div class="ctl-row"><span>spectral radius ρ of W_hh</span><input type="range" id="r4" min="0.5" max="1.5" step="0.01" value="0.9"><output id="r4v"></output></div>
+<div class="ctl-row"><span>sequence length T</span><input type="range" id="T4" min="10" max="100" step="5" value="50"><output id="T4v"></output></div>
+<label class="chk"><input type="checkbox" id="th4" checked> include tanh′ factors</label>
+<div class="out" id="o4"></div></div></div>
+
+<h2><span class="n">05</span>LSTM and GRU: gates that protect memory</h2>
+<div class="pair"><div>
+<p>The <b>LSTM</b> (Long Short-Term Memory, 1997) adds a separate <b>cell state</b> \(c_t\) that is updated by <b>addition</b> and controlled by <b>gates</b>, small sigmoid layers outputting values between 0 (closed) and 1 (open):</p>
+<div class="formula">$$f_t,i_t,o_t=\sigma(W[h_{t-1},x_t]+b)\qquad \tilde c_t=\tanh(W_c[h_{t-1},x_t]+b_c)$$$$c_t=f_t\odot c_{t-1}+i_t\odot\tilde c_t\qquad h_t=o_t\odot\tanh(c_t)$$</div>
+<div class="table compact"><table><tbody>
+<tr><td><b>forget gate</b> \(f\)</td><td>how much of the old memory to keep</td></tr>
+<tr><td><b>input gate</b> \(i\)</td><td>how much new information to write</td></tr>
+<tr><td><b>output gate</b> \(o\)</td><td>how much of the memory to expose as \(h_t\)</td></tr>
+</tbody></table></div>
+<p>When \(f\approx1\) and \(i\approx0\), \(c_t\approx c_{t-1}\): the memory passes through unchanged, and so does its gradient (\(\partial c_t/\partial c_{t-1}=f\approx1\)). The <b>GRU</b> (2014) is a simpler two-gate version.</p>
+<p><b>Try it:</b> a value is stored at step 0. Compare how much of it survives in a plain RNN and in an LSTM cell with your forget gate setting.</p>
+<div class="callout tf"><b>Transformer link</b>\(c_t=c_{t-1}+\dots\) is an additive “highway” through time. Transformers use the same trick through <b>depth</b>: the residual stream \(x_{l+1}=x_l+\text{Sublayer}(x_l)\). Gating also returned in Transformers in the SwiGLU feed-forward layer of Llama.</div>
+</div><div class="fig"><h4>How much of step-0 information survives?</h4>
+<svg id="lstm5" viewBox="0 0 640 150"></svg>
+<canvas id="c5" width="640" height="230"></canvas>
+<div class="ctl-row"><span>LSTM forget gate f</span><input type="range" id="f5" min="0.5" max="1" step="0.005" value="0.97"><output id="f5v"></output></div>
+<div class="ctl-row"><span>plain RNN factor ρ·tanh′</span><input type="range" id="r5" min="0.3" max="1" step="0.01" value="0.75"><output id="r5v"></output></div>
+<div class="out" id="o5"></div></div></div>
+
+<h2><span class="n">06</span>Seq2seq, the bottleneck, and the birth of attention</h2>
+<div class="pair"><div>
+<p>For translation, an <b>encoder</b> RNN reads the source sentence, and its <b>final hidden state</b> is handed to a <b>decoder</b> RNN that writes the translation (seq2seq, 2014). Problem: the whole sentence must fit in <b>one vector</b>. Long sentences get garbled.</p>
+<p><b>Attention</b> (Bahdanau et al., 2014) fixed this. Keep <b>all</b> encoder states \(h_1..h_n\). At each output step, the decoder scores every source position, turns the scores into weights with a softmax, and reads a weighted average:</p>
+<div class="formula">$$\alpha_{tj}=\mathrm{softmax}_j\big(\text{score}(s_{t-1},h_j)\big)\qquad c_t=\sum_{j=1}^{n}\alpha_{tj}\,h_j$$</div>
+<p><b>Try it:</b> click a French output word. The bars show where the decoder “looks” in the English sentence. Note that “noir” looks at “black” even though the word order differs. (The weights here are illustrative, similar to those from a trained model.) Untick attention to see the bottleneck version: every output word gets the same single vector.</p>
+<div class="callout tf"><b>Transformer link</b>In 2017, “Attention Is All You Need” asked: if attention does the real work, why keep the RNN at all? Remove the recurrence, let every token attend to every other token (<b>self</b>-attention), add positions, and stack the layers. That is the <a href="/transformers">Transformer</a>.</div>
+</div><div class="fig"><h4>Encoder–decoder with attention</h4>
+<canvas id="c6" class="click" width="640" height="380"></canvas>
+<label class="chk"><input type="checkbox" id="at6" checked> use attention (otherwise: only the last encoder state)</label>
+<div class="out" id="o6"></div></div></div>
+
+<h2><span class="n">07</span>RNN vs. Transformer</h2>
+<div class="pair"><div>
+<div class="table compact"><table><thead><tr><th></th><th>RNN / LSTM</th><th>Transformer</th></tr></thead><tbody>
+<tr><td>reads tokens</td><td>one after another</td><td>all at once (parallel training)</td></tr>
+<tr><td>memory of the past</td><td>one fixed-size vector \(h_t\)</td><td>all past token vectors (KV-cache)</td></tr>
+<tr><td>path from token 1 to token n</td><td>\(n-1\) steps (vanishing)</td><td>1 attention step</td></tr>
+<tr><td>order information</td><td>built in</td><td>positional encodings needed</td></tr>
+<tr><td>compute for n tokens</td><td>\(O(n)\), but sequential</td><td>\(O(n^2)\), but parallel on GPUs</td></tr>
+<tr><td>memory when generating</td><td>constant per step</td><td>grows with context length</td></tr>
+</tbody></table></div>
+<p><b>Try it:</b> drag the sequence length. On a GPU, parallel work is almost free and <b>sequential steps</b> are what cost time. That is why Transformers train much faster, even though they do more total work.</p>
+<div class="callout"><b>RNNs are coming back</b>The \(O(n^2)\) cost of attention for very long inputs has revived recurrent ideas: <b>state-space models</b> such as Mamba and RWKV train in parallel like Transformers but generate like RNNs with constant memory. Several recent LLMs mix attention layers with such recurrent layers.</div>
+</div><div class="fig"><h4>Sequential steps vs. total work</h4>
+<canvas id="c7" width="640" height="300"></canvas>
+<div class="ctl-row"><span>sequence length n</span><input type="range" id="n7" min="8" max="4096" step="8" value="512"><output id="n7v"></output></div>
+<div class="out" id="o7"></div></div></div>
+
+<h2><span class="n">08</span>Summary</h2>
+<div class="pair even"><div>
+<div class="table compact"><table><thead><tr><th>RNN idea</th><th>Formula</th><th>What the Transformer kept or changed</th></tr></thead><tbody>
+<tr><td>Weight sharing over time</td><td>same \(W\) every step</td><td>same weights for every position ✓</td></tr>
+<tr><td>Next-token training</td><td>\(-\sum\log\hat y_t[x_{t+1}]\)</td><td>identical objective ✓</td></tr>
+<tr><td>Teacher forcing</td><td>feed true previous token</td><td>causal mask trains all positions at once ✓</td></tr>
+<tr><td>Hidden-state memory</td><td>\(h_t=f(h_{t-1},x_t)\)</td><td>replaced by attention over all tokens ✗</td></tr>
+<tr><td>Additive cell state</td><td>\(c_t=f\,c_{t-1}+\dots\)</td><td>residual stream ✓</td></tr>
+<tr><td>Seq2seq attention</td><td>\(\sum_j\alpha_{tj}h_j\)</td><td>became self-attention, the core ✓</td></tr>
+</tbody></table></div></div><div>
+<div class="summary"><b>Teach it in one sentence:</b> an RNN reads a sequence step by step, updating a hidden memory with the same weights each time, and is trained to predict the next token by backpropagation through time. Its fading memory and sequential speed limit led to gated LSTMs and then to attention, and so to the Transformer.</div>
+<p>Continue with <a href="/transformers">Transformers</a>, where all the pieces from this course come together.</p></div></div>
+
+</div><aside class="lsn-toc"><p>On this page</p><nav></nav></aside></div>
+{% endraw %}{% include "_lesson_scripts.html" %}{% raw %}
+<script>
+(function(){
+var $=L.$,C=L.C,col=L.col,PAL=L.PAL;
+function hash(s){var h=2166136261;for(var i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return Math.abs(h)}
+function emb(w,d){var r=L.rng(hash(w)+7),v=[];for(var i=0;i<d;i++)v.push(r.g()*.9);return v}
+function mat(m,n,sc,seed){var r=L.rng(seed),M=[];for(var i=0;i<m;i++){var row=[];for(var j=0;j<n;j++)row.push(r.g()*sc);M.push(row)}return M}
+function mv(M,v){return M.map(function(r){return L.dot(r,v)})}
+var H=16,E=8,WX=mat(H,E,.5,11),WH=mat(H,H,.9/Math.sqrt(H),12);
+function rnnStates(words){var h=new Array(H).fill(0),S=[];words.forEach(function(w){var a=mv(WX,emb(w,E)),b=mv(WH,h);h=a.map(function(v,i){return Math.tanh(v+b[i])});S.push(h)});return S}
+function words(s){return (s.toLowerCase().match(/[a-z']+/g)||[]).slice(0,12)}
+
+/* ---------- 01 ---------- */
+function draw1(){var A=words($('sa1').value),B=words($('sb1').value);if(!A.length||!B.length)return;
+var mean=function(W){var m=new Array(E).fill(0);W.forEach(function(w){emb(w,E).forEach(function(v,i){m[i]+=v/W.length})});return m},mA=mean(A),mB=mean(B),hA=rnnStates(A).pop(),hB=rnnStates(B).pop();
+var cos=function(a,b){return L.dot(a,b)/(L.norm(a)*L.norm(b)||1)};
+var k=L.ctx('c1'),g=k.g;g.font='600 12.5px IBM Plex Sans,system-ui,sans-serif';
+var bars=function(v,x,y,w,c,lab){g.fillStyle=col('--muted');g.font='12px IBM Plex Sans,system-ui,sans-serif';g.fillText(lab,x,y-6);var bw=w/v.length;v.forEach(function(q,i){var h=q*40;g.fillStyle=c;g.fillRect(x+i*bw+1,y+45-Math.max(0,h),bw-2,Math.abs(h))});g.strokeStyle=col('--line');g.beginPath();g.moveTo(x,y+45);g.lineTo(x+w,y+45);g.stroke()};
+bars(mA,10,30,290,C.blue,'average of word vectors: “'+A.join(' ')+'”');bars(mB,330,30,290,C.orange,'average: “'+B.join(' ')+'”');
+bars(hA,10,170,290,C.blue,'RNN final state h_T: “'+A.join(' ')+'”');bars(hB,330,170,290,C.orange,'RNN final state h_T: “'+B.join(' ')+'”');
+g.fillStyle=C.ink;g.font='600 13px IBM Plex Sans,system-ui,sans-serif';g.fillText('cosine = '+cos(mA,mB).toFixed(3),250,135);g.fillText('cosine = '+cos(hA,hB).toFixed(3),250,k.H-12);
+var same=A.slice().sort().join()===B.slice().sort().join();$('o1').innerHTML=same?'same words, different order → bag-of-words cannot tell them apart (cos = 1), the RNN can':'different words → both representations differ'}
+$('sa1').addEventListener('input',draw1);$('sb1').addEventListener('input',draw1);L.reg(draw1);
+
+/* ---------- 02 unrolled ---------- */
+var t2=0;
+function draw2(){var W=words($('s2').value),S=rnnStates(W),k=L.ctx('c2'),g=k.g,n=W.length,cw=Math.min(70,(k.W-60)/Math.max(1,n)),ox=50,cellh=10,top=120;
+g.font='11.5px IBM Plex Sans,system-ui,sans-serif';
+for(var t=0;t<n;t++){var x=ox+t*cw,on=t<t2,cur=t===t2-1;
+g.fillStyle=cur?C.orange:on?'#4c6ef5':'#ced4da';g.beginPath();g.roundRect?g.roundRect(x+6,60,cw-12,34,8):g.rect(x+6,60,cw-12,34);g.fill();g.fillStyle='#fff';g.font='600 12px IBM Plex Sans,system-ui,sans-serif';g.textAlign='center';g.fillText('RNN',x+cw/2,82);
+g.fillStyle=C.ink;g.font='12.5px IBM Plex Mono,ui-monospace,monospace';g.fillText(W[t],x+cw/2,top+H*cellh+22);g.fillStyle=col('--muted');g.font='11px IBM Plex Sans,system-ui,sans-serif';g.fillText('t='+(t+1),x+cw/2,20);
+L.arrow(g,x+cw/2,top+H*cellh+8,x+cw/2,top+H*cellh+2,'#adb5bd',1);if(t<n-1){L.arrow(g,x+cw-6,77,x+cw+6,77,on&&t<t2-1?C.ink:'#ced4da',1.6)}
+if(on)for(var i=0;i<H;i++){var v=S[t][i];g.fillStyle=v>=0?'rgba(47,84,235,'+Math.abs(v)+')':'rgba(232,89,12,'+Math.abs(v)+')';g.fillRect(x+10,top+i*cellh,cw-20,cellh-1)}
+else{g.strokeStyle='#e9ecef';g.strokeRect(x+10,top,cw-20,H*cellh)}g.textAlign='left'}
+g.fillStyle=col('--muted');g.font='11.5px IBM Plex Sans,system-ui,sans-serif';g.save();g.translate(28,top+H*cellh/2+30);g.rotate(-Math.PI/2);g.fillText('hidden state h_t (16 units)',0,0);g.restore();g.fillText('h₀=0 →',2,82);
+g.fillText('same weights W_xh, W_hh in every box',ox,108);
+$('o2').innerHTML=t2===0?'press Step: the RNN reads one word at a time':'step <b>'+t2+'</b>: read “<b>'+W[t2-1]+'</b>” · h_'+t2+' = tanh(W_hh·h_'+(t2-1)+' + W_xh·x_'+t2+') · ‖h‖ = '+L.norm(S[t2-1]).toFixed(2)+(t2===n?' · final state summarises the whole sentence':'')}
+$('st2').onclick=function(){var n=words($('s2').value).length;t2=Math.min(n,t2+1);draw2()};$('all2').onclick=function(){t2=words($('s2').value).length;draw2()};$('rs2').onclick=function(){t2=0;draw2()};$('s2').addEventListener('input',function(){t2=Math.min(t2,words($('s2').value).length);draw2()});L.reg(draw2);
+
+/* ---------- 03 char-RNN ---------- */
+var HN=32,SEQ=24,net=null,txt='',V=[],ix={},hist3=[],it3=0,pos3=0,hprev=null,r3=L.rng(99);
+function zeros(m,n){var a=[];for(var i=0;i<m;i++)a.push(new Float64Array(n));return a}
+function init3(){txt=$('corp3').value.toLowerCase();V=Array.from(new Set(txt.split(''))).sort();ix={};V.forEach(function(c,i){ix[c]=i});var v=V.length,r=L.rng(5);
+var R=function(m,n,s){var M=zeros(m,n);for(var i=0;i<m;i++)for(var j=0;j<n;j++)M[i][j]=r.g()*s;return M};
+net={Wxh:R(HN,v,.1),Whh:R(HN,HN,.1),Why:R(v,HN,.1),bh:new Float64Array(HN),by:new Float64Array(v)};net.m={};net.s={};['Wxh','Whh','Why','bh','by'].forEach(function(k){net.m[k]=Array.isArray(net[k])?zeros(net[k].length,net[k][0].length):new Float64Array(net[k].length);net.s[k]=Array.isArray(net[k])?zeros(net[k].length,net[k][0].length):new Float64Array(net[k].length)});net.t=0;
+hist3=[];it3=0;pos3=0;hprev=new Float64Array(HN);$('g3').textContent='(untrained) '+sample(80,1);updOut()}
+function stepRNN(h,c){var hn=new Float64Array(HN),i;for(i=0;i<HN;i++){var s=net.bh[i]+net.Wxh[i][c];for(var j=0;j<HN;j++)s+=net.Whh[i][j]*h[j];hn[i]=Math.tanh(s)}var v=V.length,y=new Float64Array(v);for(var k=0;k<v;k++){var s2=net.by[k];for(j=0;j<HN;j++)s2+=net.Why[k][j]*hn[j];y[k]=s2}return[hn,y]}
+function train3(){var v=V.length;if(pos3+SEQ+1>=txt.length){pos3=0;hprev=new Float64Array(HN)}
+var inp=[],tgt=[];for(var t=0;t<SEQ;t++){inp.push(ix[txt[pos3+t]]);tgt.push(ix[txt[pos3+t+1]])}
+var hs=[hprev],ps=[],loss=0;for(t=0;t<SEQ;t++){var o=stepRNN(hs[t],inp[t]);hs.push(o[0]);var p=L.softmax(Array.from(o[1]));ps.push(p);loss-=Math.log(p[tgt[t]]+1e-12)}
+var g={Wxh:zeros(HN,v),Whh:zeros(HN,HN),Why:zeros(v,HN),bh:new Float64Array(HN),by:new Float64Array(v)},dhn=new Float64Array(HN);
+for(t=SEQ-1;t>=0;t--){var dy=ps[t].slice();dy[tgt[t]]-=1;var h=hs[t+1],dh=Float64Array.from(dhn);for(var k=0;k<v;k++){g.by[k]+=dy[k];for(var j=0;j<HN;j++){g.Why[k][j]+=dy[k]*h[j];dh[j]+=net.Why[k][j]*dy[k]}}
+var draw_=new Float64Array(HN);for(j=0;j<HN;j++)draw_[j]=(1-h[j]*h[j])*dh[j];for(j=0;j<HN;j++){g.bh[j]+=draw_[j];g.Wxh[j][inp[t]]+=draw_[j];for(var q=0;q<HN;q++)g.Whh[j][q]+=draw_[j]*hs[t][q]}
+dhn=new Float64Array(HN);for(q=0;q<HN;q++){var s=0;for(j=0;j<HN;j++)s+=net.Whh[j][q]*draw_[j];dhn[q]=s}}
+var lr=.01,b1=.9,b2=.999;net.t++;var c1=1-Math.pow(b1,net.t),c2=1-Math.pow(b2,net.t);
+['Wxh','Whh','Why','bh','by'].forEach(function(key){var P=net[key],G=g[key],M=net.m[key],Sv=net.s[key];var upd=function(P,G,M,Sv){for(var i=0;i<P.length;i++){var gg=L.clamp(G[i],-5,5);M[i]=b1*M[i]+(1-b1)*gg;Sv[i]=b2*Sv[i]+(1-b2)*gg*gg;P[i]-=lr*(M[i]/c1)/(Math.sqrt(Sv[i]/c2)+1e-8)}};if(Array.isArray(P))for(var i=0;i<P.length;i++)upd(P[i],G[i],M[i],Sv[i]);else upd(P,G,M,Sv)});
+hprev=hs[SEQ];pos3+=SEQ;it3++;hist3.push(loss/SEQ)}
+function sample(n,T){var h=new Float64Array(HN),c=ix['t']!==undefined?ix['t']:0,out=V[c];for(var i=0;i<n;i++){var o=stepRNN(h,c);h=o[0];var p=L.softmax(Array.from(o[1]),T),u=r3(),a=0;for(var k=0;k<p.length;k++){a+=p[k];if(u<a)break}c=Math.min(k,p.length-1);out+=V[c]}return out}
+function updOut(){var p=L.plot('c3',{x:[0,Math.max(200,hist3.length)],y:[0,Math.log(V.length||2)+.3],xl:'training steps (24 characters each)',yl:'loss',m:[8,10,34,46]});
+p.hl(Math.log(V.length),C.red,[4,4]);p.ptext('random guessing = ln '+V.length,p.R-150,p.Y(Math.log(V.length))-5,C.red);
+var sm=[],a=0;hist3.forEach(function(v,i){a=i?a*.97+v*.03:v;sm.push([i+1,a])});p.path(sm,C.purple,2.5);
+var np=HN*V.length*2+HN*HN+HN+V.length;$('o3').innerHTML='vocabulary <b>'+V.length+'</b> characters · <b>'+np.toLocaleString()+'</b> parameters · step <b>'+it3+'</b> · loss <b>'+(sm.length?sm[sm.length-1][1].toFixed(3):'—')+'</b> nats/char'}
+L.runner('run3',function(){for(var i=0;i<12;i++)train3();if(it3%120<12)$('g3').textContent='step '+it3+': '+sample(110,L.val('t3'));updOut();if(it3>6000)return false},30);
+$('smp3').onclick=function(){$('g3').textContent='step '+it3+': '+sample(110,L.val('t3'))};$('rs3').onclick=init3;$('corp3').addEventListener('change',init3);L.bind('t3');init3();
+
+/* ---------- 04 vanishing ---------- */
+function orth(n,seed){var r=L.rng(seed),Q=[];for(var i=0;i<n;i++){var v=[];for(var j=0;j<n;j++)v.push(r.g());Q.forEach(function(q){var d=L.dot(q,v);v=v.map(function(x,k){return x-d*q[k]})});var nn=L.norm(v);Q.push(v.map(function(x){return x/nn}))}return Q}
+var Q4=orth(16,3);
+function draw4(){var rho=L.val('r4'),T=L.val('T4'),th=$('th4').checked,W=Q4.map(function(r){return r.map(function(v){return v*rho})}),r=L.rng(8),h=new Array(16).fill(0),hs=[];
+for(var t=0;t<T;t++){var x=[];for(var i=0;i<16;i++)x.push(r.g()*.6);var a=mv(W,h);h=a.map(function(v,i){return Math.tanh(v+x[i])});hs.push(h)}
+var g=new Array(16).fill(1/4),pts=[[T,0]];for(t=T-1;t>=1;t--){var d=th?g.map(function(v,i){return v*(1-hs[t][i]*hs[t][i])}):g;var ng=new Array(16).fill(0);for(i=0;i<16;i++)for(var j=0;j<16;j++)ng[j]+=W[i][j]*d[i];g=ng;pts.push([t,Math.log10(L.norm(g)+1e-30)])}
+var lo=Math.min(-6,Math.floor(Math.min.apply(null,pts.map(function(p){return p[1]})))),hi=Math.max(2,Math.ceil(Math.max.apply(null,pts.map(function(p){return p[1]}))));
+var p=L.plot('c4',{x:[0,T+1],y:[lo,hi],xl:'time step t (gradient flows right → left)',yl:'log₁₀ ‖∂L/∂h_t‖'});p.hl(0,col('--muted'),[]);
+p.path(pts,rho<1?C.red:rho>1.05?C.yellow:C.blue,2.5);pts.forEach(function(q,i){if(i%5===0)p.dot(q[0],q[1],C.ink,3)});
+var e=pts[pts.length-1][1];$('o4').innerHTML='ρ = <b>'+rho.toFixed(2)+'</b> · gradient reaching step 1 is <b>10<sup>'+e.toFixed(1)+'</sup></b> of the signal at step '+T+(e<-4?' → <span style="color:var(--red)">vanished: the RNN cannot learn from early inputs</span>':e>3?' → <span style="color:var(--yellow)">exploded: clip the gradient</span>':' → survives')}
+L.bind(['r4','T4'],draw4);$('th4').onchange=draw4;L.reg(draw4);
+
+/* ---------- 05 LSTM ---------- */
+$('lstm5').innerHTML='<defs><marker id="m5" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8z" fill="#171b24"/></marker></defs><g font-family="IBM Plex Sans,sans-serif" font-size="12.5">'+
+'<path d="M20 40 H 620" stroke="#2f9e44" stroke-width="5" marker-end="url(#m5)"/><text x="24" y="20" fill="#2f9e44" font-weight="700">cell state c (memory highway)</text>'+
+'<circle cx="200" cy="40" r="14" fill="#fff" stroke="#171b24"/><text x="200" y="45" text-anchor="middle" font-weight="700">×</text><circle cx="340" cy="40" r="14" fill="#fff" stroke="#171b24"/><text x="340" y="45" text-anchor="middle" font-weight="700">+</text>'+
+'<rect x="170" y="80" width="60" height="30" rx="6" fill="#e8590c"/><text x="200" y="100" text-anchor="middle" fill="#fff">forget f</text><path d="M200 80 V 56" stroke="#171b24" marker-end="url(#m5)"/>'+
+'<rect x="300" y="80" width="80" height="30" rx="6" fill="#2f54eb"/><text x="340" y="100" text-anchor="middle" fill="#fff">input i · c̃</text><path d="M340 80 V 56" stroke="#171b24" marker-end="url(#m5)"/>'+
+'<rect x="450" y="80" width="70" height="30" rx="6" fill="#9c36b5"/><text x="485" y="100" text-anchor="middle" fill="#fff">output o</text><path d="M485 40 V 80" stroke="#171b24" stroke-dasharray="3 3"/><text x="530" y="100">→ h_t</text>'+
+'<text x="20" y="140" fill="#5d6675">gates read [h_{t−1}, x_t] and output values in (0, 1) via sigmoid</text></g>';
+function draw5(){var f=L.val('f5'),rr=L.val('r5'),N=60,p=L.plot('c5',{x:[0,N],y:[0,1.05],xl:'steps after storing the value',yl:'fraction remaining'});
+p.line(function(t){return Math.pow(f,t)},C.green,3);p.line(function(t){return Math.pow(rr,t)},C.red,3);
+p.ptext('LSTM cell state: fᵗ',p.R-170,p.T+16,C.green,'left','700 12.5px IBM Plex Sans,system-ui,sans-serif');p.ptext('plain RNN: (ρ·tanh′)ᵗ',p.R-170,p.T+34,C.red,'left','700 12.5px IBM Plex Sans,system-ui,sans-serif');
+var half=function(a){return a>=1?Infinity:Math.log(.5)/Math.log(a)};$('o5').innerHTML='half-life of memory: LSTM <b>'+(isFinite(half(f))?half(f).toFixed(1):'∞')+'</b> steps · plain RNN <b>'+half(rr).toFixed(1)+'</b> steps. The network <i>learns</i> f: close to 1 for things to remember, close to 0 to reset.'}
+L.bind(['f5','r5'],draw5);L.reg(draw5);
+
+/* ---------- 06 seq2seq attention ---------- */
+var SRC=['the','black','cat','sleeps','<eos>'],TGT=['le','chat','noir','dort','<eos>'],AL=[[.86,.03,.06,.02,.03],[.08,.12,.74,.03,.03],[.03,.81,.12,.02,.02],[.02,.02,.06,.86,.04],[.02,.02,.03,.08,.85]],sel6=2;
+function draw6(){var k=L.ctx('c6'),g=k.g,att=$('at6').checked,ex=110,dx=110,sp=104,oy=60,dy=300;
+g.font='600 12px IBM Plex Sans,system-ui,sans-serif';g.fillStyle=col('--muted');g.fillText('encoder (English)',10,oy-30);g.fillText('decoder (French)',10,dy+56);
+SRC.forEach(function(w,j){var x=ex+j*sp-40;g.fillStyle='#e6ecff';g.fillRect(x,oy,80,36);g.fillStyle=C.blue;g.font='600 13px IBM Plex Mono,ui-monospace,monospace';g.textAlign='center';g.fillText(w.replace('<','‹').replace('>','›'),x+40,oy+23);g.fillStyle=col('--muted');g.font='11px IBM Plex Sans,system-ui,sans-serif';g.fillText('h'+(j+1),x+40,oy-8);g.textAlign='left';if(j<SRC.length-1)L.arrow(g,x+80,oy+18,x+sp,oy+18,'#adb5bd',1.4)});
+TGT.forEach(function(w,t){var x=dx+t*sp-40,on=t===sel6;g.fillStyle=on?C.orange:'#fff3bf';g.fillRect(x,dy,80,36);g.fillStyle=on?'#fff':C.ink;g.font='600 13px IBM Plex Mono,ui-monospace,monospace';g.textAlign='center';g.fillText(w.replace('<','‹').replace('>','›'),x+40,dy+23);g.textAlign='left'});
+var tx=dx+sel6*sp;if(att){AL[sel6].forEach(function(a,j){var sx=ex+j*sp;g.strokeStyle='rgba(232,89,12,'+(.15+a*.85)+')';g.lineWidth=1+a*12;g.beginPath();g.moveTo(sx,oy+36);g.lineTo(tx,dy);g.stroke();g.fillStyle=C.ink;g.font='12px IBM Plex Mono,ui-monospace,monospace';g.fillText('α='+a.toFixed(2),sx-20,oy+56)})}
+else{var lx=ex+(SRC.length-1)*sp;g.strokeStyle=C.ink;g.lineWidth=3;g.beginPath();g.moveTo(lx,oy+36);g.lineTo(lx,dy-80);TGT.forEach(function(_,t){g.moveTo(lx,dy-80);g.lineTo(dx+t*sp,dy)});g.stroke();g.fillStyle=C.red;g.font='600 12.5px IBM Plex Sans,system-ui,sans-serif';g.fillText('one vector h₅ must carry the whole sentence',lx-330,dy-86)}
+g.lineWidth=1;$('o6').innerHTML=att?'output “<b>'+TGT[sel6]+'</b>” attends mostly to “<b>'+SRC[AL[sel6].indexOf(Math.max.apply(null,AL[sel6]))]+'</b>” (α = '+Math.max.apply(null,AL[sel6]).toFixed(2)+') · c_t = Σ α_j h_j · click another French word':'without attention, every output word sees the same final encoder state, an information bottleneck that grows worse with sentence length'}
+L.pointer('c6',{down:function(x,y){if(y>290&&y<346){var t=Math.round((x-110)/104);if(t>=0&&t<TGT.length){sel6=t;draw6()}}}});$('at6').onchange=draw6;L.reg(draw6);
+
+/* ---------- 07 sequential vs work ---------- */
+function draw7(){var n=L.val('n7'),k=L.ctx('c7'),g=k.g,rows=[['RNN: sequential steps',n,C.red],['Transformer: sequential steps (per layer)',1,C.blue],['RNN: total work ~ n',n,'#ffa8a8'],['Transformer: total work ~ n²',n*n,'#91a7ff']],mx=Math.log10(4096*4096),lg=function(v){return Math.log10(Math.max(1,v))/mx*(k.W-250)};
+g.font='12.5px IBM Plex Sans,system-ui,sans-serif';rows.forEach(function(r,i){var y=20+i*62;g.fillStyle=C.ink;g.fillText(r[0],8,y+12);g.fillStyle=r[2];g.fillRect(8,y+20,Math.max(3,lg(r[1])),24);g.fillStyle=C.ink;g.font='600 12.5px IBM Plex Mono,ui-monospace,monospace';g.fillText(r[1].toLocaleString(),14+Math.max(3,lg(r[1])),y+37);g.font='12.5px IBM Plex Sans,system-ui,sans-serif'});
+g.fillStyle=col('--muted');g.fillText('(log scale) GPUs do the n² work in parallel; the n sequential RNN steps cannot be parallelised.',8,k.H-8);
+$('o7').innerHTML='n = <b>'+n+'</b>: an RNN needs <b>'+n+'</b> steps one after another; a Transformer layer needs <b>1</b> parallel step doing <b>'+(n*n).toLocaleString()+'</b> pairwise scores'}
+L.bind('n7',draw7);L.reg(draw7);
+})();
+</script>
+{% endraw %}{% endblock %}

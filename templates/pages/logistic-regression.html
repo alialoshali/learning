@@ -1,0 +1,387 @@
+{% extends "base.html" %}
+{% block h1 %}Logistic Regression{% endblock %}
+{% block lead %}<div class="meta"><span class="tag">classification</span><span class="tag">cross-entropy</span><span class="tag">gradient descent</span><span class="tag">→ transformers</span></div>
+<p class="lead"><b>Why it exists:</b> real problems often ask for a class or a probability, not an unrestricted real number. Logistic regression is the smallest neural network that does this: one linear layer + a squashing function, trained with cross-entropy and gradient descent. Every idea here reappears inside a Transformer — look for the orange “Transformer link” boxes. All plots are interactive: drag, click, train.</p>{% endblock %}
+{% block content %}
+
+<style>
+/* Lesson-specific styles. Remove any rule that base.html already defines. */
+:root{--warm:#e8590c;--code-bg:#0f1420;--code-text:#d9e1f2;--mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace}
+.meta{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+.tag{font-family:var(--mono);font-size:12px;padding:3px 10px;border-radius:99px;background:var(--accent-soft);color:var(--accent)}
+.lr-layout{display:grid;grid-template-columns:minmax(0,1fr) 190px;gap:40px;align-items:start}
+.lr-layout article h2:first-child{margin-top:0;border:0;padding:0}
+.lr-aside{position:sticky;top:92px;align-self:start;font-size:14px}
+.lr-aside p{margin:0 0 10px;color:var(--muted);font-weight:500}
+.lr-aside a{display:block;padding:5px 0 5px 14px;color:var(--muted);text-decoration:none;border-left:2px solid var(--line);line-height:1.4}
+.lr-aside a.on{color:var(--accent);border-left-color:var(--accent);font-weight:500}
+html{scroll-behavior:smooth;scroll-padding-top:76px}
+@media(max-width:1000px){.lr-layout{grid-template-columns:1fr}.lr-aside{display:none}}
+.row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:32px;align-items:start;margin-bottom:8px}
+.fig{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;position:sticky;top:76px}
+.fig canvas{width:100%;height:auto;display:block}
+.fig label{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--muted);margin-top:6px}
+.fig label input{flex:1;accent-color:var(--accent)}
+.fig label span{font-family:var(--mono);min-width:56px;text-align:right;color:var(--text)}
+.out{font-family:var(--mono);font-size:13px;color:var(--muted);margin-top:8px;line-height:1.5}
+.out b{color:var(--accent)}
+.ex{font-size:.92em;margin-top:10px;line-height:1.55}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.btns button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.leg td:first-child{font-family:var(--mono);font-size:1.05em;white-space:nowrap}
+.leg b{color:var(--accent)}
+.tf{border-left-color:var(--warm)}
+.tf b{color:var(--warm)}
+.formula{font-family:var(--mono);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;text-align:center;margin:1.1em 0;overflow-x:auto;font-size:.92em}
+.code pre{margin:1.2em 0;background:var(--code-bg);color:var(--code-text);border-radius:12px;padding:18px;overflow-x:auto;font:400 .78em/1.6 var(--mono)}
+@media(max-width:1000px){.row{grid-template-columns:1fr}.fig{position:static}}
+</style>
+
+<div class="lr-layout">
+<article id="content">
+
+<h2>0. The data: what exactly are we classifying?</h2>
+<div class="row"><div>
+<p>Before any algorithm, look at the raw data. Each row of the table is one <b>example</b> (one student). It has an <b>input</b> <code>x</code> = hours studied, and a <b>label</b> <code>y</code> = the correct answer: 1 (passed) or 0 (failed).</p>
+<p><b>The goal:</b> learn a rule so that for a <i>new</i> student, given only their hours, we output the probability that they pass.</p>
+<p><b>How to read the plot →</b> With the slider at 0 you see only the inputs on a line, the way a new student looks to us: no answer known yet. Drag the slider to <i>reveal the labels</i>: every dot moves up to height 1 (blue = passed) or down to height 0 (orange = failed). Horizontal axis = input, vertical axis = label. <b>Every plot in the lessons below uses this same picture.</b></p>
+<div class="callout"><b>Vocabulary you will need</b><code>x</code> feature (input) · <code>y</code> label (correct answer) · training set = the table of (x, y) pairs · model = the function we learn · <code>p̂</code> (“p-hat”) = the model’s predicted probability.</div>
+<p>Notice the data is <b>messy</b>: a student with 4.4 hours passed while one with 5.2 hours failed. No straight rule is perfect, which is exactly why we predict <i>probabilities</i> rather than hard yes/no.</p>
+</div><div class="fig"><canvas id="c0" width="640" height="300"></canvas>
+<label>Reveal labels <input type="range" id="rv" min="0" max="1" step="0.01" value="0"><span id="rvv"></span></label>
+<div class="out" id="tbl"></div></div></div>
+
+<h2>1. Why do we need it? From a straight line to logistic regression</h2>
+<div class="row"><div>
+<p>We build logistic regression in <b>four small steps</b>, using the students from Section 0. Click the step buttons on the right and read the explanation under the plot.</p>
+<ol>
+<li><b>Fit a straight line</b> (ordinary linear regression) to the 0/1 labels.</li>
+<li><b>See where it breaks:</b> it gives impossible “probabilities” (below 0, above 1) and one outlier tilts it.</li>
+<li><b>Keep the line, but change its meaning:</b> it no longer predicts the label, it outputs a <b>score</b> z that can be any number.</li>
+<li><b>Squash the score</b> with the sigmoid, so the output is always a valid probability between 0 and 1.</li>
+</ol>
+<div class="callout"><b>Before → after, in one line</b>Before (linear regression): ŷ = m·x + c, any number.<br>After (logistic regression): p̂ = σ(w·x + b), always between 0 and 1.<br>Same straight line inside, plus a squashing function wrapped around it.</div>
+<p><b>Experiment:</b> in steps 1, 2 and 4 drag the outlier slider to the right (a student who studied a lot and passed). Watch the straight line tilt and its 0.5 crossing move, while the S-curve barely changes. That stability is the practical reason we prefer it.</p>
+<div class="callout tf"><b>Transformer link</b>A language model is a classifier over ~50,000 classes (the vocabulary). Its last step is the same “linear score → probability” recipe you see in step 4.</div>
+</div><div class="fig"><canvas id="c1" width="640" height="340"></canvas>
+<div class="btns" id="sb"><button data-s="1">1 · Line</button><button data-s="2">2 · Problem</button><button data-s="3">3 · Score z</button><button data-s="4">4 · Sigmoid</button></div>
+<label>Extra “outlier” student at x = <input type="range" id="ol" min="9" max="30" step="0.5" value="9"><span id="olv"></span></label>
+<div class="ex" id="ex1"></div><div class="out" id="o1"></div></div></div>
+
+<h2>2. The main equation, symbol by symbol</h2>
+<div class="row"><div>
+<div class="formula" style="font-size:1.2em"><span style="color:var(--accent)">p̂</span> = σ( <span style="color:var(--warm)">w</span>·<span style="color:#2f9e44">x</span> + <span style="color:#9c36b5">b</span> ) &nbsp;=&nbsp; 1 / ( 1 + e<sup>−(w·x + b)</sup> )</div>
+<p>Read it from the inside out. The whole model is these three stages:</p>
+<ol>
+<li><b>Score.</b> z = w·x + b. A weighted sum of the inputs (a straight line). Any real number.</li>
+<li><b>Squash.</b> p̂ = σ(z). Turns the score into a probability in (0, 1).</li>
+<li><b>Decide.</b> Predict class 1 if p̂ ≥ 0.5 (equivalently z ≥ 0), else class 0.</li>
+</ol>
+<div class="table leg"><table>
+<thead><tr><th>Symbol</th><th>Name</th><th>Meaning</th><th>Student example</th></tr></thead><tbody>
+<tr><td style="color:#2f9e44">x</td><td>input (feature)</td><td>what we know about the example</td><td>hours studied, e.g. 6</td></tr>
+<tr><td style="color:var(--warm)">w</td><td>weight</td><td>how strongly x pushes toward class 1; learned</td><td>1.3: each extra hour adds 1.3 to the score</td></tr>
+<tr><td style="color:#9c36b5">b</td><td>bias</td><td>the score when x = 0; shifts the boundary; learned</td><td>−7: a student needs about 5.4 h to reach score 0</td></tr>
+<tr><td>z</td><td>score / logit</td><td>w·x + b, before squashing</td><td>1.3·6 − 7 = 0.8</td></tr>
+<tr><td style="color:var(--accent)">p̂</td><td>predicted probability</td><td>model’s belief that y = 1</td><td>σ(0.8) ≈ 0.69</td></tr>
+</tbody></table></div>
+<p><b>Several inputs?</b> Then w·x means w₁x₁ + w₂x₂ + … + wₙxₙ: one weight per feature, all summed into one score. With two features (Section 6) the decision boundary is a line in 2-D.</p>
+<p><b>Try it on the right:</b> move x, w and b, and follow the numbers left to right through the three stages.</p>
+</div><div class="fig"><canvas id="c7" width="640" height="300"></canvas>
+<label>input x <input type="range" id="xq" min="0" max="10" step="0.1" value="6"><span id="xqv"></span></label>
+<label>weight w <input type="range" id="wq" min="0" max="4" step="0.05" value="1.3"><span id="wqv"></span></label>
+<label>bias b <input type="range" id="bq" min="-16" max="4" step="0.1" value="-7"><span id="bqv"></span></label>
+<div class="ex" id="o7"></div></div></div>
+
+<h2>3. The model: one neuron</h2>
+<div class="row"><div>
+<div class="formula">p̂ = σ(w·x + b) &nbsp;&nbsp; predict 1 if p̂ ≥ 0.5</div>
+<p><code>w</code> (weight) sets how <b>steep</b> the curve is; <code>b</code> (bias) <b>shifts</b> it. The decision boundary is where p̂ = 0.5, i.e. <code>x = −b/w</code> (dashed line). Move the sliders to fit the ten students by hand and watch the loss number — your goal is to make it small. That number is defined next.</p>
+<h3>Worked example (use w = 1.3, b = −7)</h3>
+<ul>
+<li>Student with <b>x = 6 h</b>: z = 1.3·6 − 7 = 0.8, p̂ = σ(0.8) ≈ <b>0.69</b> → predict “pass” (true label 1 ✓).</li>
+<li>Student with <b>x = 3 h</b>: z = 1.3·3 − 7 = −3.1, p̂ = σ(−3.1) ≈ <b>0.04</b> → predict “fail” (true label 0 ✓).</li>
+<li>Boundary: z = 0 ⇒ x = 7/1.3 ≈ <b>5.4 h</b>. Below it we say fail, above it pass.</li>
+</ul>
+<p>In the plot, the vertical orange segments are the gaps between the curve and each true label. Good parameters make all those segments short.</p>
+<div class="callout"><b>Parameters = knobs</b>Learning = finding good values for <code>w</code> and <code>b</code>. Here 2 knobs; GPT-scale models have hundreds of billions.</div>
+<div class="callout tf"><b>Transformer link</b><code>w·x + b</code> is a <b>linear layer</b> (<code>nn.Linear</code>). Transformers stack thousands of them; σ is swapped for softmax or GELU, but the building block is identical.</div>
+</div><div class="fig"><canvas id="c3" width="640" height="320"></canvas>
+<label>w (steepness) <input type="range" id="w3" min="0" max="4" step="0.05" value="0.3"><span id="w3v"></span></label>
+<label>b (shift) <input type="range" id="b3" min="-16" max="4" step="0.1" value="0"><span id="b3v"></span></label>
+<div class="out" id="o3"></div></div></div>
+
+<h2>4. The loss: binary cross-entropy</h2>
+<div class="row"><div>
+<p>We need one number saying “how wrong are the probabilities?”. Use <b>maximum likelihood</b>: pick parameters that make the observed labels as probable as possible. For one example, the likelihood is <code>p̂</code> if y=1 and <code>1−p̂</code> if y=0. Taking −log and averaging over N examples:</p>
+<div class="formula">L = −(1/N) Σ [ y·log p̂ + (1−y)·log(1−p̂) ]</div>
+<p>Slide the predicted probability on the right. If the truth is 1 and you say 0.99 the loss is tiny; if you say 0.01 the loss explodes. <b>Confident and wrong is punished hardest.</b></p>
+<h3>Reading the formula with numbers</h3>
+<p>The formula looks scary but each example uses only <i>one</i> of its two terms (the other is multiplied by 0):</p>
+<ul>
+<li>True y = 1, model says p̂ = 0.69 → loss = −ln(0.69) ≈ <b>0.37</b> (small, it was mostly right).</li>
+<li>True y = 1, model says p̂ = 0.04 → loss = −ln(0.04) ≈ <b>3.2</b> (big: confidently wrong).</li>
+<li>True y = 0, model says p̂ = 0.04 → loss = −ln(0.96) ≈ <b>0.04</b> (almost perfect).</li>
+</ul>
+<p>The loss <b>L</b> is the average of these numbers over all training examples. <b>Training means making L as small as possible.</b></p>
+<p>Why not squared error? With a sigmoid it gives a bumpy, non-convex surface and vanishing gradients; cross-entropy is convex for logistic regression and has a beautifully simple gradient (next section).</p>
+<div class="callout tf"><b>Transformer link</b>GPT is trained with <b>exactly this loss</b> — cross-entropy between the predicted next-token distribution and the true token (the multi-class version: L = −log p̂<sub>correct</sub>). “Perplexity” is just e<sup>L</sup>.</div>
+</div><div class="fig"><canvas id="c4" width="640" height="320"></canvas>
+<label>predicted p̂ = <input type="range" id="p4" min="0.01" max="0.99" step="0.01" value="0.7"><span id="p4v"></span></label>
+<div class="out" id="o4"></div></div></div>
+
+<h2>5. Training with gradient descent (one feature)</h2>
+<div class="row"><div>
+<p>No closed-form solution exists, so we walk downhill on the loss surface. Repeat:</p>
+<div class="formula">w ← w − η · ∂L/∂w &nbsp;&nbsp; b ← b − η · ∂L/∂b</div>
+<p>Differentiating cross-entropy through the sigmoid, the messy terms cancel and you get:</p>
+<div class="formula">∂L/∂w = (1/N) Σ (p̂ − y)·x &nbsp;&nbsp; ∂L/∂b = (1/N) Σ (p̂ − y)</div>
+<p><b>Read it in words:</b> “error × input”. Each point pushes the boundary away from itself if it is misclassified, proportional to how wrong it is.</p>
+<h3>One training step with real numbers (our 10 students)</h3>
+<ol>
+<li><b>Start</b> at w = 0, b = 0. Then z = 0 for everyone, so every p̂ = 0.5: a flat line.</li>
+<li><b>Errors</b> e = p̂ − y: the 5 failed students have e = +0.5, the 5 passed students have e = −0.5.</li>
+<li><b>Gradient for b</b> = average of e = (5·0.5 − 5·0.5)/10 = <b>0</b>.</li>
+<li><b>Gradient for w</b> = average of e·x = (0.5·(1+2+3+4+5.2) − 0.5·(4.4+6+7+8+9))/10 = <b>−0.96</b>. It is negative because the passed students have larger x.</li>
+<li><b>Update</b> with η = 0.1: w ← 0 − 0.1·(−0.96) = <b>0.096</b>, b stays 0. A negative gradient makes w <i>grow</i>, so the curve tilts upward: high x → pass. That is exactly the right direction.</li>
+</ol>
+<p><b>Try it on the right.</b> Top: the S-curve moves as (w, b) change. Bottom: the <b>loss landscape</b>. Every point is one (w, b) pair, orange = high loss, white = low loss. Gradient descent is a ball rolling from (0, 0) down to the white valley. Try a big η (0.3: it overshoots and zig-zags) and a tiny one (it crawls).</p>
+</div><div class="fig"><canvas id="c8" width="640" height="280"></canvas>
+<canvas id="c8b" width="640" height="250"></canvas>
+<label>learning rate η <input type="range" id="lr1" min="0.005" max="0.3" step="0.005" value="0.1"><span id="lr1v"></span></label>
+<div class="btns"><button id="st1">Step</button><button id="run1">Run ▶</button><button id="rs1">Reset</button></div>
+<div class="out" id="o8"></div></div></div>
+
+<h2>6. The same training with two features</h2>
+<div class="row"><div>
+<h3>What is the 2-D data?</h3>
+<p>Now each student has <b>two</b> features: x₁ = hours studied (horizontal) and x₂ = hours slept (vertical). Each dot is one student, blue = passed, orange = failed. The model becomes <code>p̂ = σ(w₁x₁ + w₂x₂ + b)</code> and the decision boundary (where p̂ = 0.5) is a straight <b>line</b> that should separate blue from orange.</p>
+<h3>The same five steps, now with w₁, w₂ and b</h3>
+<ol>
+<li><b>Start</b> with w₁ = w₂ = b = 0, so every p̂ = 0.5 (the model knows nothing).</li>
+<li><b>Predict</b> p̂ for every dot.</li>
+<li><b>Measure error</b> e = p̂ − y for each dot. Example: a blue dot (y=1) with p̂ = 0.5 gives e = −0.5.</li>
+<li><b>Gradient</b> = average of e·x. That tells us which way to nudge each knob to reduce the loss.</li>
+<li><b>Update</b> w ← w − η·gradient. Repeat until the loss curve flattens.</li>
+</ol>
+<p>The learning rate η is the step size: too small = slow, too big = overshoots and bounces.</p>
+<p>On the right: two classes in 2-D (blue = 1, orange = 0), background shows p̂. Press <b>Step</b> or <b>Run</b> and watch the boundary rotate into place and the loss curve fall. Then try a huge learning rate η (it oscillates) and a tiny one (it crawls).</p>
+<div class="callout tf"><b>Transformer link</b>Training a Transformer is this same loop: forward pass → cross-entropy → gradients (backpropagation, the chain rule applied layer by layer) → update (usually the Adam variant of gradient descent). Same η trade-off, too.</div>
+</div><div class="fig"><canvas id="c5" width="640" height="400"></canvas>
+<canvas id="c5b" width="640" height="110"></canvas>
+<label>learning rate η <input type="range" id="lr" min="0.01" max="5" step="0.01" value="0.3"><span id="lrv"></span></label>
+<div class="btns"><button id="st">Step</button><button id="run">Run ▶</button><button id="rs">Reset</button></div>
+<div class="out" id="o5"></div></div></div>
+
+<h2>7. Many classes: softmax</h2>
+<div class="row"><div>
+<h3>The problem it solves</h3>
+<p>The sigmoid answers <b>yes/no</b> (2 classes). But often there are K classes: which digit (0–9) is in this image? Which word (out of ~50,000) comes next? We then need <b>K probabilities</b> that are all ≥ 0 and <b>add up to 1</b>. Softmax is the function that produces them.</p>
+<h3>Building it in four steps</h3>
+<ol>
+<li><b>One score per class.</b> Compute K logits z₁…z<sub>K</sub>, each its own linear score z<sub>k</sub> = w<sub>k</sub>·x + b<sub>k</sub> (think: K logistic-regression neurons side by side).</li>
+<li><b>Problem:</b> raw logits can be negative and do not sum to 1, so they are not probabilities. We cannot simply divide by their sum (negative numbers would break it).</li>
+<li><b>Exponentiate:</b> e<sup>z</sup> is always positive, and a bigger logit still gives a bigger number.</li>
+<li><b>Normalise:</b> divide each by the total, so the results sum to exactly 1.</li>
+</ol>
+<div class="formula">softmax(z)<sub>k</sub> = e<sup>z<sub>k</sub></sup> / ( e<sup>z<sub>1</sub></sup> + e<sup>z<sub>2</sub></sup> + … + e<sup>z<sub>K</sub></sup> )</div>
+<h3>Worked example: logits (2, 1, −1)</h3>
+<p>e² = 7.39, e¹ = 2.72, e<sup>−1</sup> = 0.37. Sum = 10.48. Probabilities: 7.39/10.48 = <b>70.5%</b>, 2.72/10.48 = <b>25.9%</b>, 0.37/10.48 = <b>3.5%</b>. Sums to 100%. ✓</p>
+<h3>Why the name “soft max”?</h3>
+<p>A “hard” max would give the winner 100% and everyone else 0: (1, 0, 0). That throws away information (how close was the runner-up?) and has zero gradient, so we could not train with it. Softmax is a <b>smooth, differentiable max</b>: the largest logit gets most of the probability, the others keep a share. Exponentiating also <b>amplifies gaps</b>: a logit 1 higher makes a class e ≈ 2.7× more likely.</p>
+<h3>Useful properties</h3>
+<ul>
+<li>Order is kept: the biggest logit is always the most probable class.</li>
+<li>Only <b>differences</b> matter: adding 100 to every logit changes nothing.</li>
+<li><b>Sigmoid is softmax with 2 classes:</b> softmax of (z₁, z₂) gives class 1 the probability σ(z₁ − z₂).</li>
+<li><b>Temperature T</b> (drag the slider): logits are divided by T. Low T → sharper, nearly “hard” max. High T → flatter, more random.</li>
+<li><b>Training:</b> same cross-entropy as before, L = −log p̂<sub>correct</sub>, and the gradient is again simply <b>p̂ − y</b> (with y as a one-hot vector). Nothing new to learn.</li>
+</ul>
+<div class="callout tf"><b>Transformer link</b>Softmax appears twice in a Transformer: (1) at the very end, turning the logits over the ~50,000-word vocabulary into next-word probabilities (the “temperature” you set when sampling from ChatGPT is exactly the T here); (2) inside <b>attention</b>, where softmax turns similarity scores between words into weights that sum to 1 (“how much should I look at each word?”).</div>
+</div><div class="fig"><canvas id="c6" width="640" height="300"></canvas>
+<label>logit A <input type="range" id="s0" min="-5" max="5" step="0.1" value="2"><span id="s0v"></span></label>
+<label>logit B <input type="range" id="s1" min="-5" max="5" step="0.1" value="1"><span id="s1v"></span></label>
+<label>logit C <input type="range" id="s2" min="-5" max="5" step="0.1" value="-1"><span id="s2v"></span></label>
+<label>temperature T <input type="range" id="tt" min="0.1" max="3" step="0.1" value="1"><span id="ttv"></span></label>
+<div class="ex" id="o6"></div></div></div>
+
+<h2>8. Full code (NumPy, from scratch)</h2>
+<div class="code"><pre><code>import numpy as np
+sigmoid = lambda z: 1 / (1 + np.exp(-z))
+
+def train(X, y, lr=0.3, steps=500):
+    w, b = np.zeros(X.shape[1]), 0.0
+    for _ in range(steps):
+        p = sigmoid(X @ w + b)            # forward pass
+        loss = -np.mean(y*np.log(p+1e-9) + (1-y)*np.log(1-p+1e-9))
+        gw = X.T @ (p - y) / len(y)       # gradient = (p - y) * x
+        gb = np.mean(p - y)
+        w -= lr * gw; b -= lr * gb        # update
+    return w, b</code></pre></div>
+
+<h2>9. Cheat-sheet: from logistic regression to Transformers</h2>
+<div class="table"><table>
+<thead><tr><th>Logistic regression</th><th>In a Transformer</th></tr></thead><tbody>
+<tr><td>Linear score z = w·x + b</td><td>Linear layers: Q, K, V projections, feed-forward, output head</td></tr>
+<tr><td>Sigmoid → probability</td><td>Softmax over the vocabulary; softmax inside attention</td></tr>
+<tr><td>Logits (log-odds)</td><td>Raw model outputs before softmax; temperature scales them</td></tr>
+<tr><td>Binary cross-entropy</td><td>Cross-entropy on the next token (perplexity = e<sup>loss</sup>)</td></tr>
+<tr><td>Gradient (p̂ − y)·x</td><td>Same “prediction − target” error signal at the output, then backpropagated</td></tr>
+<tr><td>Gradient descent, learning rate η</td><td>AdamW with learning-rate schedules</td></tr>
+<tr><td>Decision boundary: a line</td><td>Stacking layers with non-linearities bends the boundary into any shape</td></tr>
+</tbody></table></div>
+<div class="callout"><b>Teach it in one sentence</b>Logistic regression = a linear model whose score is turned into a probability, trained by minimising cross-entropy with gradient descent — and a Transformer is that same recipe repeated at enormous scale.</div>
+
+</article>
+<aside class="lr-aside" id="aside"><p>On this page</p><nav id="toc"></nav></aside>
+</div>
+
+{% raw %}
+<script>
+(function(){
+var root=document.documentElement;
+
+// ---------- "On this page" sidebar ----------
+var heads=document.querySelectorAll('#content h2'),toc=document.getElementById('toc');
+heads.forEach(function(h,i){h.id='sec-'+(i+1);var a=document.createElement('a');a.href='#'+h.id;a.textContent=h.textContent;toc.appendChild(a)});
+var links=toc.querySelectorAll('a');
+function sc(){var c=0;heads.forEach(function(h,i){if(h.getBoundingClientRect().top<140)c=i});links.forEach(function(l,i){l.classList.toggle('on',i===c)})}
+addEventListener('scroll',sc,{passive:true});sc();
+
+// ---------- helpers ----------
+var FB={'--line':'#dfe3ea','--muted':'#5d6675','--accent':'#2f54eb','--warm':'#e8590c','--surface':'#fff','--text':'#171b24'};
+var R=[];window.redraw=function(){R.forEach(function(f){f()})};
+function reg(f){R.push(f);f()}
+function $(i){return document.getElementById(i)}
+function col(n){return getComputedStyle(root).getPropertyValue(n).trim()||FB[n]}
+function num(id){return +$(id).value}
+function show(id,f){var e=$(id),o=$(id+'v');if(o)o.textContent=(+e.value).toFixed(2);e.addEventListener('input',function(){if(o)o.textContent=(+e.value).toFixed(2);f()})}
+function S(z){return 1/(1+Math.exp(-z))}
+function P(id,x0,x1,y0,y1){var c=$(id),g=c.getContext('2d'),W=c.width,H=c.height,m=34;
+var p={g:g,W:W,H:H,m:m,X:function(v){return m+(v-x0)/(x1-x0)*(W-2*m)},Y:function(v){return H-m-(v-y0)/(y1-y0)*(H-2*m)}};
+g.clearRect(0,0,W,H);g.strokeStyle=col('--line');g.fillStyle=col('--muted');g.font='13px sans-serif';g.lineWidth=1;g.strokeRect(m,m/2,W-2*m,H-1.5*m);
+p.line=function(f,color,lw){g.beginPath();g.strokeStyle=color;g.lineWidth=lw||2.5;var s=false;for(var i=0;i<=240;i++){var x=x0+(x1-x0)*i/240,y=f(x);if(y<y0-.3||y>y1+.3){s=false;continue}g[s?'lineTo':'moveTo'](p.X(x),p.Y(y));s=true}g.stroke()};
+p.hl=function(y,color,dash){g.beginPath();g.strokeStyle=color;g.lineWidth=1;g.setLineDash(dash||[4,4]);g.moveTo(p.X(x0),p.Y(y));g.lineTo(p.X(x1),p.Y(y));g.stroke();g.setLineDash([])};
+p.vl=function(x,color){g.beginPath();g.strokeStyle=color;g.lineWidth=1.5;g.setLineDash([5,4]);g.moveTo(p.X(x),p.Y(y0));g.lineTo(p.X(x),p.Y(y1));g.stroke();g.setLineDash([])};
+p.dot=function(x,y,color,r){g.beginPath();g.fillStyle=color;g.arc(p.X(x),p.Y(y),r||6,0,7);g.fill()};
+p.t=function(s,x,y){g.fillStyle=col('--muted');g.fillText(s,x,y)};
+return p}
+var A=function(){return col('--accent')},Wm=function(){return col('--warm')};
+var D=[[1,0],[2,0],[3,0],[4,0],[5.2,0],[4.4,1],[6,1],[7,1],[8,1],[9,1]];
+function fit(d){var w=0,b=0,n=d.length;for(var k=0;k<3000;k++){var gw=0,gb=0;d.forEach(function(q){var e=S(w*q[0]/10+b)-q[1];gw+=e*q[0]/10;gb+=e});w-=.6*gw/n;b-=.6*gb/n}return[w/10,b]}
+function lin(d){var n=d.length,sx=0,sy=0,sxy=0,sxx=0;d.forEach(function(q){sx+=q[0];sy+=q[1];sxy+=q[0]*q[1];sxx+=q[0]*q[0]});var m=(n*sxy-sx*sy)/(n*sxx-sx*sx);return[m,(sy-m*sx)/n]}
+
+// ---------- 0 ----------
+show('rv',function(){redraw()});
+$('tbl').innerHTML='<b>Training set (10 students)</b><br>'+D.map(function(q,i){return '#'+(i+1)+': x = '+q[0]+' h → y = '+q[1]+(q[1]?' (pass)':' (fail)')}).join('<br>');
+reg(function(){var t=num('rv'),p=P('c0',0,10,-.2,1.2);p.hl(0,col('--line'),[]);p.hl(1,col('--line'),[]);
+D.forEach(function(q){p.dot(q[0],.5+(q[1]-.5)*t,t<.5?col('--muted'):(q[1]?A():Wm()),7)});
+p.t('x = hours studied →',p.W-140,p.H-8);p.t('y = 1 (pass)',40,p.Y(1)-6);p.t('y = 0 (fail)',40,p.Y(0)-6);
+if(t<.5)p.t('labels hidden: only inputs known',p.X(2.2),p.Y(.5)-16)});
+
+// ---------- 1 ----------
+var stp=1;
+function setStep(n){stp=n;document.querySelectorAll('#sb button').forEach(function(b){b.classList.toggle('on',+b.dataset.s===n)});redraw()}
+document.querySelectorAll('#sb button').forEach(function(b){b.onclick=function(){setStep(+b.dataset.s)}});
+show('ol',function(){redraw()});
+reg(function(){var d=D.concat([[num('ol'),1]]),L=lin(d),F=fit(d),n=d.length,o=n-1,f=function(x){return L[0]*x+L[1]},T;
+document.querySelectorAll('#sb button').forEach(function(b){b.classList.toggle('on',+b.dataset.s===stp)});
+var dots=function(p,ys){d.forEach(function(q,i){p.dot(q[0],ys?ys(q):q[1],i===o?'#e03131':(q[1]?A():Wm()),i===o?8:6)})};
+var p;
+if(stp===3){p=P('c1',0,32,-8,8);p.hl(0,col('--muted'));p.line(function(x){return F[0]*x+F[1]},'#9c36b5',3);
+d.forEach(function(q,i){var z=F[0]*q[0]+F[1];p.dot(q[0],Math.max(-8,Math.min(8,z)),i===o?'#e03131':(q[1]?A():Wm()),i===o?8:6)});
+p.t('x (hours studied) →',p.W-150,p.H-8);p.t('z = w·x + b  (any real number)',40,p.m/2+14);p.t('z > 0 → leans “pass”',p.X(1),p.Y(6));p.t('z < 0 → leans “fail”',p.X(1),p.Y(-6));
+T='<b>Step 3: keep the line, change its meaning.</b> We stop asking the line to equal the label (0 or 1). Instead its height is a <b>score</b> z = w·x + b that is allowed to be any number: large positive = “probably pass”, large negative = “probably fail”, 0 = undecided. Dots are colored by their true label; notice passed students (blue) sit at high z and failed ones (orange) at low z. The score is not a probability yet, because it can be −5 or +7.';
+$('o1').innerHTML='fitted score: z = <b>'+F[0].toFixed(2)+'</b>·x + (<b>'+F[1].toFixed(2)+'</b>) &nbsp; crosses 0 at x = <b>'+(-F[1]/F[0]).toFixed(1)+'</b>'}
+else{p=P('c1',0,32,-.4,1.4);
+if(stp===2){var g=p.g;g.globalAlpha=.13;g.fillStyle='#e03131';g.fillRect(p.m,p.m/2,p.W-2*p.m,p.Y(1)-p.m/2);g.fillRect(p.m,p.Y(0),p.W-2*p.m,p.H-p.m-p.Y(0));g.globalAlpha=1;p.t('impossible: probability > 1',p.X(12),p.Y(1.2));p.t('impossible: probability < 0',p.X(12),p.Y(-.2))}
+p.hl(0,col('--line'),[]);p.hl(1,col('--line'),[]);p.hl(.5,col('--muted'));
+if(stp<4)p.line(f,Wm(),3);else{p.line(function(x){return S(F[0]*x+F[1])},A(),3.5);p.line(f,Wm(),1.5)}
+dots(p);p.t('x (hours studied) →',p.W-150,p.H-8);p.t('1 = pass',40,p.Y(1)-6);p.t('0 = fail',40,p.Y(0)-6);
+if(stp===1){T='<b>Step 1: fit a straight line.</b> Ordinary linear regression draws the line ŷ = m·x + c that stays closest to the dots (orange line). You could read it as “the higher the line, the more likely to pass”, and classify with “ŷ ≥ 0.5 → pass”. The line crosses 0.5 at x = '+((.5-L[1])/L[0]).toFixed(1)+' h. It looks reasonable so far.';
+$('o1').innerHTML='line: ŷ = <b>'+L[0].toFixed(3)+'</b>·x + (<b>'+L[1].toFixed(2)+'</b>)'}
+else if(stp===2){T='<b>Step 2: where it breaks.</b> (a) A student with 0.5 h gets ŷ = '+f(.5).toFixed(2)+' and one with 25 h gets ŷ = '+f(25).toFixed(2)+'. A probability can never be below 0 or above 1 (red zones). (b) Drag the outlier: one extra student who clearly passed tilts the line so much that its 0.5 crossing shifts to '+((.5-L[1])/L[0]).toFixed(1)+' h, and borderline students get misclassified, even though this student should make us <i>more</i> sure, not less.';
+$('o1').innerHTML='line at x = 0.5: <b>'+f(.5).toFixed(2)+'</b> &nbsp; line at x = 25: <b>'+f(25).toFixed(2)+'</b>'}
+else{T='<b>Step 4: squash the score.</b> Take the score from step 3 and feed it into the sigmoid σ(z) = 1 / (1 + e<sup>−z</sup>). Big positive z → close to 1, big negative z → close to 0, z = 0 → exactly 0.5. The blue S-curve is the straight line <i>bent</i> so it never leaves [0, 1] (the thin orange line is the old fit, for comparison). The curve crosses 0.5 exactly where the score crosses 0, at x = '+(-F[1]/F[0]).toFixed(1)+' h. Now drag the outlier: the curve hardly moves, and its output is a valid probability everywhere. <b>This is logistic regression: p̂ = σ(w·x + b).</b>';
+$('o1').innerHTML='S-curve: p̂ = σ( <b>'+F[0].toFixed(2)+'</b>·x + (<b>'+F[1].toFixed(2)+'</b>) )'}}
+$('ex1').innerHTML=T});
+
+// ---------- 2b ----------
+['xq','wq','bq'].forEach(function(i){show(i,function(){redraw()})});
+reg(function(){var x=num('xq'),w=num('wq'),b=num('bq'),z=w*x+b,q=S(z),p=P('c7',0,10,-.1,1.1);p.hl(.5,col('--muted'));
+p.line(function(t){return S(w*t+b)},A(),3);p.g.beginPath();p.g.strokeStyle=Wm();p.g.setLineDash([3,3]);p.g.moveTo(p.X(x),p.Y(0));p.g.lineTo(p.X(x),p.Y(q));p.g.stroke();p.g.setLineDash([]);p.dot(x,q,Wm(),8);p.t('x →',p.W-40,p.H-8);p.t('p̂',6,p.m);
+$('o7').innerHTML='<b>1. Score:</b> z = w·x + b = '+w.toFixed(2)+' × '+x.toFixed(1)+' + ('+b.toFixed(1)+') = <b>'+z.toFixed(2)+'</b><br><b>2. Squash:</b> p̂ = σ('+z.toFixed(2)+') = 1/(1+e<sup>'+(-z).toFixed(2)+'</sup>) = <b>'+q.toFixed(3)+'</b><br><b>3. Decide:</b> '+q.toFixed(3)+(q>=.5?' ≥ ':' < ')+'0.5 → predict <b>'+(q>=.5?'PASS (1)':'FAIL (0)')+'</b>'});
+
+// ---------- 3 ----------
+function bce(w,b,d){var s=0;d.forEach(function(q){var p=Math.min(1-1e-9,Math.max(1e-9,S(w*q[0]+b)));s-=q[1]*Math.log(p)+(1-q[1])*Math.log(1-p)});return s/d.length}
+['w3','b3'].forEach(function(i){show(i,function(){redraw()})});
+reg(function(){var w=num('w3'),b=num('b3'),p=P('c3',0,10,-.1,1.1);p.hl(.5,col('--muted'));
+if(w>0)p.vl(-b/w,col('--muted'));p.line(function(x){return S(w*x+b)},A(),3);
+D.forEach(function(q){p.dot(q[0],q[1],q[1]?A():Wm());var pr=S(w*q[0]+b);p.g.beginPath();p.g.strokeStyle=Wm();p.g.globalAlpha=.5;p.g.moveTo(p.X(q[0]),p.Y(q[1]));p.g.lineTo(p.X(q[0]),p.Y(pr));p.g.stroke();p.g.globalAlpha=1});
+var acc=D.filter(function(q){return(S(w*q[0]+b)>=.5?1:0)===q[1]}).length;
+p.t('x →',p.W-40,p.H-8);
+$('o3').innerHTML='Loss L = <b>'+bce(w,b,D).toFixed(3)+'</b> &nbsp; accuracy = <b>'+acc+'/10</b> &nbsp; boundary x = <b>'+(w>0?(-b/w).toFixed(2):'—')+'</b><br>Lines show each point’s error |p̂ − y|. Best fit is near w≈1.3, b≈−7.'});
+
+// ---------- 4 ----------
+show('p4',function(){redraw()});
+reg(function(){var q=num('p4'),p=P('c4',0,1,0,5);
+p.line(function(x){return-Math.log(x)},A(),3);p.line(function(x){return-Math.log(1-x)},Wm(),3);p.vl(q,col('--muted'));
+p.dot(q,-Math.log(q),A(),7);p.dot(q,-Math.log(1-q),Wm(),7);
+p.t('predicted p̂ →',p.W-100,p.H-8);p.t('loss',6,p.m);
+p.g.fillStyle=A();p.g.fillText('true y=1: −log p̂',p.X(.35),p.Y(4.3));p.g.fillStyle=Wm();p.g.fillText('true y=0: −log(1−p̂)',p.X(.5),p.Y(4.8));
+$('o4').innerHTML='If y=1: loss = <b>'+(-Math.log(q)).toFixed(3)+'</b> &nbsp; If y=0: loss = <b>'+(-Math.log(1-q)).toFixed(3)+'</b>'});
+
+// ---------- 5a: 1-D training ----------
+var G={w:0,b:0,path:[[0,0]],n:0},gt=null,LS=null;
+function grad(){var gw=0,gb=0;D.forEach(function(q){var e=S(G.w*q[0]+G.b)-q[1];gw+=e*q[0];gb+=e});return[gw/D.length,gb/D.length]}
+function gstep(){var g=grad(),lr=num('lr1');G.w-=lr*g[0];G.b-=lr*g[1];G.n++;G.path.push([G.w,G.b])}
+function draw8(){var w=G.w,b=G.b,g=grad(),p=P('c8',0,10,-.1,1.1);p.hl(.5,col('--muted'));if(w>.01)p.vl(-b/w,col('--muted'));
+p.line(function(x){return S(w*x+b)},A(),3);
+D.forEach(function(q){p.dot(q[0],q[1],q[1]?A():Wm());p.g.beginPath();p.g.strokeStyle=Wm();p.g.globalAlpha=.5;p.g.moveTo(p.X(q[0]),p.Y(q[1]));p.g.lineTo(p.X(q[0]),p.Y(S(w*q[0]+b)));p.g.stroke();p.g.globalAlpha=1});
+p.t('x (hours studied) →',p.W-140,p.H-8);
+var q=P('c8b',0,3,-14,2),cw=q.X(3/40)-q.X(0)+1,ch=q.Y(-14)-q.Y(-14+16/30)+1;
+if(!LS){LS=[];for(var i=0;i<40;i++)for(var j=0;j<30;j++)LS.push([3*i/40,-14+16*j/30,bce(3*(i+.5)/40,-14+16*(j+.5)/30,D)])}
+LS.forEach(function(c){q.g.globalAlpha=Math.min(1,c[2]/2.5)*.85;q.g.fillStyle=Wm();q.g.fillRect(q.X(c[0]),q.Y(c[1]+16/30),cw,ch)});
+q.g.globalAlpha=1;var cx=function(v){return Math.max(0,Math.min(3,v))},cy=function(v){return Math.max(-14,Math.min(2,v))};
+q.g.beginPath();q.g.strokeStyle=col('--text');q.g.lineWidth=2;G.path.forEach(function(s,i){q.g[i?'lineTo':'moveTo'](q.X(cx(s[0])),q.Y(cy(s[1])))});q.g.stroke();
+q.dot(cx(w),cy(b),col('--text'),6);q.t('w (weight) →',q.W-100,q.H-8);q.t('b (bias) ↑',q.m+4,q.m/2+14);
+$('o8').innerHTML='step <b>'+G.n+'</b> &nbsp; w=<b>'+w.toFixed(2)+'</b> b=<b>'+b.toFixed(2)+'</b> &nbsp; loss <b>'+bce(w,b,D).toFixed(3)+'</b><br>gradient: ∂L/∂w=<b>'+g[0].toFixed(3)+'</b> ∂L/∂b=<b>'+g[1].toFixed(3)+'</b> (→ 0 at the bottom of the valley)'}
+show('lr1',function(){});reg(draw8);
+$('st1').onclick=function(){gstep();draw8()};
+$('run1').onclick=function(){if(gt){clearInterval(gt);gt=null;this.textContent='Run ▶';return}var bt=this;bt.textContent='Pause ❚❚';gt=setInterval(function(){for(var i=0;i<15;i++)gstep();draw8();if(G.n>3000){clearInterval(gt);gt=null;bt.textContent='Run ▶'}},40)};
+$('rs1').onclick=function(){G={w:0,b:0,path:[[0,0]],n:0};if(gt){clearInterval(gt);gt=null;$('run1').textContent='Run ▶'}draw8()};
+
+// ---------- 5 ----------
+var seed=7;function rnd(){seed=(seed*16807)%2147483647;return seed/2147483647}
+function gauss(){return Math.sqrt(-2*Math.log(rnd()+1e-9))*Math.cos(6.2832*rnd())}
+var pts=[];for(var i=0;i<60;i++){var c=i%2;pts.push([(c?1:-1)*1.1+gauss()*.9,(c?1:-1)*.9+gauss()*.9,c])}
+var M={w1:0,w2:0,b:0,h:[],n:0},timer=null;
+function loss5(){var s=0;pts.forEach(function(q){var p=Math.min(1-1e-9,Math.max(1e-9,S(M.w1*q[0]+M.w2*q[1]+M.b)));s-=q[2]*Math.log(p)+(1-q[2])*Math.log(1-p)});return s/pts.length}
+function step(){var g1=0,g2=0,g0=0;pts.forEach(function(q){var e=S(M.w1*q[0]+M.w2*q[1]+M.b)-q[2];g1+=e*q[0];g2+=e*q[1];g0+=e});var n=pts.length,lr=num('lr');M.w1-=lr*g1/n;M.w2-=lr*g2/n;M.b-=lr*g0/n;M.n++;M.h.push(loss5())}
+function draw5(){var p=P('c5',-4,4,-4,4),g=p.g,k=24;
+for(var i=0;i<k;i++)for(var j=0;j<k;j++){var x=-4+8*(i+.5)/k,y=-4+8*(j+.5)/k,pr=S(M.w1*x+M.w2*y+M.b);g.globalAlpha=.32*Math.abs(pr-.5)*2+.04;g.fillStyle=pr>.5?A():Wm();var a=p.X(-4+8*i/k),b=p.Y(-4+8*(j+1)/k);g.fillRect(a,b,p.X(-4+8*(i+1)/k)-a+1,p.Y(-4+8*j/k)-b+1)}
+g.globalAlpha=1;
+p.t('x₁ = hours studied →',p.W-150,p.H-8);p.t('x₂ = hours slept ↑',p.m+4,p.m/2+14);
+if(Math.abs(M.w2)>1e-6)p.line(function(x){return-(M.w1*x+M.b)/M.w2},col('--text'),2.5);
+pts.forEach(function(q){p.dot(q[0],q[1],q[2]?A():Wm(),5);g.strokeStyle=col('--surface');g.lineWidth=1.5;g.beginPath();g.arc(p.X(q[0]),p.Y(q[1]),5,0,7);g.stroke()});
+var q=P('c5b',0,Math.max(50,M.h.length),0,.8);q.line(function(x){var i=Math.round(x);return M.h[i-1]===undefined?9:M.h[i-1]},A(),2);q.t('loss vs step',40,24);
+var acc=pts.filter(function(t){return(S(M.w1*t[0]+M.w2*t[1]+M.b)>=.5?1:0)===t[2]}).length;
+$('o5').innerHTML='step <b>'+M.n+'</b> &nbsp; loss <b>'+loss5().toFixed(3)+'</b> &nbsp; accuracy <b>'+acc+'/60</b><br>w₁=<b>'+M.w1.toFixed(2)+'</b> w₂=<b>'+M.w2.toFixed(2)+'</b> b=<b>'+M.b.toFixed(2)+'</b> (black line: w₁x+w₂y+b=0)'}
+show('lr',function(){});reg(draw5);
+$('st').onclick=function(){step();draw5()};
+$('run').onclick=function(){if(timer){clearInterval(timer);timer=null;this.textContent='Run ▶';return}var b=this;b.textContent='Pause ❚❚';timer=setInterval(function(){for(var i=0;i<3;i++)step();draw5();if(M.n>2000){clearInterval(timer);timer=null;b.textContent='Run ▶'}},40)};
+$('rs').onclick=function(){M={w1:0,w2:0,b:0,h:[],n:0};if(timer){clearInterval(timer);timer=null;$('run').textContent='Run ▶'}draw5()};
+
+// ---------- 6 ----------
+['s0','s1','s2','tt'].forEach(function(i){show(i,function(){redraw()})});
+reg(function(){var T=num('tt'),z=[num('s0'),num('s1'),num('s2')],e=z.map(function(v){return Math.exp(v/T)}),s=e[0]+e[1]+e[2],p=e.map(function(v){return v/s}),c=$('c6'),g=c.getContext('2d');
+g.clearRect(0,0,c.width,c.height);var nm=['A','B','C'],cl=[A(),Wm(),'#2f9e44'];
+p.forEach(function(v,i){var x=90+i*180,h=v*210,y=250-h;g.fillStyle=cl[i];g.fillRect(x,y,110,h);g.fillStyle=col('--text');g.font='600 16px sans-serif';g.fillText((v*100).toFixed(1)+'%',x+22,y-8);g.fillStyle=col('--muted');g.font='14px sans-serif';g.fillText('class '+nm[i]+'  (z='+z[i].toFixed(1)+')',x+2,275)});
+g.strokeStyle=col('--line');g.beginPath();g.moveTo(70,250);g.lineTo(620,250);g.stroke();
+$('o6').innerHTML='<b>Step 1, logits ÷ T:</b> '+z.map(function(v){return(v/T).toFixed(2)}).join(', ')+'<br><b>Step 2, exponentiate:</b> '+e.map(function(v){return v.toFixed(2)}).join(', ')+' (sum = '+s.toFixed(2)+')<br><b>Step 3, divide by sum:</b> '+p.map(function(v){return(v*100).toFixed(1)+'%'}).join(', ')+' (total 100%)'});
+redraw();
+})();
+</script>
+{% endraw %}
+
+{% endblock %}

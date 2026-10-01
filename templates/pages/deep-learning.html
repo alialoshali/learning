@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block h1 %}Learn AI &amp; machine learning{% endblock %}
+{% block lead %}<p class="lead">A guided path from a single straight line to modern deep learning. Each lesson explains the idea, shows the equation with every symbol named, and lets you experiment.</p>{% endblock %}
+{% block content %}
+<h2>What this course covers</h2>
+<p>The course follows the main families of machine learning. Use the index on the right to jump to any topic, or follow the order below.</p>
+
+<div class="table"><table>
+<thead><tr><th>Topic</th><th>What you learn</th></tr></thead>
+<tbody>
+<tr><td><a href="/machine-learning">Machine learning</a></td><td>What it means to learn from data instead of writing rules.</td></tr>
+<tr><td><a href="/supervised-learning">Supervised learning</a></td><td>Learning from examples that have known answers.</td></tr>
+<tr><td><a href="/linear-regression">Linear regression</a></td><td>Fit a line, measure error, improve it with gradient descent.</td></tr>
+<tr><td><a href="/logistic-regression">Logistic regression</a></td><td>Predict categories and probabilities.</td></tr>
+<tr><td><a href="/deep-learning">Deep learning</a></td><td>Neural networks and transformers.</td></tr>
+<tr><td><a href="/unsupervised-learning">Unsupervised learning</a></td><td>Find structure in data without answers: clustering, PCA.</td></tr>
+<tr><td><a href="/reinforcement-learning">Reinforcement learning</a></td><td>Learn by trial and reward.</td></tr>
+</tbody></table></div>
+
+<h2>How each lesson works</h2>
+<ul>
+  <li><b>Idea.</b> The problem and the model in plain words.</li>
+  <li><b>Equation.</b> Every formula lists its symbols and where it comes from.</li>
+  <li><b>Experiment.</b> Sliders and buttons to see the maths move.</li>
+  <li><b>Transformer link.</b> How the same idea appears in modern language models.</li>
+</ul>
+
+<div class="callout"><b>Where to start</b>New to the subject? Begin with <a href="/linear-regression">linear regression</a>. Every later topic reuses its three steps: model, loss, update.</div>
+
+<h2>Reading settings</h2>
+<p>Use the <code>A−</code> / <code>A+</code> controls at the top to change text size. Your choice is remembered in this browser.</p>
+{% endblock %}

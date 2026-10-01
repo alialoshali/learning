@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{% block title %}{{ node.title }}{% endblock %} · {{ site_title }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&family=Exo+2:wght@200;300&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<style>
+  /* Make the layout take the full width starting immediately after the navigation bar */
+  .wrap {
+    display: flex !important;
+    flex-direction: row !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding-left: 0 !important;
+    gap: 0 !important;
+    box-sizing: border-box !important;
+    justify-content: flex-start !important;
+    align-items: stretch !important;
+  }
+
+  aside.index {
+    margin: 0 !important;
+    flex-shrink: 0 !important;
+    width: max-content !important;
+    transition: width 0.3s ease !important;
+    overflow-x: hidden !important;
+  }
+
+  .wrap.collapsed aside.index {
+    width: 20px !important;
+  }
+
+  .main-col {
+    flex: 1 1 0% !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .main-col header.lesson,
+  .main-col article,
+  .main-col #content,
+  .lr-page .lr-wrap {
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  /* Phones / narrow screens: stack the index above the lesson instead of beside it */
+  @media (max-width: 1000px) {
+    .wrap { flex-direction: column !important; }
+    aside.index, .wrap.collapsed aside.index { width: auto !important; }
+  }
+</style>
+{% block head %}{% endblock %}
+</head>
+<body>
+
+<div class="bar" role="toolbar" aria-label="Reading settings">
+  <div class="brand"><span class="dot"></span>{{ site_title }}</div>
+  <div class="ctl">
+    <button id="dec" aria-label="Decrease font size">A−</button>
+    <input id="size" type="range" min="14" max="26" step="1" aria-label="Font size">
+    <button id="inc" aria-label="Increase font size">A+</button>
+  </div>
+  <input id="sizeBox" class="size-box" type="number" min="14" max="26" step="1" aria-label="Font size in pixels">
+  <div class="progress" id="progress"></div>
+</div>
+
+<main class="wrap">
+  <!-- Left-hand index toolbar -->
+  <aside class="index" aria-label="Course index" id="sidebarIndex">
+    <div class="index-content">
+      <div class="index-header">
+        <a class="logo" href="/" aria-label="Home"><img src="{{ url_for('static', filename='epi_logo_inverted.png') }}" alt="Logo"></a>
+        <button type="button" class="sidebar-close-btn" id="sidebarCloseBtn" aria-label="Minimize navigation" title="Minimize navigation">✕</button>
+      </div>
+      <p class="site-name">{{ site_title }}</p>
+      <nav>
+        {% macro tree(n, depth) %}
+        <ul class="tree">
+          <li>
+            <div class="item{% if n.slug == active %} on{% endif %}" style="padding-left: {{ depth * 20 }}px">
+              {% if n.children %}
+                <button class="tg" aria-expanded="{{ 'true' if n.slug in open_slugs else 'false' }}" aria-label="Toggle {{ n.title }}"></button>
+              {% else %}<span class="sp"></span>{% endif %}
+              <a href="{{ url_for_slug(n.slug) }}"{% if n.slug == active %} aria-current="page"{% endif %}>{{ n.title }}</a>
+            </div>
+            {% if n.children %}
+            <div class="kids"{% if n.slug not in open_slugs %} hidden{% endif %}>
+              {% for c in n.children %}{{ tree(c, depth + 1) }}{% endfor %}
+            </div>
+            {% endif %}
+          </li>
+        </ul>
+        {% endmacro %}
+        {{ tree(nav, 0) }}
+      </nav>
+    </div>
+    <button type="button" class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle navigation bar" title="Collapse / Expand navigation"></button>
+  </aside>
+
+  <section class="main-col">
+    <header class="lesson">
+      <div class="meta">
+        {% for t in trail[1:] %}<a class="tag" href="{{ url_for_slug(t.slug) }}">{{ t.title }}</a>{% endfor %}
+        {% if node.slug and node.slug != 'home' %}<span class="tag">{{ node.title }}</span>{% endif %}
+      </div>
+      <h1>{% block h1 %}{{ node.title }}{% endblock %}</h1>
+      {% block lead %}{% endblock %}
+    </header>
+    <article id="content">{% block content %}{% endblock %}</article>
+  </section>
+</main>
+
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

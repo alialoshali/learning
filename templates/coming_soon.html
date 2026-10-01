@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block lead %}<p class="lead">{% if missing %}This address does not exist. Pick a topic from the index.{% else %}This lesson is not written yet.{% endif %}</p>{% endblock %}
+{% block content %}
+{% if not missing %}
+<div class="callout"><b>Add this lesson</b>Create <code>templates/pages/{{ node.slug }}.html</code> that extends <code>base.html</code>. The index entry already exists in <code>navigation.py</code>.</div>
+{% endif %}
+{% endblock %}

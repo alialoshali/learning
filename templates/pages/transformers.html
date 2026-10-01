@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block h1 %}Transformers{% endblock %}
+{% block lead %}
+<p class="lead">The architecture behind GPT, BERT and Claude. Every idea here is built from tools you already know as an AI engineer: vectors, dot products, softmax, cross-entropy and gradient descent. Play with each widget; every one sits next to the idea it explains.</p>
+{% endblock %}
+{% block content %}
+{% raw %}
+<style>
+/* ---- Page-specific styles, scoped to #lesson so nothing leaks into base chrome.
+   Colors use base variables when present, with the original palette as fallback. ---- */
+#lesson .meta{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+#lesson .tag{font-family:var(--mono,ui-monospace,Menlo,Consolas,monospace);font-size:12px;padding:3px 10px;border-radius:99px;background:var(--accent-soft,#e6ecff);color:var(--accent,#2f54eb)}
+#lesson h2{font-size:1.55em;letter-spacing:-.02em;margin:2em 0 .5em;padding-top:1em;border-top:1px solid var(--line,#dfe3ea)}
+#lesson h2:first-of-type{margin-top:0;border:0;padding:0}
+#lesson h3{font-size:1.15em;margin:1.2em 0 .3em}
+#lesson a{color:var(--accent,#2f54eb)}
+#lesson code{font-family:var(--mono,ui-monospace,Menlo,Consolas,monospace);font-size:.85em;background:var(--accent-soft,#e6ecff);color:var(--accent,#2f54eb);padding:.1em .4em;border-radius:5px}
+#lesson .pair{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:32px;align-items:start}
+#lesson .pair>div>*:first-child{margin-top:0}
+#lesson .callout{border-left:3px solid var(--accent,#2f54eb);background:var(--surface,#fff);border-radius:0 10px 10px 0;padding:12px 18px;margin:1.2em 0}
+#lesson .callout b{display:block;margin-bottom:2px}
+#lesson .formula{font-family:var(--mono,ui-monospace,Menlo,Consolas,monospace);background:var(--surface,#fff);border:1px solid var(--line,#dfe3ea);border-radius:10px;padding:14px;text-align:center;margin:1.2em 0;overflow-x:auto;font-size:.95em}
+#lesson .code{position:relative;margin:1.2em 0}
+#lesson .code pre{margin:0;background:var(--code-bg,#0f1420);color:var(--code-text,#d9e1f2);border-radius:12px;padding:18px;overflow-x:auto;font:400 .8em/1.6 var(--mono,ui-monospace,Menlo,Consolas,monospace)}
+#lesson .code pre code{background:none;color:inherit;padding:0}
+#lesson .code .copy{position:absolute;top:10px;right:10px;font-size:12px;padding:6px 12px;min-height:32px;background:#1c2436;color:#c5cfe3;border:1px solid #2c3750;border-radius:8px;cursor:pointer}
+#lesson .table{overflow-x:auto;margin:1.2em 0;border:1px solid var(--line,#dfe3ea);border-radius:10px;background:var(--surface,#fff)}
+#lesson table{border-collapse:collapse;width:100%;font-size:.9em}
+#lesson th,#lesson td{text-align:left;padding:9px 14px;border-bottom:1px solid var(--line,#dfe3ea)}
+#lesson tr:last-child td{border:0}
+#lesson th{color:var(--muted,#5d6675);font-weight:500}
+#lesson .w{background:var(--surface,#fff);border:1px solid var(--line,#dfe3ea);border-radius:12px;padding:16px}
+#lesson .w h4{margin:0 0 8px;font-size:.95em}
+#lesson .row{display:flex;flex-wrap:wrap;gap:14px;align-items:center;font-size:.85em;color:var(--muted,#5d6675);margin:8px 0}
+#lesson input[type=range]{accent-color:var(--accent,#2f54eb)}
+#lesson .hm{border-collapse:separate;border-spacing:3px;width:auto}
+#lesson .hm td,#lesson .hm th{padding:7px 10px;text-align:center;border:0;border-radius:6px;font-family:var(--mono,ui-monospace,Menlo,Consolas,monospace);font-size:.8em}
+#lesson .hm th.q{cursor:pointer;color:var(--text,#171b24);text-align:right;min-width:44px;min-height:44px}
+#lesson .hm th.sel{color:var(--accent,#2f54eb);font-weight:700}
+#lesson .bars div{display:flex;align-items:center;gap:8px;font-family:var(--mono,ui-monospace,Menlo,Consolas,monospace);font-size:.8em;margin:3px 0}
+#lesson .bars i{display:block;height:14px;background:var(--accent,#2f54eb);border-radius:4px;transition:width .2s}
+#lesson canvas{width:100%;border-radius:8px;display:block;background:var(--surface,#fff)}
+#lesson svg text{fill:var(--text,#171b24);font:12px var(--sans,system-ui,sans-serif)}
+@media (max-width:1000px){#lesson .pair{grid-template-columns:1fr}}
+</style>
+
+<article id="lesson">
+<div class="meta"><span class="tag">Deep learning</span><span class="tag">NLP</span><span class="tag">Attention</span></div>
+
+<h2>Why we needed Transformers</h2>
+<div class="pair"><div>
+<p>Before 2017, sequences (text, audio) were handled by <b>RNNs</b>: read one token, update a hidden state, read the next. Two problems followed:</p>
+<ul><li><b>Sequential:</b> step <code>t</code> needs step <code>t-1</code>, so GPUs cannot process tokens in parallel. Training is slow.</li>
+<li><b>Long paths:</b> information from token 1 must survive n−1 updates to reach token n. Gradients vanish (the same issue you meet in deep networks) and early context is forgotten.</li></ul>
+<div class="callout"><b>Core idea</b>Let every token look directly at every other token in one step. That operation is <i>attention</i>. The price is n² pairwise comparisons, which is cheap on a GPU because it is one matrix multiplication.</div>
+</div>
+<div class="w"><h4>Sequence length vs. cost</h4>
+<div class="row">Tokens n = <b id="nv">20</b><input id="n" type="range" min="2" max="100" value="20" aria-label="Sequence length"></div>
+<div class="bars" id="cmp"></div>
+<p id="cmpt" style="font-size:.85em;color:var(--muted,#5d6675);margin:8px 0 0"></p></div></div>
+
+<h2>Step 1: tokens become vectors</h2>
+<div class="pair"><div>
+<p>Text is split into tokens (words or word pieces), each mapped to an integer id, then to a learned vector of size <code>d_model</code> using a lookup table <code>E</code> of shape (vocab, d_model).</p>
+<div class="formula">x_i = E[id_i]    X ∈ ℝ^(n × d_model)</div>
+<p><b>Link to what you know:</b> <code>E</code> is just a weight matrix, exactly like a first linear layer on one-hot input. It starts random and is trained by backpropagation, so similar words end up with nearby vectors.</p>
+</div>
+<div class="w"><h4>The pipeline at a glance</h4>
+<svg viewBox="0 0 520 250" width="100%" role="img" aria-label="Transformer block diagram">
+<g fill="none" stroke="var(--accent,#2f54eb)" stroke-width="1.5">
+<rect x="20" y="200" width="150" height="34" rx="8"/><rect x="20" y="140" width="150" height="34" rx="8"/><rect x="20" y="80" width="150" height="34" rx="8"/><rect x="20" y="20" width="150" height="34" rx="8"/>
+<path d="M95 200v-26M95 140v-26M95 80v-26" marker-end="url(#a)"/></g>
+<defs><marker id="a" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0 0L8 4L0 8z" fill="var(--accent,#2f54eb)"/></marker></defs>
+<text x="30" y="222">Tokens → embeddings + position</text><text x="30" y="162">Multi-head attention + residual</text><text x="30" y="102">Feed-forward (MLP) + residual</text><text x="30" y="42">Linear → softmax over vocab</text>
+<text x="200" y="152" style="fill:var(--muted,#5d6675)">tokens communicate</text><text x="200" y="92" style="fill:var(--muted,#5d6675)">each token thinks alone</text><text x="200" y="32" style="fill:var(--muted,#5d6675)">probability of next token</text>
+<text x="200" y="212" style="fill:var(--muted,#5d6675)">the middle two boxes repeat N times</text></svg></div></div>
+
+<h2>Step 2: self-attention, the heart of the model</h2>
+<div class="pair"><div>
+<p>Each token vector is projected by three learned matrices into a <b>query</b> (what am I looking for?), a <b>key</b> (what do I offer?) and a <b>value</b> (what I hand over if chosen).</p>
+<div class="formula">Q = XW_Q,  K = XW_K,  V = XW_V</div>
+<div class="formula">Attention(Q,K,V) = softmax( QKᵀ / √d_k ) · V</div>
+<ol><li><code>QKᵀ</code>: dot product of every query with every key, giving an n×n score table (bigger = more similar).</li>
+<li>Divide by √d_k so scores don't grow with dimension.</li>
+<li><code>softmax</code> per row turns scores into weights that sum to 1. This is the same softmax as in classification.</li>
+<li>Multiply by V: each output is a weighted average of value vectors.</li></ol>
+<div class="callout"><b>Try it →</b>Click a row label to choose the query token. Drag the slider to divide scores by a bigger number: weights spread out (soft). A small divisor makes them peaky (hard). That is why we divide by √d_k: without it, large d_k makes scores huge, softmax saturates, and gradients vanish. Tick <i>causal mask</i> to see what GPT-style models do (next section).</div>
+</div>
+<div class="w"><h4>Attention weights (toy 2-D vectors, hand-picked)</h4>
+<div class="row">Divide scores by <b id="scv">1.0</b><input id="sc" type="range" min="0.2" max="4" step="0.1" value="1" aria-label="Score divisor"><label><input type="checkbox" id="cz"> causal mask</label></div>
+<div style="overflow-x:auto"><table class="hm" id="hm"></table></div>
+<p style="font-size:.85em;color:var(--muted,#5d6675);margin:8px 0 4px">Row = query token; column = token it looks at. Selected row in detail:</p>
+<div class="bars" id="bars"></div></div></div>
+
+<h2>Step 3: word order, positional encoding</h2>
+<div class="pair"><div>
+<p>Attention treats tokens as a <i>set</i>: shuffle the words and the weights just shuffle too. To inject order we add a position vector to each embedding. The original paper uses sines and cosines of different frequencies:</p>
+<div class="formula">PE(p,2i) = sin(p / 10000^(2i/d))<br>PE(p,2i+1) = cos(p / 10000^(2i/d))</div>
+<p>Low dimensions oscillate fast (fine position), high dimensions slowly (coarse position), like digits of a counter. Nearby positions get similar vectors, so relative distance is easy to learn. Modern models often learn positions or use rotary embeddings (RoPE), but the goal is identical.</p>
+<div class="callout"><b>Try it →</b>Move the anchor position: the bottom curve shows how similar it is to every other position (dot product). It peaks at the anchor and decays with distance.</div>
+</div>
+<div class="w"><h4>Positional encoding (rows = 64 positions, columns = dimensions)</h4>
+<div class="row">d_model <b id="dv">64</b><input id="d" type="range" min="8" max="128" step="8" value="64" aria-label="d_model"> anchor <b id="av">10</b><input id="a" type="range" min="0" max="63" value="10" aria-label="Anchor position"></div>
+<canvas id="pe" width="520" height="200"></canvas><canvas id="sim" width="520" height="110" style="margin-top:8px"></canvas></div></div>
+
+<h2>Step 4: multi-head, feed-forward, residuals</h2>
+<div class="pair"><div>
+<h3>Multi-head attention</h3>
+<p>One attention pattern is too limiting (one token may need syntax <i>and</i> meaning). So we run h smaller attentions in parallel, each with its own W_Q, W_K, W_V of size d_k = d_model/h, then concatenate and mix with W_O. Same cost, more perspectives, like several convolution filters.</p>
+<div class="formula">MultiHead = Concat(head_1..head_h) · W_O</div>
+<h3>Feed-forward, residual, LayerNorm</h3>
+<p>After attention, an ordinary two-layer MLP processes each token separately: <code>FFN(x) = W₂ · GELU(W₁x + b₁) + b₂</code>. Each sub-layer is wrapped as <code>x + Sublayer(x)</code> (a <b>residual connection</b>, the ResNet trick that lets gradients flow through 100+ layers) and normalised with LayerNorm. Attention moves information <i>between</i> tokens; the MLP transforms it <i>within</i> a token.</p>
+</div>
+<div class="w"><h4>Minimal attention in PyTorch</h4>
+<div class="code" style="margin:0"><button class="copy" type="button">Copy</button>
+<pre><code>import torch, math
+import torch.nn.functional as F
+
+def attention(Q, K, V, causal=False):
+    # Q,K,V: (batch, heads, n, d_k)
+    scores = Q @ K.transpose(-2, -1) / math.sqrt(Q.size(-1))
+    if causal:
+        n = Q.size(-2)
+        mask = torch.triu(torch.ones(n, n), 1).bool()
+        scores = scores.masked_fill(mask, float('-inf'))
+    weights = F.softmax(scores, dim=-1)
+    return weights @ V</code></pre></div></div></div>
+
+<h2>Step 5: how a Transformer is trained</h2>
+<div class="pair"><div>
+<p>A decoder-only model (GPT, Claude) learns <b>next-token prediction</b>. For text "the cat sat", the targets are: after "the" predict "cat", after "the cat" predict "sat". All positions are trained at once, which is why we need the <b>causal mask</b>: token i may only attend to tokens ≤ i, otherwise it could copy the answer. Set −∞ before softmax and those weights become 0 (tick the box in the widget above).</p>
+<div class="formula">L = −(1/n) Σ_t log p_θ( x_t | x_&lt;t )</div>
+<p>This is ordinary <b>cross-entropy</b> over the vocabulary, the same loss as image classification with vocabulary-sized classes. Training is the loop you know: forward pass, loss, backprop through every matrix (E, W_Q, W_K, W_V, W_O, MLP), then an <b>Adam</b> update, usually with warmup and a decaying learning rate. Perplexity = e^L.</p>
+</div>
+<div class="w"><h4>Everything connects to what you already know</h4>
+<div class="table" style="margin:0"><table><thead><tr><th>Transformer part</th><th>Familiar idea</th></tr></thead><tbody>
+<tr><td>Embedding table</td><td>Linear layer on one-hot input</td></tr>
+<tr><td>QKᵀ score</td><td>Dot-product / cosine similarity</td></tr>
+<tr><td>Softmax weights</td><td>Classification softmax; temperature</td></tr>
+<tr><td>Weighted sum of V</td><td>Soft dictionary lookup</td></tr>
+<tr><td>Multi-head</td><td>Multiple conv filters</td></tr>
+<tr><td>Residual + LayerNorm</td><td>ResNet, normalisation for stable gradients</td></tr>
+<tr><td>Feed-forward</td><td>Plain MLP with GELU</td></tr>
+<tr><td>Training</td><td>Cross-entropy + backprop + Adam</td></tr>
+</tbody></table></div></div></div>
+
+<h2>Key takeaways for teaching</h2>
+<div class="callout"><b>Say it in one breath</b>A Transformer turns tokens into vectors, lets every token gather information from the others via softmax(QKᵀ/√d)V, refines each token with an MLP, stacks this many times, and is trained to predict the next token with cross-entropy.</div>
+<p>Cost: attention is O(n²·d) in time and O(n²) in memory, which is why long context is expensive and why techniques such as FlashAttention and KV-caching matter in AI engineering.</p>
+</article>
+
+<script>
+(function(){
+var $=function(i){return document.getElementById(i)};
+var root=document.documentElement;
+
+/* Copy buttons */
+document.querySelectorAll('#lesson .code .copy').forEach(function(b){b.onclick=function(){var t=b.parentNode.querySelector('pre').innerText;var d=function(){b.textContent='Copied';setTimeout(function(){b.textContent='Copy'},1500)};if(navigator.clipboard)navigator.clipboard.writeText(t).then(d,d);else d()}});
+
+/* "On this page" TOC: populated only if base.html provides a #toc container */
+var toc=document.getElementById('toc');
+var heads=document.querySelectorAll('#lesson h2');
+if(toc){heads.forEach(function(h,i){h.id='sec-'+(i+1);var a=document.createElement('a');a.href='#'+h.id;a.textContent=h.textContent;toc.appendChild(a)});
+var links=toc.querySelectorAll('a');
+addEventListener('scroll',function(){var c=0;heads.forEach(function(h,i){if(h.getBoundingClientRect().top<140)c=i});links.forEach(function(l,i){l.classList.toggle('on',i===c)})},{passive:true});}
+
+/* Widget 1: RNN vs attention */
+function cmp(){var n=+$('n').value;$('nv').textContent=n;
+$('cmp').innerHTML='<div>RNN path 1→n: '+(n-1)+' steps<i style="width:'+((n-1)/99*60)+'%"></i></div><div>Attention path: 1 step<i style="width:'+(1/99*60)+'%"></i></div><div>Attention table: '+n*n+' scores<i style="width:'+(n*n/10000*60)+'%;background:var(--muted,#5d6675)"></i></div>';
+$('cmpt').textContent='RNN steps cannot run in parallel; attention computes all '+n*n+' scores in a single matrix multiply.'}
+$('n').oninput=cmp;cmp();
+
+/* Widget 2: attention */
+var T=['The','cat','sat','on','mat'],Q=[[1,.2],[.3,1],[1,1.2],[.2,1.3],[1.2,.3]],K=[[.8,.1],[.2,1.2],[1.2,.9],[.4,1],[1,.4]],sel=2;
+function att(){var s=+$('sc').value,cz=$('cz').checked;$('scv').textContent=s.toFixed(1);
+var W=Q.map(function(q,i){var sc=K.map(function(k,j){return cz&&j>i?-Infinity:(q[0]*k[0]+q[1]*k[1])/s});var m=Math.max.apply(null,sc),e=sc.map(function(x){return Math.exp(x-m)}),z=e.reduce(function(a,b){return a+b});return e.map(function(x){return x/z})});
+var h='<tr><th></th>'+T.map(function(t){return'<th>'+t+'</th>'}).join('')+'</tr>';
+W.forEach(function(r,i){h+='<tr><th class="q'+(i===sel?' sel':'')+'" data-i="'+i+'" tabindex="0">'+T[i]+'</th>'+r.map(function(w){return'<td style="background:color-mix(in srgb,var(--accent,#2f54eb) '+Math.round(w*100)+'%,transparent);color:'+(w>.55?'#fff':'var(--text,#171b24)')+'">'+w.toFixed(2)+'</td>'}).join('')+'</tr>'});
+$('hm').innerHTML=h;
+$('bars').innerHTML=W[sel].map(function(w,j){return'<div><span style="width:3.2em">'+T[j]+'</span><i style="width:'+w*70+'%"></i>'+w.toFixed(2)+'</div>'}).join('');
+document.querySelectorAll('#lesson .hm th.q').forEach(function(e){e.onclick=function(){sel=+e.dataset.i;att()};e.onkeydown=function(ev){if(ev.key==='Enter'){sel=+e.dataset.i;att()}}})}
+$('sc').oninput=att;$('cz').onchange=att;att();
+
+/* Widget 3: positional encoding */
+function pe(p,i,d){var f=p/Math.pow(10000,(i-i%2)/d);return i%2?Math.cos(f):Math.sin(f)}
+function draw(){var d=+$('d').value,a=+$('a').value;$('dv').textContent=d;$('av').textContent=a;
+var c=$('pe'),x=c.getContext('2d'),w=c.width,h=c.height,cw=w/d,ch=h/64;
+for(var p=0;p<64;p++)for(var i=0;i<d;i++){var v=pe(p,i,d);x.fillStyle='rgb('+Math.round(128+v*120)+','+Math.round(128-Math.abs(v)*30)+','+Math.round(128-v*120)+')';x.fillRect(i*cw,p*ch,cw+1,ch+1)}
+x.strokeStyle='#000';x.lineWidth=2;x.strokeRect(0,a*ch,w,ch);
+var s=$('sim'),y=s.getContext('2d'),sh=s.height,st=getComputedStyle(root);y.clearRect(0,0,w,sh);
+var vals=[];for(var p=0;p<64;p++){var t=0;for(var i=0;i<d;i++)t+=pe(a,i,d)*pe(p,i,d);vals.push(t/d*2)}
+y.strokeStyle=st.getPropertyValue('--accent')||'#2f54eb';y.lineWidth=2;y.beginPath();vals.forEach(function(v,p){var X=p/63*(w-10)+5,Y=sh-10-Math.max(v,0)*(sh-20);p?y.lineTo(X,Y):y.moveTo(X,Y)});y.stroke();
+y.fillStyle=st.getPropertyValue('--muted')||'#5d6675';y.font='12px sans-serif';y.fillText('similarity to anchor (positions 0-63)',8,14)}
+$('d').oninput=draw;$('a').oninput=draw;draw();
+
+/* Redraw canvases when base.html switches theme (data-theme attribute or OS preference) */
+new MutationObserver(function(m){if(m[0].attributeName==='data-theme')draw()}).observe(root,{attributes:true,attributeFilter:['data-theme']});
+var mq=matchMedia('(prefers-color-scheme: dark)');if(mq.addEventListener)mq.addEventListener('change',draw);
+})();
+</script>
+{% endraw %}
+{% endblock %}

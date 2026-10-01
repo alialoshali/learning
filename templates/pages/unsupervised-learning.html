@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block head %}{% include "_lesson_head.html" %}{% endblock %}
+{% block h1 %}Unsupervised Learning{% endblock %}
+{% block lead %}<div class="meta"><span class="tag">no labels</span><span class="tag">clustering · PCA · density</span><span class="tag">embeddings</span><span class="tag">→ generative models</span></div>
+<p class="lead"><b>Why it exists:</b> labels are expensive. Someone has to tag every photo or mark every email. Raw data is nearly free: billions of images, all of Wikipedia, every sensor reading. Unsupervised learning finds <b>structure in data without any answers</b>: groups, main directions, which points are typical and which are strange. Its central object, a model of the data distribution \(p(x)\), is exactly what a language model learns.</p>{% endblock %}
+{% block content %}{% raw %}
+<div class="lsn"><div class="lsn-main">
+
+<h2><span class="n">01</span>Learning without answers</h2>
+<div class="pair"><div>
+<p>In supervised learning each example came with a label \(y\). Now we only have inputs:</p>
+<div class="formula">$$\mathcal D=\{x_1,x_2,\dots,x_N\}\qquad\text{(no }y\text{)}$$</div>
+<p>Without a correct answer there is no “error” in the usual sense. So what do we learn? We ask questions about the data itself:</p>
+<ul>
+<li><b>Which points belong together?</b> → clustering</li>
+<li><b>Which few directions explain most of the variation?</b> → dimensionality reduction (PCA)</li>
+<li><b>How likely is a point? Which ones are strange?</b> → density estimation, anomaly detection</li>
+<li><b>Can we produce new, realistic examples?</b> → generative models</li>
+</ul>
+<p><b>Try it:</b> on the right is a dataset of customers (time on the site vs. money spent). Nobody told us there are customer types. Press <b>Find groups</b> and watch structure appear from unlabelled points.</p>
+<div class="callout why"><b>Why it is needed</b>The amount of labelled data is tiny compared with unlabelled data. ImageNet has about 1.2 million labelled images; the web has billions of unlabelled ones. Methods that learn from unlabelled data can use far more of the information that exists.</div>
+</div><div class="fig"><h4>Unlabelled customers</h4>
+<canvas id="c1" width="640" height="380"></canvas>
+<div class="btns"><button id="go1">Find groups ▶</button><button id="rs1">Hide again</button></div>
+<div class="out" id="o1"></div></div></div>
+
+<h2><span class="n">02</span>Four jobs on the same data</h2>
+<div class="pair"><div>
+<p>The same unlabelled point cloud can be asked four different questions. Click through them on the right:</p>
+<div class="cards">
+<div><b>Clustering</b>Split the points into \(K\) groups so that points within a group are close. <i>Output: a group id per point.</i> <a href="/clustering">Lesson →</a></div>
+<div><b>Dimensionality reduction</b>Find a lower-dimensional description, e.g. the line that keeps most of the spread. <i>Output: new coordinates.</i> <a href="/pca">Lesson →</a></div>
+<div><b>Density estimation</b>Learn \(p(x)\): how likely each region of space is. <i>Output: a probability density.</i></div>
+<div><b>Anomaly detection</b>Flag points where \(p(x)\) is very low: fraud, faults, intrusions. <i>Output: a strangeness score.</i></div>
+</div>
+<p>Each has its own “loss”. Clustering minimises the distance to group centres, PCA minimises the reconstruction error, and density estimation maximises the likelihood of the data:</p>
+<div class="formula">$$\max_\theta\ \sum_{i=1}^N\log p_\theta(x_i)$$<span class="cap">Maximum likelihood: choose the model under which the observed data is most probable. This is the same principle behind cross-entropy.</span></div>
+<div class="callout tf"><b>Transformer link</b>A language model <b>is a density estimator</b> for text. Its training objective is exactly “maximise \(\sum\log p_\theta(\text{text})\)”. The only difference from this plot is that \(x\) is a sequence of tokens instead of a 2-D point.</div>
+</div><div class="fig"><h4 id="h2">Clustering</h4>
+<div class="seg" id="m2"><button data-v="clu" class="on">Clustering</button><button data-v="dim">Dim. reduction</button><button data-v="den">Density</button><button data-v="ano">Anomalies</button></div>
+<canvas id="c2" width="640" height="400"></canvas>
+<div class="ex" id="o2"></div></div></div>
+
+<h2><span class="n">03</span>Density estimation: histogram → kernel density</h2>
+<div class="pair"><div>
+<p>The simplest density estimate is a <b>histogram</b>: count the points in each bin. Its shape depends a lot on the bin width, and it is jagged. A <b>kernel density estimate</b> (KDE) places a small bell curve on every data point and adds them up:</p>
+<div class="formula">$$\hat p(x)=\frac1N\sum_{i=1}^N \frac{1}{h\sqrt{2\pi}}\exp\!\Big(-\frac{(x-x_i)^2}{2h^2}\Big)$$</div>
+<div class="table compact leg"><table><tbody>
+<tr><td>\(x_i\)</td><td>the \(N\) observed data points (ticks under the plot)</td></tr>
+<tr><td>\(h\)</td><td><b>bandwidth</b>: width of each bump, a hyper-parameter</td></tr>
+<tr><td>\(\hat p(x)\)</td><td>estimated density; its total area is 1</td></tr>
+</tbody></table></div>
+<p><b>The same over/under-fitting story returns.</b> A tiny \(h\) puts a spike on every training point (memorising). A huge \(h\) blurs everything into one hump. To choose \(h\) without labels, we score the <b>log-likelihood of held-out points</b>: a good density gives new data high probability. Find the \(h\) that maximises it.</p>
+<div class="callout tf"><b>Transformer link</b>Evaluating an LLM by <b>perplexity</b> on held-out text is this exact test: how much probability does the model give to text it has never seen? Lower perplexity means higher held-out likelihood.</div>
+</div><div class="fig"><h4>Histogram vs. KDE · held-out likelihood</h4>
+<canvas id="c3" width="640" height="300"></canvas>
+<canvas id="c3b" width="640" height="150"></canvas>
+<div class="ctl-row"><span>bandwidth h</span><input type="range" id="h3" min="0.03" max="2" step="0.01" value="0.4"><output id="h3v"></output></div>
+<div class="ctl-row"><span>histogram bins</span><input type="range" id="b3" min="3" max="60" step="1" value="15"><output id="b3v"></output></div>
+<div class="out" id="o3"></div></div></div>
+
+<h2><span class="n">04</span>Generative models: sample new data from p(x)</h2>
+<div class="pair"><div>
+<p>Once we have a density \(\hat p(x)\), we can <b>draw new samples</b> from it, producing data that looks like the training data but is new. For a KDE this is easy:</p>
+<ol><li>pick a random training point \(x_i\);</li><li>add Gaussian noise with standard deviation \(h\).</li></ol>
+<p>Press <b>Generate</b> to create new points (orange) from the learned density of the original points (blue). Small \(h\) → near-copies of training points (memorisation). Large \(h\) → blurry samples that lose the structure.</p>
+<p><b>High-dimensional data</b> such as images or sentences cannot be handled with a simple KDE, because the space is far too big. Modern generative models (VAEs, diffusion models, GPT) are neural networks that represent \(p(x)\) in a clever, compact way. Language models use the <b>chain rule of probability</b> to break one huge distribution into a product of next-token predictions:</p>
+<div class="formula">$$p(x_1,\dots,x_T)=\prod_{t=1}^{T}p\big(x_t\mid x_1,\dots,x_{t-1}\big)$$<span class="cap">Each factor is a classifier over the vocabulary. Sampling = predict a distribution, draw a token, append it, repeat.</span></div>
+<div class="callout tf"><b>Transformer link</b>“Generating text” with ChatGPT is sampling from a learned density, one token at a time. The <b>temperature</b> setting plays the role of \(h\): low = conservative, near-copies of common phrases; high = more varied, more random.</div>
+</div><div class="fig"><h4>Learn p(x), then sample from it</h4>
+<canvas id="c4" width="640" height="400"></canvas>
+<div class="ctl-row"><span>noise h</span><input type="range" id="h4" min="0.02" max="1.5" step="0.01" value="0.25"><output id="h4v"></output></div>
+<div class="btns"><button id="gen4">Generate 50 ▶</button><button id="clr4">Clear samples</button></div>
+<div class="out" id="o4"></div></div></div>
+
+<h2><span class="n">05</span>Representations: embeddings learned without labels</h2>
+<div class="pair"><div>
+<p>A powerful use of unlabelled data is learning <b>representations</b>: vectors in which similar things are close together. The classic example is <b>word embeddings</b> (word2vec, 2013). They were learned only from which words appear near each other in raw text (“you shall know a word by the company it keeps”).</p>
+<p>Two measures of similarity are used everywhere:</p>
+<div class="formula">$$\cos(a,b)=\frac{a\cdot b}{\lVert a\rVert\,\lVert b\rVert}\in[-1,1]\qquad d(a,b)=\lVert a-b\rVert$$</div>
+<p>Directions in the space can carry meaning. The famous example: \(\overrightarrow{\text{king}}-\overrightarrow{\text{man}}+\overrightarrow{\text{woman}}\approx\overrightarrow{\text{queen}}\). The “male → female” offset is roughly the same arrow everywhere.</p>
+<p><b>Try it:</b> pick A − B + C on the right. The arrow B→A is added at C, and the nearest word to the result is shown. (This is a hand-made 2-D toy; real embeddings have hundreds of dimensions. Cosines are measured from the centre of the cloud.)</p>
+<div class="callout tf"><b>Transformer link</b>Every Transformer begins with an embedding table, and its internal vectors keep this geometric meaning. Attention scores are dot products between such vectors. <b>RAG</b> (retrieval) systems find relevant documents by the cosine similarity of their embeddings.</div>
+</div><div class="fig"><h4>Toy word embedding space</h4>
+<div class="row" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px">A <select id="wa"></select> − B <select id="wb"></select> + C <select id="wc"></select></div>
+<canvas id="c5" width="640" height="400" style="margin-top:6px"></canvas>
+<div class="out" id="o5"></div></div></div>
+
+<h2><span class="n">06</span>Autoencoders: learn by compressing</h2>
+<div class="pair"><div>
+<p>An <b>autoencoder</b> is a neural network trained to copy its input to its output through a narrow <b>bottleneck</b>:</p>
+<div class="formula">$$z=\text{enc}_\phi(x)\in\mathbb R^{k},\qquad \hat x=\text{dec}_\psi(z),\qquad \mathcal L=\lVert x-\hat x\rVert^2$$</div>
+<p>The label is the input itself, so no human labels are needed. Because \(z\) has only \(k\) numbers, the network is forced to keep the <b>most important information</b> and throw away the rest. The code \(z\) becomes a compact representation.</p>
+<ul>
+<li>A <b>linear</b> autoencoder with MSE loss learns the same subspace as <a href="/pca">PCA</a>.</li>
+<li>Non-linear (deep) autoencoders find curved structure.</li>
+<li><b>Variational</b> autoencoders (VAEs) make \(z\) a probability distribution, so we can sample new data.</li>
+</ul>
+<p><b>Try it:</b> shrink the bottleneck \(k\). The signal on the right is rebuilt from only \(k\) numbers (here using a fixed set of smooth basis waves, which shows the effect of a bottleneck). Watch the reconstruction error grow as \(k\) falls.</p>
+<div class="callout tf"><b>Transformer link</b>The “predict your own input” idea leads straight to <a href="/self-supervised-learning">self-supervised learning</a>. BERT is trained to reconstruct masked words, MAE to reconstruct masked image patches, and Stable Diffusion runs inside an autoencoder’s compressed space.</div>
+</div><div class="fig"><h4>Encoder → bottleneck → decoder</h4>
+<svg id="ae6" viewBox="0 0 640 140"></svg>
+<canvas id="c6" width="640" height="250"></canvas>
+<div class="ctl-row"><span>bottleneck size k</span><input type="range" id="k6" min="1" max="32" step="1" value="6"><output id="k6v"></output></div>
+<div class="out" id="o6"></div></div></div>
+
+<h2><span class="n">07</span>Summary</h2>
+<div class="pair even"><div>
+<div class="table compact"><table><thead><tr><th>Method</th><th>Learns</th><th>Transformer connection</th></tr></thead><tbody>
+<tr><td><a href="/clustering">Clustering</a></td><td>groups</td><td>soft assignment ≈ attention; vector quantisation</td></tr>
+<tr><td><a href="/pca">PCA</a></td><td>main directions</td><td>projections, low-rank adapters (LoRA)</td></tr>
+<tr><td>Density estimation</td><td>\(p(x)\)</td><td>LMs model \(p(\text{text})\); perplexity</td></tr>
+<tr><td>Generative sampling</td><td>new data</td><td>text generation, temperature</td></tr>
+<tr><td>Embeddings</td><td>meaningful vectors</td><td>token embeddings, RAG search</td></tr>
+<tr><td>Autoencoders</td><td>compressed code</td><td>masked modelling (BERT, MAE), latent diffusion</td></tr>
+</tbody></table></div></div><div>
+<div class="summary"><b>Teach it in one sentence:</b> unsupervised learning finds structure in data that has no labels (groups, directions, densities, representations), and learning \(p(x)\) itself is the idea that grows into today’s generative models.</div>
+<p>The line between unsupervised and <a href="/self-supervised-learning">self-supervised</a> learning is thin: self-supervised methods make up labels from the data (e.g. the next word) and then use ordinary supervised machinery.</p></div></div>
+
+</div><aside class="lsn-toc"><p>On this page</p><nav></nav></aside></div>
+{% endraw %}{% include "_lesson_scripts.html" %}{% raw %}
+<script>
+(function(){
+var $=L.$,C=L.C,col=L.col;
+
+/* shared dataset: three customer types + a few anomalies */
+var r=L.rng(17),D=[],CT=[[2.2,2],[6.5,3.2],[4.5,7.4]],SD=[[.7,.5],[.9,.6],[.6,.9]];
+for(var i=0;i<150;i++){var c=i%3;D.push([CT[c][0]+r.g()*SD[c][0],CT[c][1]+r.g()*SD[c][1],c])}
+var OUT=[[8.8,8.6],[.6,8.8],[9.2,.7]];OUT.forEach(function(q){D.push([q[0],q[1],-1])});
+function kmeans(P,K,it){var M=[[1,1],[9,1],[5,9]].slice(0,K),A=[];for(var t=0;t<(it||20);t++){A=P.map(function(q){var b=0,bd=1e9;M.forEach(function(m,k){var d=(q[0]-m[0])*(q[0]-m[0])+(q[1]-m[1])*(q[1]-m[1]);if(d<bd){bd=d;b=k}});return b});M=M.map(function(m,k){var s=[0,0],n=0;P.forEach(function(q,i){if(A[i]===k){s[0]+=q[0];s[1]+=q[1];n++}});return n?[s[0]/n,s[1]/n]:m})}return{A:A,M:M}}
+
+/* ---------- 01 ---------- */
+var anim1=0,KM=null,t1=null;
+function draw1(){var p=L.plot('c1',{x:[0,10],y:[0,10],xl:'minutes on site per visit',yl:'€ spent per month'});
+if(anim1>0&&KM){var a=Math.min(1,anim1);D.forEach(function(q,i){var k=KM.A[i];p.dot(q[0],q[1],a<1?col('--muted'):L.PAL[k],5.5)});
+if(a>=1){KM.M.forEach(function(m,k){p.text(['occasional shoppers','long browsers','big spenders'][k],m[0]-.9,m[1]+1.5,L.PAL[k],'left','600 13px IBM Plex Sans,system-ui,sans-serif');p.dot(m[0],m[1],L.PAL[k],10,C.ink)})}}
+else D.forEach(function(q){p.dot(q[0],q[1],col('--muted'),5.5)});
+$('o1').innerHTML=anim1>=1?'k-means found <b>3 groups</b> with no labels at all. The names are ours; the algorithm only found that the points form 3 dense regions.':'<b>'+D.length+'</b> customers, no labels. Do you see the structure?'}
+$('go1').onclick=function(){KM=kmeans(D.map(function(q){return[q[0],q[1]]}),3);anim1=1;draw1()};
+$('rs1').onclick=function(){anim1=0;draw1()};L.reg(draw1);
+
+/* ---------- 02 four jobs ---------- */
+function kde2(x,y,h){var s=0;D.forEach(function(q){s+=Math.exp(-((x-q[0])*(x-q[0])+(y-q[1])*(y-q[1]))/(2*h*h))});return s/(D.length*2*Math.PI*h*h)}
+var dens=D.map(function(q){return kde2(q[0],q[1],.7)}),thr=dens.slice().sort(function(a,b){return a-b})[4];
+var TXT={clu:['Clustering','Each colour is one group found by k-means. The big dots are the group centres (means). The loss is the sum of squared distances from each point to its centre.'],
+dim:['Dimensionality reduction','PCA finds the direction of largest spread (black line). Each point is <b>projected</b> onto it (grey ticks), so every customer is now described by <b>one</b> number instead of two, keeping as much variation as possible.'],
+den:['Density estimation','The shading is the estimated density \\(\\hat p(x)\\): dark = many customers look like this, light = rare. It is a smooth model of “where data lives”.'],
+ano:['Anomaly detection','Points in the lowest-density regions (red rings) are flagged as anomalies. They are unlike any group. Fraud detection and machine-fault alarms work like this.']};
+function draw2(v){$('h2').textContent=TXT[v][0];$('o2').innerHTML=TXT[v][1];L.renderMath($('o2'));
+var p=L.plot('c2',{x:[0,10],y:[0,10],xl:'x₁',yl:'x₂'});
+if(v==='den'||v==='ano'){var mx=0;for(var a=0;a<10;a+=.5)for(var b=0;b<10;b+=.5)mx=Math.max(mx,kde2(a,b,.7));p.field(function(x,y){return[C.purple,Math.min(.85,kde2(x,y,.7)/mx)]},64)}
+if(v==='clu'){var km=kmeans(D.map(function(q){return[q[0],q[1]]}),3);D.forEach(function(q,i){p.dot(q[0],q[1],L.PAL[km.A[i]],5)});km.M.forEach(function(m,k){p.dot(m[0],m[1],L.PAL[k],11,C.ink)});return}
+if(v==='dim'){var mx_=0,my=0;D.forEach(function(q){mx_+=q[0];my+=q[1]});mx_/=D.length;my/=D.length;var sxx=0,sxy=0,syy=0;D.forEach(function(q){var a=q[0]-mx_,b=q[1]-my;sxx+=a*a;sxy+=a*b;syy+=b*b});var th=.5*Math.atan2(2*sxy,sxx-syy),u=[Math.cos(th),Math.sin(th)];
+p.line(function(x){return my+(x-mx_)*u[1]/u[0]},C.ink,2.5);D.forEach(function(q){var t=(q[0]-mx_)*u[0]+(q[1]-my)*u[1],px=mx_+t*u[0],py=my+t*u[1];p.seg(q[0],q[1],px,py,'#c5cbd6',1);p.dot(px,py,C.blue,2.5,false)});D.forEach(function(q){p.dot(q[0],q[1],col('--muted'),4)});return}
+D.forEach(function(q,i){p.dot(q[0],q[1],v==='ano'&&dens[i]<=thr?C.red:C.ink,v==='den'?3:4.5);if(v==='ano'&&dens[i]<=thr)p.ring(q[0],q[1],C.red,12,2.5)})}
+var s2=L.seg('m2',draw2);draw2('clu');
+
+/* ---------- 03 KDE 1-D ---------- */
+var r3=L.rng(5),TR3=[],TE3=[];function smp(){var u=r3();return u<.55?1.8+r3.g()*.6:u<.85?4.6+r3.g()*.9:7.6+r3.g()*.4}
+for(i=0;i<60;i++)TR3.push(smp());for(i=0;i<300;i++)TE3.push(smp());
+function kde(x,h,P){var s=0;P.forEach(function(q){s+=Math.exp(-(x-q)*(x-q)/(2*h*h))});return s/(P.length*h*2.5066)}
+function ll(h){var s=0;TE3.forEach(function(x){s+=Math.log(kde(x,h,TR3)+1e-12)});return s/TE3.length}
+var LLc=[];for(var hh=.03;hh<=2;hh+=.02)LLc.push([hh,ll(hh)]);var best3=LLc.reduce(function(a,b){return b[1]>a[1]?b:a});
+function draw3(){var h=L.val('h3'),nb=L.val('b3'),p=L.plot('c3',{x:[0,10],y:[0,.6],xl:'x',yl:'density'});
+var bw=10/nb,cnt=new Array(nb).fill(0);TR3.forEach(function(x){var b=Math.min(nb-1,Math.max(0,Math.floor(x/bw)));cnt[b]++});
+cnt.forEach(function(c,b){var hgt=c/(TR3.length*bw);p.rect(b*bw,0,(b+1)*bw,hgt,C.blue,.18)});
+p.line(function(x){var u=Math.random;return .55*Math.exp(-(x-1.8)*(x-1.8)/.72)/(.6*2.5066)+.3*Math.exp(-(x-4.6)*(x-4.6)/1.62)/(.9*2.5066)+.15*Math.exp(-(x-7.6)*(x-7.6)/.32)/(.4*2.5066)},C.gray,2,[6,5]);
+p.line(function(x){return kde(x,h,TR3)},C.purple,3);TR3.forEach(function(x){p.seg(x,0,x,.025,C.ink,1.5)});
+p.ptext('bars: histogram   purple: KDE   dashed: true density (unknown in practice)',p.L+8,p.T+16,col('--muted'));
+var q=L.plot('c3b',{x:[0,2],y:[-4,-1.5],xl:'bandwidth h',yl:'held-out log-lik.'});q.path(LLc.map(function(c){return[c[0],Math.max(-4,c[1])]}),C.green,2.5);q.vl(best3[0],C.green,[3,3]);q.dot(h,Math.max(-4,ll(h)),C.ink,6);
+var v=ll(h);$('o3').innerHTML='h = <b>'+h.toFixed(2)+'</b> · held-out avg log-likelihood <b>'+v.toFixed(3)+'</b> · best h ≈ <b>'+best3[0].toFixed(2)+'</b>'+(h<best3[0]*.5?' → too spiky (overfits the 60 training points)':h>best3[0]*2?' → too smooth (underfits)':' → good')}
+L.bind(['h3','b3'],draw3);L.reg(draw3);
+
+/* ---------- 04 generate ---------- */
+var B4=[];(function(){var r=L.rng(8);for(var i=0;i<80;i++){var t=r()*Math.PI*1.4+.3,rad=3+r.g()*.25;B4.push([5+rad*Math.cos(t),2+rad*Math.sin(t)])}for(i=0;i<40;i++)B4.push([7.6+r.g()*.4,7.8+r.g()*.4])})();
+var G4=[],r4=L.rng(99);
+function draw4(){var p=L.plot('c4',{x:[0,10],y:[0,10],xl:'x₁',yl:'x₂'});B4.forEach(function(q){p.dot(q[0],q[1],C.blue,4.5)});G4.forEach(function(q){p.dot(q[0],q[1],C.orange,4.5)});
+var near=0;G4.forEach(function(q){var d=1e9;B4.forEach(function(b){d=Math.min(d,Math.hypot(q[0]-b[0],q[1]-b[1]))});if(d<.12)near++});
+$('o4').innerHTML='<b>'+B4.length+'</b> training points (blue) · <b>'+G4.length+'</b> generated (orange)'+(G4.length?' · '+Math.round(near/G4.length*100)+'% are near-copies of a training point':'')}
+$('gen4').onclick=function(){var h=L.val('h4');for(var i=0;i<50;i++){var b=B4[r4.int(B4.length)];G4.push([b[0]+r4.g()*h,b[1]+r4.g()*h])}draw4()};
+$('clr4').onclick=function(){G4=[];draw4()};L.bind('h4',function(){G4=[];draw4()});L.reg(draw4);
+
+/* ---------- 05 embeddings ---------- */
+var W={king:[7,8.3],queen:[8.6,6.6],man:[3.2,6.8],woman:[4.8,5.1],prince:[6.2,7.2],princess:[7.8,5.5],boy:[2.6,5.9],girl:[4.2,4.2],
+paris:[1.2,2.2],france:[2.8,.9],berlin:[3.6,3.2],germany:[5.2,1.9],rome:[5.9,4],italy:[7.5,2.7],apple:[9.2,1.4],banana:[8.6,.6]};
+var ks=Object.keys(W);['wa','wb','wc'].forEach(function(id,j){var s=$(id);ks.forEach(function(k){var o=document.createElement('option');o.value=o.textContent=k;s.appendChild(o)});s.value=['king','man','woman'][j];s.onchange=draw5});
+function cos(a,b){a=[a[0]-5,a[1]-4.5];b=[b[0]-5,b[1]-4.5];return L.dot(a,b)/(L.norm(a)*L.norm(b))} /* measured from the centre of the cloud */
+function draw5(){var a=$('wa').value,b=$('wb').value,c=$('wc').value,A=W[a],B=W[b],Cc=W[c],R=[A[0]-B[0]+Cc[0],A[1]-B[1]+Cc[1]];
+var p=L.plot('c5',{x:[0,10],y:[0,9.5],xl:'dimension 1',yl:'dimension 2'});
+var best=null,bd=1e9;ks.forEach(function(k){if(k===a||k===b||k===c)return;var d=Math.hypot(W[k][0]-R[0],W[k][1]-R[1]);if(d<bd){bd=d;best=k}});
+p.arrow(B[0],B[1],A[0],A[1],C.green,2.5);p.arrow(Cc[0],Cc[1],R[0],R[1],C.green,2.5);
+ks.forEach(function(k){var q=W[k],on=k===a||k===b||k===c,bb=k===best;p.dot(q[0],q[1],bb?C.orange:on?C.blue:'#adb5bd',bb?8:6);p.text(k,q[0]+.15,q[1]+.15,bb?C.orange:on?C.ink:col('--muted'),'left',(on||bb?'600 ':'')+'13px IBM Plex Sans,system-ui,sans-serif')});
+p.ring(R[0],R[1],C.orange,10,2);p.text('result',R[0]+.15,R[1]-.4,C.orange);
+$('o5').innerHTML=a+' − '+b+' + '+c+' = ('+R[0].toFixed(1)+', '+R[1].toFixed(1)+') → nearest word: <b>'+best+'</b> (distance '+bd.toFixed(2)+')<br>cos('+a+', '+b+') = <b>'+cos(A,B).toFixed(3)+'</b> · cos('+a+', '+best+') = <b>'+cos(A,W[best]).toFixed(3)+'</b>'}
+L.reg(draw5);
+
+/* ---------- 06 autoencoder bottleneck ---------- */
+var N6=64,sig=[];for(i=0;i<N6;i++){var t=i/(N6-1);sig.push(Math.sin(6*t)*.8+.5*Math.sin(17*t+1)*(t>.5?1:.3)+(t>.3&&t<.36?.9:0)+.25*Math.cos(31*t))}
+var basis=[];for(var k=0;k<N6;k++){var b=[],s=0;for(i=0;i<N6;i++){var v=Math.cos(Math.PI*(i+.5)*k/N6);b.push(v);s+=v*v}basis.push(b.map(function(v){return v/Math.sqrt(s)}))}
+var coef=basis.map(function(b){return L.dot(b,sig)});
+function draw6(){var k=L.val('k6'),rec=new Array(N6).fill(0);for(var j=0;j<k;j++)for(i=0;i<N6;i++)rec[i]+=coef[j]*basis[j][i];
+var p=L.plot('c6',{x:[0,63],y:[-2.2,2.2],xl:'position in the signal (64 numbers in)',yl:'value'});
+p.path(sig.map(function(v,i){return[i,v]}),C.blue,2.5);p.path(rec.map(function(v,i){return[i,v]}),C.orange,2.5,[5,3]);
+p.ptext('input x (64 numbers)',p.L+8,p.T+16,C.blue,'left','600 12px IBM Plex Sans,system-ui,sans-serif');p.ptext('reconstruction x̂ from k = '+k+' numbers',p.L+170,p.T+16,C.orange,'left','600 12px IBM Plex Sans,system-ui,sans-serif');
+var e=0;for(i=0;i<N6;i++)e+=(sig[i]-rec[i])*(sig[i]-rec[i]);
+var svg='<g font-family="IBM Plex Sans,sans-serif" font-size="12" fill="#5d6675">',hz=Math.max(8,k/32*110);
+svg+='<path d="M40 10 L230 10 L300 '+(70-hz/2)+' L300 '+(70+hz/2)+' L230 130 L40 130Z" fill="#e6ecff" stroke="#2f54eb"/><text x="120" y="75" fill="#2f54eb" font-weight="600">encoder</text>';
+svg+='<rect x="300" y="'+(70-hz/2)+'" width="40" height="'+hz+'" fill="#e8590c"/><text x="320" y="'+(70+hz/2+16)+'" text-anchor="middle" fill="#e8590c" font-weight="600">z: '+k+'</text>';
+svg+='<path d="M340 '+(70-hz/2)+' L410 10 L600 10 L600 130 L410 130 L340 '+(70+hz/2)+'Z" fill="#e6ecff" stroke="#2f54eb"/><text x="480" y="75" fill="#2f54eb" font-weight="600">decoder</text>';
+svg+='<text x="8" y="75">x</text><text x="612" y="75">x̂</text></g>';$('ae6').innerHTML=svg;
+$('o6').innerHTML='compression 64 → <b>'+k+'</b> numbers ('+(64/k).toFixed(1)+'× smaller) · reconstruction error ‖x − x̂‖² = <b>'+e.toFixed(3)+'</b>'}
+L.bind('k6',draw6);L.reg(draw6);
+})();
+</script>
+{% endraw %}{% endblock %}

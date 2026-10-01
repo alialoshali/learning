@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block head %}{% include "_lesson_head.html" %}{% endblock %}
+{% block h1 %}Self-Supervised Learning{% endblock %}
+{% block lead %}<div class="meta"><span class="tag">labels from the data itself</span><span class="tag">next-token prediction</span><span class="tag">masking</span><span class="tag">contrastive</span><span class="tag">→ GPT · BERT · CLIP</span></div>
+<p class="lead"><b>Why it exists:</b> supervised learning needs humans to label data, and that does not scale to the whole internet. Self-supervised learning <b>hides part of each example and asks the model to predict it</b>. The hidden part is the label, so every sentence, image or video becomes free training data. This is exactly how GPT, BERT and CLIP are pre-trained. It is the most direct step towards Transformers in the course.</p>{% endblock %}
+{% block content %}{% raw %}
+<div class="lsn"><div class="lsn-main">
+
+<h2><span class="n">01</span>The trick: make the labels from the data</h2>
+<div class="pair"><div>
+<p>Take any raw input \(x\). Split it into a visible part and a hidden part, and train the model to predict the hidden part from the visible part:</p>
+<div class="formula">$$x\;\longrightarrow\;(\underbrace{x_{\text{visible}}}_{\text{input}},\ \underbrace{x_{\text{hidden}}}_{\text{label}})\qquad \min_\theta\ -\log p_\theta\big(x_{\text{hidden}}\mid x_{\text{visible}}\big)$$</div>
+<p>It is <b>supervised learning</b> in form, with an input, a target and cross-entropy, but <b>unsupervised in cost</b>: no human labels anything. Two main recipes for text:</p>
+<div class="table compact"><table><thead><tr><th></th><th>Hidden part</th><th>Visible part</th><th>Model</th></tr></thead><tbody>
+<tr><td><b>Next-token</b> (causal)</td><td>the next word</td><td>all previous words</td><td>GPT, Claude, Llama</td></tr>
+<tr><td><b>Masked</b></td><td>~15% random words</td><td>all other words, both sides</td><td>BERT</td></tr>
+</tbody></table></div>
+<p><b>Try it:</b> type any sentence on the right and see how many training examples it produces automatically. One web page gives thousands; the internet gives trillions.</p>
+<div class="callout tf"><b>Transformer link</b>“Pre-training” a large language model is simply this loop run on about 10¹³ tokens. Everything the model knows about grammar, facts and reasoning comes from trying to predict the hidden token.</div>
+</div><div class="fig"><h4>A sentence becomes training examples</h4>
+<input id="s1" type="text" value="The cat sat on the mat because it was warm" style="width:100%;font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px">
+<div class="seg" id="m1" style="margin-top:8px"><button data-v="gpt" class="on">Next-token (GPT)</button><button data-v="bert">Masked (BERT)</button></div>
+<div id="ex1" style="font-family:var(--mono);font-size:13px;line-height:1.5;max-height:330px;overflow:auto"></div>
+<div class="btns"><button id="rm1">Re-mask ↻</button></div>
+<div class="out" id="o1"></div></div></div>
+
+<h2><span class="n">02</span>Next-token prediction: a tiny language model you can train</h2>
+<div class="pair"><div>
+<p>The simplest language model counts which word follows which in a corpus. This is an <b>n-gram model</b>. With one word of context (a bigram):</p>
+<div class="formula">$$p(w_t\mid w_{t-1})=\frac{\text{count}(w_{t-1},w_t)}{\text{count}(w_{t-1})}$$</div>
+<p>This is maximum-likelihood training: the counts are the parameters that minimise cross-entropy on the corpus. To <b>generate</b> text, repeat: look at the context, get the distribution, <b>sample</b> a word, append it.</p>
+<p><b>Temperature</b> \(T\) reshapes the distribution before sampling, \(p_i^{1/T}/\sum_j p_j^{1/T}\). \(T\to0\) always picks the most likely word (repetitive). Large \(T\) flattens it (chaotic).</p>
+<p><b>Try it:</b> edit the corpus, choose a context word, and look at the predicted next-word distribution. Press <b>Generate</b>. Then switch to 2 words of context: the text becomes more fluent, but most two-word contexts were <b>never seen</b>, so the model has no answer for them. Counting cannot generalise; a neural network can.</p>
+<div class="callout tf"><b>Transformer link</b>GPT does exactly this: context → probability of every next token → sample with temperature → append → repeat. The difference is that the count table is replaced by a Transformer, which <b>generalises</b> to contexts it has never seen and uses thousands of tokens of context instead of 1 or 2.</div>
+</div><div class="fig"><h4>Count-based language model</h4>
+<textarea id="corp" rows="5" style="width:100%;font:13px var(--mono);padding:8px;border:1px solid var(--line);border-radius:8px;resize:vertical">the cat sat on the mat . the cat ate the fish . the dog sat on the rug . the dog ate the bone . a cat likes the warm mat . a dog likes the soft rug . the cat saw the dog . the dog saw the cat and the cat ran . the fish swam in the bowl . the cat looked at the fish in the bowl .</textarea>
+<div class="seg" id="ord2"><button data-v="1" class="on">context = 1 word</button><button data-v="2">context = 2 words</button></div>
+<div style="font-size:14px;color:var(--muted)">context: <select id="ctx2"></select></div>
+<canvas id="c2" width="640" height="210"></canvas>
+<div class="ctl-row"><span>temperature T</span><input type="range" id="t2" min="0.1" max="3" step="0.05" value="1"><output id="t2v"></output></div>
+<div class="btns"><button id="gen2">Generate 25 words ▶</button></div>
+<div class="ex" id="g2" style="font-family:var(--mono);font-size:13px"></div>
+<div class="out" id="o2"></div></div></div>
+
+<h2><span class="n">03</span>Masked modelling: fill in the blanks (text and images)</h2>
+<div class="pair"><div>
+<p><b>BERT</b> (2018) hides about 15% of the tokens and predicts them using context from <b>both sides</b>:</p>
+<div class="formula">$$\mathcal L=-\sum_{i\in\mathcal M}\log p_\theta\big(x_i\mid x_{\setminus\mathcal M}\big)$$<span class="cap">\(\mathcal M\) = set of masked positions; \(x_{\setminus\mathcal M}\) = everything that is not masked.</span></div>
+<p>Seeing both sides makes BERT good at <i>understanding</i> (search, classification). But it cannot generate text left to right, which is why chatbots use the next-token objective.</p>
+<p><b>Images work the same way.</b> A <b>Masked Autoencoder</b> (MAE, 2021) cuts an image into patches, hides up to 75% of them and reconstructs the missing pixels. Images are very redundant, so a high mask ratio is needed to make the task hard enough to teach anything.</p>
+<p><b>Try it:</b> raise the mask ratio, then press <b>Fill in</b>. Our “model” here is only blurring in from neighbouring patches, so it can recover smooth regions such as sky but not objects. A trained network learns what objects look like and fills them in properly. That knowledge is what pre-training gives.</p>
+<div class="callout tf"><b>Transformer link</b>MAE <i>is</i> a Vision Transformer: each patch becomes a token, exactly like a word. Masking patches = masking tokens. The same architecture and the same objective work for both text and images.</div>
+</div><div class="fig"><h4>Masked image patches (MAE-style)</h4>
+<div class="two"><canvas id="c3a" width="300" height="300"></canvas><canvas id="c3b" width="300" height="300"></canvas></div>
+<div class="ctl-row"><span>mask ratio</span><input type="range" id="mr3" min="0" max="0.9" step="0.05" value="0.5"><output id="mr3v"></output></div>
+<div class="btns"><button id="rm3">New random mask ↻</button><button id="fill3">Fill in ▶</button></div>
+<div class="out" id="o3"></div></div></div>
+
+<h2><span class="n">04</span>Contrastive learning: pull matching pairs together</h2>
+<div class="pair"><div>
+<p>Instead of predicting raw pixels or words, <b>contrastive</b> methods learn embeddings in which two views of the same thing are <b>close</b> and different things are <b>far apart</b>. CLIP (2021) uses 400 million (image, caption) pairs from the web; SimCLR uses two random crops of the same photo.</p>
+<p>For a batch of \(N\) pairs \((u_i, v_i)\), compute every similarity \(s_{ij}=\cos(u_i,v_j)/\tau\) and train each image to <b>pick its own caption</b> among all \(N\):</p>
+<div class="formula">$$\mathcal L=-\frac1N\sum_{i=1}^{N}\log\frac{e^{s_{ii}}}{\sum_{j=1}^{N}e^{s_{ij}}}$$<span class="cap">This is the InfoNCE loss. It is just softmax + cross-entropy where the “correct class” is the matching pair.</span></div>
+<p><b>Try it:</b> drag the training slider. The pairs on the circle rotate towards each other, the similarity matrix becomes diagonal, and the loss falls. Lower the temperature \(\tau\): the softmax becomes sharper and the loss punishes near-misses more.</p>
+<div class="callout tf"><b>Transformer link</b>Look at the matrix: rows = queries, columns = keys, cell = scaled dot product, softmax per row. That is an <b>attention matrix</b>. CLIP’s image and text encoders are both Transformers, and the text encoder of image generators (like Stable Diffusion) comes from CLIP.</div>
+</div><div class="fig"><h4>Image ↔ caption embeddings (CLIP-style)</h4>
+<div class="two"><canvas id="c4a" width="320" height="320"></canvas><canvas id="c4b" width="320" height="320"></canvas></div>
+<div class="ctl-row"><span>training progress</span><input type="range" id="p4" min="0" max="1" step="0.01" value="0.2"><output id="p4v"></output></div>
+<div class="ctl-row"><span>temperature τ</span><input type="range" id="t4" min="0.05" max="1" step="0.01" value="0.3"><output id="t4v"></output></div>
+<div class="out" id="o4"></div></div></div>
+
+<h2><span class="n">05</span>Why it works: pre-train once, fine-tune with few labels</h2>
+<div class="pair"><div>
+<p>The pretext task (next token, masked patch, matching pair) is not the goal itself. It forces the model to build a <b>representation</b> \(h=\text{enc}_\theta(x)\) in which useful facts are easy to read off. Later, a small labelled dataset is enough:</p>
+<div class="formula">$$\text{1. pre-train:}\ \ \theta\leftarrow\text{self-supervised on }10^{12}\text{ tokens}$$$$\text{2. probe:}\ \ \hat y=\sigma\big(w^\top \text{enc}_\theta(x)\big),\ \text{learn only }w$$</div>
+<p>This last step is called a <b>linear probe</b>. On the right, two classes form rings, which no straight line can separate in the raw features. In a “pre-trained” representation (here: distance from the centre, the kind of factor a good encoder discovers), the same logistic regression separates them with just a handful of labels.</p>
+<p><b>Try it:</b> lower the number of labelled examples. Raw features fail at any size; the good representation works with only 4–6 labels.</p>
+<div class="callout tf"><b>Transformer link</b>This is the whole LLM workflow: (1) <b>self-supervised</b> pre-training builds the representation; (2) <a href="/supervised-learning">supervised fine-tuning</a> on a few thousand examples teaches the format; (3) <a href="/reinforcement-learning">RLHF</a> polishes behaviour. Prompting (“few-shot learning”) is the extreme case: zero gradient steps, just examples in the context.</div>
+</div><div class="fig"><h4>Linear probe: raw features vs. learned representation</h4>
+<div class="two"><canvas id="c5a" width="320" height="300"></canvas><canvas id="c5b" width="320" height="300"></canvas></div>
+<div class="ctl-row"><span>labelled examples</span><input type="range" id="n5" min="2" max="200" step="2" value="10"><output id="n5v"></output></div>
+<div class="btns"><button id="new5">Resample labels ↻</button></div>
+<div class="out" id="o5"></div></div></div>
+
+<h2><span class="n">06</span>Summary: the self-supervised family</h2>
+<div class="pair even"><div>
+<div class="table compact"><table><thead><tr><th>Objective</th><th>Hide → predict</th><th>Famous models</th></tr></thead><tbody>
+<tr><td>Causal LM</td><td>future token ← past tokens</td><td>GPT-1…4, Claude, Llama</td></tr>
+<tr><td>Masked LM</td><td>masked tokens ← both sides</td><td>BERT, RoBERTa</td></tr>
+<tr><td>Masked image</td><td>masked patches ← visible patches</td><td>MAE, BEiT</td></tr>
+<tr><td>Contrastive</td><td>matching pair ← batch of candidates</td><td>SimCLR, CLIP</td></tr>
+<tr><td>Denoising</td><td>clean data ← noisy data</td><td>diffusion models</td></tr>
+</tbody></table></div></div><div>
+<div class="summary"><b>Teach it in one sentence:</b> self-supervised learning creates its own labels by hiding part of each example and predicting it, which turns unlimited raw data into supervised training data. Next-token prediction on internet text is how every modern LLM learns.</div>
+<p>See it all assembled in the <a href="/transformers">Transformers</a> lesson. For the sequence-model ancestor of GPT, see <a href="/rnn">RNNs</a>.</p></div></div>
+
+</div><aside class="lsn-toc"><p>On this page</p><nav></nav></aside></div>
+{% endraw %}{% include "_lesson_scripts.html" %}{% raw %}
+<script>
+(function(){
+var $=L.$,C=L.C,col=L.col;
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;')}
+
+/* ---------- 01 make examples ---------- */
+var mode1='gpt',seed1=1;
+function draw1(){var w=$('s1').value.trim().split(/\s+/).filter(Boolean).slice(0,24),h='';
+if(mode1==='gpt'){for(var i=1;i<w.length;i++)h+='<div style="padding:3px 0;border-bottom:1px dashed var(--line)"><span style="color:var(--muted)">#'+i+'</span> '+w.slice(0,i).map(function(t){return'<span class="tok">'+esc(t)+'</span>'}).join('')+' → <span class="tok tgt">'+esc(w[i])+'</span></div>';
+$('o1').innerHTML='<b>'+w.length+'</b> words → <b>'+Math.max(0,w.length-1)+'</b> next-word examples, all trained <b>in parallel</b> in one forward pass (thanks to the causal mask).'}
+else{var r=L.rng(seed1),m=w.map(function(){return r()<.2});if(!m.some(Boolean)&&w.length)m[r.int(w.length)]=true;
+h='<div style="margin:6px 0"><span style="color:var(--muted)">input:</span><br>'+w.map(function(t,i){return'<span class="tok'+(m[i]?' mask':'')+'">'+(m[i]?'[MASK]':esc(t))+'</span>'}).join('')+'</div><div><span style="color:var(--muted)">targets:</span><br>'+w.map(function(t,i){return m[i]?'<span class="tok tgt">'+esc(t)+'</span>':''}).join('')+'</div>';
+$('o1').innerHTML='<b>'+m.filter(Boolean).length+'</b> of '+w.length+' words masked (~15–20%). The model sees words on <b>both</b> sides of each blank.'}
+$('ex1').innerHTML=h}
+$('s1').addEventListener('input',draw1);L.seg('m1',function(v){mode1=v;draw1()});$('rm1').onclick=function(){seed1++;draw1()};draw1();
+
+/* ---------- 02 n-gram LM ---------- */
+var order=1,TB={},VOC=[],r2=L.rng(7);
+function build(){var w=$('corp').value.toLowerCase().match(/[a-z']+|[.,!?]/g)||[];TB={};var V={};
+for(var i=0;i<w.length;i++){V[w[i]]=1;if(i>=order){var c=w.slice(i-order,i).join(' ');(TB[c]=TB[c]||{})[w[i]]=(TB[c][w[i]]||0)+1}}
+VOC=Object.keys(V);var cs=Object.keys(TB).sort(),sel=$('ctx2'),old=sel.value;sel.innerHTML='';cs.forEach(function(c){var o=document.createElement('option');o.value=o.textContent=c;sel.appendChild(o)});
+if(cs.indexOf(old)>=0)sel.value=old;else if(cs.indexOf(order===1?'the':'on the')>=0)sel.value=order===1?'the':'on the';
+var seen=cs.length,poss=Math.pow(VOC.length,order);$('o2').innerHTML='vocabulary <b>'+VOC.length+'</b> words · contexts seen <b>'+seen+'</b> of '+poss.toLocaleString()+' possible ('+(seen/poss*100).toFixed(poss>1000?2:1)+'%)';return w}
+function dist(c,T){var t=TB[c];if(!t)return[];var ks=Object.keys(t),tot=ks.reduce(function(a,k){return a+t[k]},0),pw=ks.map(function(k){return Math.pow(t[k]/tot,1/T)}),s=pw.reduce(function(a,b){return a+b},0);return ks.map(function(k,i){return[k,t[k]/tot,pw[i]/s]}).sort(function(a,b){return b[2]-a[2]})}
+function draw2(){var c=$('ctx2').value,T=L.val('t2'),d=dist(c,T).slice(0,8),k=L.ctx('c2'),g=k.g;
+g.font='12.5px IBM Plex Sans,system-ui,sans-serif';g.fillStyle=col('--muted');g.fillText('p(next word | “'+c+'”)   grey = raw counts, blue = after temperature T',8,16);
+d.forEach(function(q,i){var y=30+i*22;g.fillStyle=C.ink;g.font='13px IBM Plex Mono,ui-monospace,monospace';g.fillText(q[0],8,y+14);g.fillStyle='#d0d5dd';g.fillRect(90,y+2,q[1]*480,8);g.fillStyle=C.blue;g.fillRect(90,y+10,q[2]*480,8);g.fillStyle=col('--muted');g.font='11px IBM Plex Mono,ui-monospace,monospace';g.fillText((q[2]*100).toFixed(0)+'%',96+Math.max(q[1],q[2])*480,y+16)})}
+$('gen2').onclick=function(){var T=L.val('t2'),w=$('corp').value.toLowerCase().match(/[a-z']+|[.,!?]/g)||[],cur=$('ctx2').value.split(' '),out=cur.slice(),stuck=false;
+for(var i=0;i<25;i++){var c=out.slice(-order).join(' '),d=dist(c,T);if(!d.length){stuck=true;break}var u=r2(),a=0,pick=d[d.length-1][0];for(var j=0;j<d.length;j++){a+=d[j][2];if(u<a){pick=d[j][0];break}}out.push(pick)}
+$('g2').innerHTML='<b>'+esc(out.slice(0,cur.length).join(' '))+'</b> '+esc(out.slice(cur.length).join(' '))+(stuck?' <span style="color:var(--red)">[stuck: context “'+esc(out.slice(-order).join(' '))+'” never seen]</span>':'')};
+$('corp').addEventListener('input',function(){build();draw2()});$('ctx2').onchange=draw2;L.bind('t2',draw2);
+L.seg('ord2',function(v){order=+v;build();draw2();$('g2').innerHTML=''});build();draw2();
+
+/* ---------- 03 masked image ---------- */
+var IM=null,S3=300,P3=10,mask3=[],filled=null,seed3=3;
+function scene(){var k=L.ctx('c3a'),g=k.g,gr=g.createLinearGradient(0,0,0,200);gr.addColorStop(0,'#74c0fc');gr.addColorStop(1,'#d0ebff');g.fillStyle=gr;g.fillRect(0,0,S3,S3);
+g.fillStyle='#ffd43b';g.beginPath();g.arc(230,70,32,0,7);g.fill();g.fillStyle='#5c940d';g.beginPath();g.moveTo(0,210);g.lineTo(70,120);g.lineTo(140,200);g.lineTo(200,140);g.lineTo(300,215);g.lineTo(300,300);g.lineTo(0,300);g.fill();
+g.fillStyle='#8ce99a';g.fillRect(0,230,300,70);g.fillStyle='#e8590c';g.fillRect(60,190,80,60);g.fillStyle='#862e9c';g.beginPath();g.moveTo(50,192);g.lineTo(100,150);g.lineTo(150,192);g.fill();g.fillStyle='#fff';g.fillRect(85,215,22,35);
+var off=document.createElement('canvas');off.width=S3;off.height=S3;var og=off.getContext('2d');og.drawImage(k.c,0,0,k.c.width,k.c.height,0,0,S3,S3);IM=og.getImageData(0,0,S3,S3)}
+function newMask(){var r=L.rng(seed3),mr=L.val('mr3'),n=P3*P3,idx=[];for(var i=0;i<n;i++)idx.push(i);for(i=n-1;i>0;i--){var j=r.int(i+1),t=idx[i];idx[i]=idx[j];idx[j]=t}mask3=new Array(n).fill(false);for(i=0;i<Math.round(mr*n);i++)mask3[idx[i]]=true;filled=null}
+function show3(){var ps=S3/P3,k=L.ctx('c3a'),g=k.g,off=document.createElement('canvas');off.width=S3;off.height=S3;off.getContext('2d').putImageData(IM,0,0);g.drawImage(off,0,0,k.W,k.H);
+var sc=k.W/S3;mask3.forEach(function(m,i){if(m){g.fillStyle='#343a40';g.fillRect((i%P3)*ps*sc,Math.floor(i/P3)*ps*sc,ps*sc,ps*sc)}});g.strokeStyle='rgba(255,255,255,.5)';for(var i=1;i<P3;i++){g.beginPath();g.moveTo(i*ps*sc,0);g.lineTo(i*ps*sc,k.H);g.moveTo(0,i*ps*sc);g.lineTo(k.W,i*ps*sc);g.stroke()}
+g.fillStyle='#fff';g.font='600 12px IBM Plex Sans,system-ui,sans-serif';g.fillText('input: visible patches',6,16);
+var k2=L.ctx('c3b'),g2=k2.g;if(filled){var o2=document.createElement('canvas');o2.width=S3;o2.height=S3;o2.getContext('2d').putImageData(filled,0,0);g2.drawImage(o2,0,0,k2.W,k2.H);g2.fillStyle=C.ink;g2.fillText('reconstruction (blur-fill)',6,16)}
+else{g2.drawImage(off,0,0,k2.W,k2.H);g2.fillStyle=C.ink;g2.font='600 12px IBM Plex Sans,system-ui,sans-serif';g2.fillText('target: original image',6,16)}
+var nm=mask3.filter(Boolean).length,err='';if(filled){var e=0,c=0;for(var p=0;p<IM.data.length;p+=4){var x=(p/4)%S3,y=Math.floor(p/4/S3),pi=Math.floor(y/ps)*P3+Math.floor(x/ps);if(mask3[pi]){for(var ch=0;ch<3;ch++){var d=(IM.data[p+ch]-filled.data[p+ch])/255;e+=d*d}c++}}err=' · reconstruction MSE on masked pixels <b>'+(e/(3*c||1)).toFixed(4)+'</b>'}
+$('o3').innerHTML='<b>'+nm+'</b> of '+P3*P3+' patches hidden ('+Math.round(nm/P3/P3*100)+'%) → the loss is computed only on these'+err}
+$('fill3').onclick=function(){var ps=S3/P3,d=new Float32Array(IM.data.length),known=new Uint8Array(S3*S3);for(var p=0;p<S3*S3;p++){var x=p%S3,y=Math.floor(p/S3),pi=Math.floor(y/ps)*P3+Math.floor(x/ps);known[p]=mask3[pi]?0:1;for(var c=0;c<4;c++)d[p*4+c]=known[p]?IM.data[p*4+c]:180}
+for(var it=0;it<160;it++){for(p=0;p<S3*S3;p++){if(known[p])continue;x=p%S3;y=Math.floor(p/S3);var nb=[x>0?p-1:p,x<S3-1?p+1:p,y>0?p-S3:p,y<S3-1?p+S3:p];for(c=0;c<3;c++){d[p*4+c]=(d[nb[0]*4+c]+d[nb[1]*4+c]+d[nb[2]*4+c]+d[nb[3]*4+c])/4}}}
+filled=new ImageData(S3,S3);for(p=0;p<d.length;p++)filled.data[p]=p%4===3?255:d[p];show3()};
+$('rm3').onclick=function(){seed3++;newMask();show3()};L.bind('mr3',function(){newMask();show3()});scene();newMask();show3();
+
+/* ---------- 04 contrastive ---------- */
+var NM=['dog','car','tree','cup','sun'],r4=L.rng(12),A0=NM.map(function(_,i){return i*2*Math.PI/5+.3}),OFF=NM.map(function(){return (r4()-.5)*5}),Aimg=NM.map(function(){return r4()*6.28});
+function draw4(){var s=L.val('p4'),tau=L.val('t4'),U=[],V=[];NM.forEach(function(_,i){var au=Aimg[i]*(1-s)+A0[i]*s,av=au+OFF[i]*(1-s);U.push([Math.cos(au),Math.sin(au)]);V.push([Math.cos(av),Math.sin(av)])});
+var p=L.plot('c4a',{x:[-1.35,1.35],y:[-1.35,1.35],grid:false,ticks:false,frame:false,m:[6,6,6,6]});p.path(Array.from({length:91},function(_,i){return[Math.cos(i/90*6.2832),Math.sin(i/90*6.2832)]}),col('--line'),1.5);
+NM.forEach(function(n,i){p.seg(U[i][0],U[i][1],V[i][0],V[i][1],L.PAL[i],1.5,[3,3]);p.dot(U[i][0],U[i][1],L.PAL[i],8);p.g.fillStyle='#fff';p.g.font='bold 9px sans-serif';p.g.fillText('▣',p.X(U[i][0])-4,p.Y(U[i][1])+3);p.dot(V[i][0],V[i][1],'#fff',7,L.PAL[i]);p.text(n,V[i][0]*1.17-.12,V[i][1]*1.17-.04,L.PAL[i],'left','600 12px IBM Plex Sans,system-ui,sans-serif')});
+p.ptext('● image  ○ caption',8,p.H-8,col('--muted'));
+var k=L.ctx('c4b'),g=k.g,cs=52,ox=50,oy=40,loss=0,acc=0;g.font='11px IBM Plex Sans,system-ui,sans-serif';
+NM.forEach(function(n,i){var sr=V.map(function(v){return L.dot(U[i],v)/tau}),pr=L.softmax(sr);loss-=Math.log(pr[i]);if(pr.indexOf(Math.max.apply(null,pr))===i)acc++;
+pr.forEach(function(q,j){g.fillStyle='rgba(47,84,235,'+q.toFixed(3)+')';g.fillRect(ox+j*cs,oy+i*cs,cs-2,cs-2);g.fillStyle=q>.5?'#fff':C.ink;g.fillText(q.toFixed(2),ox+j*cs+12,oy+i*cs+30);if(i===j){g.strokeStyle=C.orange;g.lineWidth=2;g.strokeRect(ox+j*cs,oy+i*cs,cs-2,cs-2)}});
+g.fillStyle=L.PAL[i];g.fillText('▣'+n,4,oy+i*cs+30);g.save();g.translate(ox+i*cs+18,oy-6);g.rotate(-.6);g.fillText('“'+n+'”',0,0);g.restore()});
+g.fillStyle=col('--muted');g.fillText('rows: images · cols: captions · softmax per row',4,k.H-8);
+$('o4').innerHTML='InfoNCE loss <b>'+(loss/5).toFixed(3)+'</b> (chance level = ln 5 = 1.609) · images matched to own caption: <b>'+acc+'/5</b>'}
+L.bind(['p4','t4'],draw4);L.reg(draw4);
+
+/* ---------- 05 linear probe ---------- */
+var P5=[];(function(){var r=L.rng(31);for(var i=0;i<400;i++){var c=i%2,rad=c?2.4+r.g()*.35:1.1+r.g()*.35,a=r()*6.2832;P5.push([rad*Math.cos(a),rad*Math.sin(a),c])}})();
+var seed5=1;
+function logreg(X,y){var d=X[0].length,w=new Array(d).fill(0),b=0;for(var it=0;it<600;it++){var gw=new Array(d).fill(0),gb=0;X.forEach(function(x,i){var e=L.sigmoid(L.dot(w,x)+b)-y[i];for(var j=0;j<d;j++)gw[j]+=e*x[j];gb+=e});for(var j=0;j<d;j++)w[j]-=.5*gw[j]/X.length;b-=.5*gb/X.length}return function(x){return L.sigmoid(L.dot(w,x)+b)}}
+function draw5(){var n=L.val('n5'),r=L.rng(seed5),idx=[],i;var pos=[],neg=[];P5.forEach(function(q,k){(q[2]?pos:neg).push(k)});
+function sh(a){for(var i=a.length-1;i>0;i--){var j=r.int(i+1),t=a[i];a[i]=a[j];a[j]=t}return a}sh(pos);sh(neg);idx=pos.slice(0,n/2).concat(neg.slice(0,n/2));var lab={};idx.forEach(function(k){lab[k]=1});
+var raw=function(q){return[q[0],q[1]]},rep=function(q){return[Math.hypot(q[0],q[1])-1.75]};
+var f1=logreg(idx.map(function(k){return raw(P5[k])}),idx.map(function(k){return P5[k][2]})),f2=logreg(idx.map(function(k){return rep(P5[k])}).map(function(x){return[x[0]*3]}),idx.map(function(k){return P5[k][2]}));
+var a1=0,a2=0,nt=0;P5.forEach(function(q,k){if(lab[k])return;nt++;if((f1(raw(q))>.5?1:0)===q[2])a1++;if((f2([rep(q)[0]*3])>.5?1:0)===q[2])a2++});
+var p=L.plot('c5a',{x:[-3.2,3.2],y:[-3.2,3.2],grid:false,ticks:false,m:[24,6,6,6]});p.field(function(x,y){var q=f1([x,y]);return[q>.5?C.blue:C.orange,.18]},40);
+P5.forEach(function(q,k){p.dot(q[0],q[1],lab[k]?(q[2]?C.blue:C.orange):'#ced4da',lab[k]?6:3,lab[k]?C.ink:false)});p.ptext('raw features (x₁, x₂): '+(a1/nt*100).toFixed(0)+'% test acc.',8,16,C.ink,'left','600 12px IBM Plex Sans,system-ui,sans-serif');
+var q=L.plot('c5b',{x:[0,3.4],y:[-1,1],grid:false,yt:false,xl:'learned feature h = distance from centre',m:[24,6,38,6]});var thr=null;for(var x=0;x<3.4;x+=.01){if(f2([(x-1.75)*3])>.5){thr=x;break}}
+if(thr!==null){q.rect(0,-1,thr,1,C.orange,.15);q.rect(thr,-1,3.4,1,C.blue,.15);q.vl(thr,C.ink,[4,3],2)}
+P5.forEach(function(t,k){var h=Math.hypot(t[0],t[1]),jy=((k*37)%100)/100*1.6-.8;q.dot(h,jy,lab[k]?(t[2]?C.blue:C.orange):'#ced4da',lab[k]?6:3,lab[k]?C.ink:false)});q.ptext('representation: '+(a2/nt*100).toFixed(0)+'% test acc.',8,16,C.ink,'left','600 12px IBM Plex Sans,system-ui,sans-serif');
+$('o5').innerHTML='trained on <b>'+n+'</b> labelled points (outlined), tested on the other '+nt+' · raw: <b>'+(a1/nt*100).toFixed(1)+'%</b> · learned representation: <b>'+(a2/nt*100).toFixed(1)+'%</b>'}
+L.bind('n5',draw5);L.reg(draw5);$('new5').onclick=function(){seed5++;draw5()};
+})();
+</script>
+{% endraw %}{% endblock %}
