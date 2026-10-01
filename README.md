@@ -24,3 +24,12 @@ Clustering, PCA, Neural networks, CNN and RNN share a small kit:
 - `static/lesson.js` – `window.L` helpers: `L.plot()` canvas plots, `L.bind()` sliders, `L.seg()` button groups, `L.pointer()` mouse/touch, `L.runner()` play/pause, `L.tex()` maths.
 - `static/vendor/katex/` – KaTeX bundled locally, so formulas render offline. Write maths as `\( … \)` inline or `$$ … $$` display.
 - Wrap page HTML/JS in `{% raw %} … {% endraw %}` so Jinja ignores `{#`, `{{` in CSS/JS/LaTeX.
+
+## Publish online (GitHub Pages)
+GitHub Pages serves static files only, so `freeze.py` renders every page of the Flask app to plain HTML in `build/`.
+The workflow `.github/workflows/pages.yml` does this automatically on every push to `main` and deploys it.
+
+One-time setup: repository **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+The site is then at `https://<user>.github.io/<repo>/`.
+
+Local preview of the static build: `BASE_PATH=/learning python freeze.py`, then serve the folder that contains `build/` renamed to `learning/`.
