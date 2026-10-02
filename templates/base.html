@@ -58,13 +58,22 @@
     .wrap { flex-direction: column !important; }
     aside.index, .wrap.collapsed aside.index { width: auto !important; }
   }
+  .ver { margin-left: 4px; font: 500 12px var(--mono); padding: 3px 9px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); text-decoration: none; white-space: nowrap; }
+  .ver:hover { background: var(--accent); color: #fff; }
+  @media (max-width: 640px) { .ver-d { display: none; } }
+  @media (max-width: 520px) { .bar .ver { display: none; } }
+  .index-ver { display: flex; flex-direction: column; gap: 1px; margin-top: 28px; padding: 12px 14px; border: 1px solid #333; border-radius: 10px; color: #bbb; text-decoration: none; font-size: 13px; line-height: 1.4; }
+  .index-ver span:first-child { color: #fff; font-weight: 500; }
+  .index-ver .nw { color: #8ea6ff; margin-top: 4px; }
+  .index-ver:hover { border-color: #8ea6ff; }
+  .tag.upd { background: #ebfbee; color: #2b8a3e; }
 </style>
 {% block head %}{% endblock %}
 </head>
 <body>
 
 <div class="bar" role="toolbar" aria-label="Reading settings">
-  <div class="brand"><span class="dot"></span>{{ site_title }}</div>
+  <div class="brand"><span class="dot"></span>{{ site_title }}<a class="ver" href="/releases" title="Version {{ release.version }}, released {{ nice_date(release.date) }}. See what changed.">v{{ release.version }}<span class="ver-d"> · {{ nice_date(release.date) }}</span></a></div>
   <div class="ctl">
     <button id="dec" aria-label="Decrease font size">A−</button>
     <input id="size" type="range" min="14" max="26" step="1" aria-label="Font size">
@@ -103,6 +112,7 @@
         {% endmacro %}
         {{ tree(nav, 0) }}
       </nav>
+      <a class="index-ver" href="/releases"><span>Version {{ release.version }}</span><span>Released {{ nice_date(release.date) }}</span><span class="nw">What’s new →</span></a>
     </div>
     <button type="button" class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle navigation bar" title="Collapse / Expand navigation"></button>
   </aside>
@@ -112,6 +122,7 @@
       <div class="meta">
         {% for t in trail[1:] %}<a class="tag" href="{{ url_for_slug(t.slug) }}">{{ t.title }}</a>{% endfor %}
         {% if node.slug and node.slug != 'home' %}<span class="tag">{{ node.title }}</span>{% endif %}
+        {% set pr = page_release(node.slug) if node.slug else None %}{% if pr %}<a class="tag upd" href="/releases#v{{ pr.version }}" title="Last changed in version {{ pr.version }}: {{ pr.title }}">Updated {{ nice_date(pr.date) }} · v{{ pr.version }}</a>{% endif %}
       </div>
       <h1>{% block h1 %}{{ node.title }}{% endblock %}</h1>
       {% block lead %}{% endblock %}

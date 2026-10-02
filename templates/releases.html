@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block head %}
+<style>
+  .rel-sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 36px; }
+  .rel-sum div { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .rel-sum small { display: block; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+  .rel-sum b { font-size: 1.3em; }
+  .tl { position: relative; padding-left: 28px; }
+  .tl::before { content: ""; position: absolute; left: 8px; top: 6px; bottom: 6px; width: 2px; background: var(--line); }
+  .rel { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 20px; margin-bottom: 18px; scroll-margin-top: 80px; }
+  .rel::before { content: ""; position: absolute; left: -26px; top: 22px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); border: 3px solid var(--accent); }
+  .rel.cur::before { background: var(--accent); }
+  .rel:target { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .rel h2 { margin: 0 0 4px !important; font-size: 1.2em !important; display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; }
+  .rel .v { font: 600 .8em var(--mono); color: var(--accent); background: var(--accent-soft); padding: 2px 9px; border-radius: 99px; }
+  .rel .d { color: var(--muted); font-size: .8em; font-weight: 400; }
+  .rel .now { font-size: .7em; font-weight: 600; color: #2b8a3e; background: #ebfbee; padding: 2px 8px; border-radius: 99px; }
+  .rel ul { margin: .4em 0 .6em; padding-left: 1.2em; }
+  .rel li { margin: .2em 0; }
+  .rel .pg { display: flex; flex-wrap: wrap; gap: 6px; font-size: .8em; color: var(--muted); align-items: center; }
+  .rel .pg a { font-family: var(--mono); font-size: .9em; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--line); text-decoration: none; }
+  .semver { font-size: .9em; }
+</style>
+{% endblock %}
+{% block lead %}<p class="lead">What changed on this site, and when. The newest release is at the top.</p>{% endblock %}
+{% block content %}
+<div class="rel-sum">
+  <div><small>Current version</small><b>v{{ release.version }}</b></div>
+  <div><small>Released</small><b>{{ nice_date(release.date) }}</b></div>
+  <div><small>Releases so far</small><b>{{ releases|length }}</b></div>
+  <div><small>Site built</small><b>{{ nice_date(build.built) }}</b>{% if build.sha %}<br><code>{{ build.sha }}</code>{% endif %}</div>
+</div>
+
+<div class="tl">
+{% for r in releases %}
+  <section class="rel{% if loop.first %} cur{% endif %}" id="v{{ r.version }}">
+    <h2><span class="v">v{{ r.version }}</span>{{ r.title }}<span class="d">{{ nice_date(r.date) }}</span>{% if loop.first %}<span class="now">current</span>{% endif %}</h2>
+    <ul>{% for c in r.changes %}<li>{{ c }}</li>{% endfor %}</ul>
+    {% set pages = r.pages | reject("equalto", "releases") | list %}
+    {% if pages %}<div class="pg">Pages changed:{% for s in pages %}<a href="{{ url_for_slug(s) }}">{{ s }}</a>{% endfor %}</div>{% endif %}
+  </section>
+{% endfor %}
+</div>
+
+<div class="callout semver"><b>How versions are numbered</b>Versions follow <i>semantic versioning</i>, MAJOR.MINOR.PATCH. MINOR goes up when lessons or sections are added, PATCH for corrections, MAJOR if the course is reorganised. Each lesson shows an “Updated” badge with the release that last changed it.</div>
+{% endblock %}

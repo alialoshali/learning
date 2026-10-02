@@ -33,3 +33,10 @@ One-time setup: repository **Settings → Pages → Build and deployment → Sou
 The site is then at `https://<user>.github.io/<repo>/`.
 
 Local preview of the static build: `BASE_PATH=/learning python freeze.py`, then serve the folder that contains `build/` renamed to `learning/`.
+
+## Versions and releases
+
+The site version, release date and the change history live in `releases.py`.
+To publish a release, add an entry at the top of `RELEASES` (version, date, title, changes, changed page slugs), then push.
+The version is shown in the top bar and the sidebar, every lesson shows an "Updated" badge with the release that last changed it,
+and the full history is on the `/releases` page.

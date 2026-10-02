@@ -34,6 +34,9 @@ html{scroll-padding-top:130px}
 .nbars .r i{display:block;height:14px;border-radius:3px}
 .nbars .r .z{position:relative;height:14px;background:#f1f3f5;border-radius:3px}
 .tfl .fig{overflow-x:auto}.sentence{max-width:100%}.mrow>div{max-width:100%;overflow-x:auto}
+.emb-h{margin:2em 0 .6em;font-size:1.15em;padding-left:10px;border-left:4px solid var(--accent)}
+table.mini{border-collapse:collapse;font-size:.85em;margin:.8em 0;width:100%}table.mini th,table.mini td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:left}table.mini th{color:var(--muted);font-weight:600}
+.emb-eq{flex-wrap:wrap;gap:6px}.emb-eq select,#emb2s{font:inherit;font-size:13px;padding:4px 6px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
 .pc-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 18px}
 @media(max-width:1250px){.tfl{grid-template-columns:minmax(0,1fr)}.flow{display:none}
 .flowbar{display:flex;position:sticky;top:56px;z-index:5;gap:8px;align-items:center;background:#171b24;color:#fff;border-radius:10px;padding:6px 12px;font-size:13px;margin-bottom:10px}
@@ -113,7 +116,7 @@ html{scroll-padding-top:130px}
 <div class="pair"><div>
 <p>Each id selects one row of the <b>embedding table</b> \(E\) (shape \(V\times d\) = 5 × 4). The token becomes a vector of \(d\) numbers:</p>
 <div class="formula">$$x_i^{\text{emb}} = E[\text{id}_i]$$$$E[0]=[1,0,1,0]\ \ (\text{“I”})\qquad E[1]=[0,1,1,0]\ \ (\text{“love”})$$</div>
-<p><b>Why vectors?</b> An id like 9246 says nothing about meaning; neighbouring ids are unrelated words. A learned vector can place words with similar meaning close together and encode relations as directions (see <a href="/unsupervised-learning">word embeddings</a>). Every later step works with these vectors.</p>
+<p><b>Why vectors?</b> An id like 9246 says nothing about meaning; neighbouring ids are unrelated words. A learned vector can place words with similar meaning close together and encode relations as directions. Every later step works with these vectors. <b>Sections 2a–2c below explain in detail why embeddings are needed and what they can do, with interactive examples.</b></p>
 <p><b>It is a linear layer in disguise.</b> Write the id as a <b>one-hot</b> vector (all zeros, a single 1 at position id). Multiplying it by \(E\) picks out exactly one row. So the lookup is the matrix product \(\text{onehot}\cdot E\), and \(E\) is trained by backpropagation like any weight matrix.</p>
 <p><b>Trained parameters:</b> \(E\): 5 × 4 = <b>20</b> numbers. In GPT-3: 50,257 × 12,288 ≈ 617 million.</p>
 <div class="terms"><span class="terms-t">Key terms</span><dl>
@@ -124,6 +127,90 @@ html{scroll-padding-top:130px}
 </div><div class="fig"><h4>one-hot(id) · E = embedding row</h4>
 <div id="f2"></div>
 <div class="how"><b>How to read this</b>For the token you follow (chosen in the top bar), the one-hot vector on the left has a single 1. Multiplying it by the table E selects the matching row (outlined), which becomes that token’s embedding on the right. Below, the embeddings of all tokens of the sentence are stacked into a matrix: <b>one row per token, one column per dimension</b>. This n × d shape is kept through the whole layer.</div></div></div>
+
+<h3 class="emb-h">2a · Why do we need embeddings at all?</h3>
+<div class="pair"><div>
+<p>A neural network can only do arithmetic, so every word must become numbers. There are three ways to do it, and only the third one works well.</p>
+<p><b>Attempt 1: use the id itself.</b> “cat” = 3, “kitten” = 4, “car” = 5. The numbers suggest things that are false: that “car” is “bigger” than “cat”, or that cat + 2 = car. The id is just a position in a list, like a locker number.</p>
+<p><b>Attempt 2: one-hot vectors.</b> Give every word its own axis: a vector of length \(V\) (the vocabulary size) with a single 1. No false order any more, but now <b>every word is equally different from every other word</b>:</p>
+<div class="formula">$$\text{onehot}(i)\cdot\text{onehot}(j)=\begin{cases}1 & i=j\\0 & i\neq j\end{cases}$$<span class="cap">\(i, j\) = the ids of two words · \(\text{onehot}(i)\) = a vector of length \(V\) with a 1 at position \(i\) and 0 elsewhere · “·” = dot product (multiply position by position, then add). Two different words never share a 1, so their similarity is always 0.</span></div>
+<p>That has two bad consequences. (1) <b>No sharing:</b> whatever the model learns about “cat” teaches it nothing about “kitten”; it must learn every word separately from scratch. (2) <b>Waste:</b> with GPT-3’s 50,257 tokens every word would be 50,257 numbers, all but one zero.</p>
+<p><b>Attempt 3: embeddings.</b> Give every word a short, dense vector of \(d\) numbers (4 in our model, 768 in GPT-2, 12,288 in GPT-3) and let training choose the numbers. Training pushes words that appear in <b>similar contexts</b> (“the ___ drank milk”) towards <b>similar vectors</b>. Now knowledge is shared: if the model learns that “the cat purrs” is likely, it automatically finds “the kitten purrs” likely too, because the two vectors are close.</p>
+<table class="mini"><tr><th></th><th>id</th><th>one-hot</th><th>embedding</th></tr>
+<tr><td>numbers per word</td><td>1</td><td>V (50,257)</td><td>d (e.g. 768)</td></tr>
+<tr><td>similar words close?</td><td>no (random)</td><td>no (all equal)</td><td><b>yes</b></td></tr>
+<tr><td>learned?</td><td>no</td><td>no</td><td><b>yes</b>, by backprop</td></tr>
+<tr><td>relations visible?</td><td>no</td><td>no</td><td><b>yes</b>, as directions (2c)</td></tr></table>
+<div class="terms"><span class="terms-t">Key terms</span><dl>
+<dt>Dense vector</dt><dd>A vector where (almost) every entry carries information, the opposite of one-hot.</dd>
+<dt>Distributional hypothesis</dt><dd>“You shall know a word by the company it keeps” (J. R. Firth, 1957). Words used in similar contexts have similar meanings. This is why next-word training produces meaningful embeddings.</dd>
+<dt>Generalisation</dt><dd>Using what was learned on some examples for new, similar examples. Embeddings make this possible across words.</dd>
+</dl></div>
+</div><div class="fig"><h4>How similar are two words? One-hot vs. embedding</h4>
+<div class="seg" id="emb1m"><button data-v="oh" class="on">one-hot vectors</button><button data-v="emb">learned embeddings</button></div>
+<canvas id="emb1" width="640" height="560"></canvas>
+<div class="out" id="emb1o"></div>
+<div class="how"><b>How to read this</b><ul>
+<li>Rows and columns are the same 10 words. Each cell is the <b>similarity</b> of the row word and the column word: <span class="sw" style="background:#2f54eb"></span>dark blue = 1 (same direction), white = 0 (unrelated), <span class="sw" style="background:#e8590c"></span>orange = negative (opposite).</li>
+<li><b>One-hot</b>: only the diagonal is 1. The model sees “cat” and “kitten” as being exactly as different as “cat” and “car”.</li>
+<li><b>Learned embeddings</b>: blocks appear. cat/kitten and dog/puppy are very similar (≈ 0.8–0.9), cats and dogs are related (≈ 0.5, both animals), king/queen form their own block, and animals vs. countries ≈ 0.</li>
+<li>Click any cell to read its value in the line under the matrix.</li></ul></div></div></div>
+
+<h3 class="emb-h">2b · Meaning becomes geometry: measuring similarity</h3>
+<div class="pair"><div>
+<p>Once words are vectors, “how similar are these two words?” becomes “how much do these two arrows point the same way?”. The standard measure is <b>cosine similarity</b>:</p>
+<div class="formula">$$\cos(\mathbf a,\mathbf b)=\frac{\mathbf a\cdot\mathbf b}{\lVert\mathbf a\rVert\,\lVert\mathbf b\rVert}=\frac{\sum_{i=1}^{d}a_i b_i}{\sqrt{\sum_i a_i^2}\;\sqrt{\sum_i b_i^2}}$$<span class="cap">\(\mathbf a, \mathbf b\) = the embedding vectors of two words · \(a_i, b_i\) = their \(i\)-th numbers · \(d\) = number of dimensions · \(\mathbf a\cdot\mathbf b\) = dot product · \(\lVert\mathbf a\rVert\) = length of \(\mathbf a\). The result is between −1 and 1: <b>1</b> = same direction (same meaning), <b>0</b> = perpendicular (unrelated), <b>−1</b> = opposite.</span></div>
+<p><b>Why divide by the lengths?</b> The length of an embedding often reflects how frequent a word is, not what it means. Dividing by both lengths keeps only the <b>direction</b>, so a rare word and a common word with the same meaning still score high.</p>
+<p><b>It is the same operation as attention.</b> In step 5 the Transformer compares a query with every key using the dot product \(q\cdot k\): the same “how much do these vectors agree?” question, without the division.</p>
+<p><b>Where AI engineers use this every day:</b></p>
+<ul>
+<li><b>Semantic search and RAG</b>: embed the question and every document chunk, return the chunks with the highest cosine similarity, then give them to an LLM. “How do I reset my password?” finds “Recovering account access” even though no word matches.</li>
+<li><b>Recommendations</b>: products, films or songs get embeddings; “similar items” = nearest vectors.</li>
+<li><b>Clustering and duplicate detection</b>: group support tickets or remove near-identical texts.</li>
+<li><b>Classification with few examples</b>: train a small classifier (even logistic regression) on top of embeddings.</li>
+</ul>
+<p>The vector database behind a RAG system is, at its core, the map on the right with millions of points and a fast “find the nearest neighbours” search.</p>
+</div><div class="fig"><h4>The embedding map: 64 words, nearest neighbours</h4>
+<div class="ctl-row"><span>word</span><select id="emb2s"></select></div>
+<canvas id="emb2" width="640" height="520"></canvas>
+<div class="out" id="emb2o"></div>
+<div class="how"><b>How to read this</b><ul>
+<li>Each dot is one word; its colour is its category (legend at the bottom). <b>Click a dot</b> (or pick a word in the list) to select it.</li>
+<li>The orange lines connect the selected word to its <b>5 nearest neighbours</b> by cosine similarity; thicker = more similar. The exact values are listed under the map.</li>
+<li>Notice the structure nobody programmed as rules: categories form islands, and inside an island different forms of one word sit together (cat, cats, kitten).</li>
+<li>Our toy vectors have 26 dimensions; the map squeezes them into 2 (the same idea as t-SNE or UMAP plots of real embeddings), so on-screen distances are approximate. The similarity numbers are exact.</li></ul></div></div></div>
+
+<h3 class="emb-h">2c · Relations become directions: word arithmetic</h3>
+<div class="pair"><div>
+<p>The most surprising property of embeddings (first shown by word2vec, Mikolov et al., 2013): a <b>relation</b> between two words is stored as a <b>direction</b> in the space. The arrow from “man” to “woman” points the same way as the arrow from “king” to “queen”. So you can do arithmetic with meaning:</p>
+<div class="formula">$$\mathbf v_{\text{queen}}\;\approx\;\mathbf v_{\text{king}}-\mathbf v_{\text{man}}+\mathbf v_{\text{woman}}$$<span class="cap">\(\mathbf v_{w}\) = the embedding vector of word \(w\). “≈” means: the word whose vector is <b>closest</b> (highest cosine similarity) to the result.</span></div>
+<p>In general, “<i>a</i> is to <i>b</i> as <i>c</i> is to <i>?</i>” is answered by</p>
+<div class="formula">$$\mathbf t=\mathbf v_b-\mathbf v_a+\mathbf v_c$$$$\text{answer}=\arg\max_{w\notin\{a,b,c\}}\ \cos(\mathbf v_w,\mathbf t)$$<span class="cap">\(a, b\) = an example pair that shows the relation (man → woman) · \(c\) = the word to apply it to (king) · \(\mathbf t\) = the target point · \(\arg\max_w\) = “the word \(w\) that gives the largest value” · \(w\notin\{a,b,c\}\) = the three input words are not allowed as answers.</span></div>
+<p><b>Why does it work?</b> \(\mathbf v_b-\mathbf v_a\) cancels everything the two words share (both are adult humans) and keeps only what differs (female). Adding that difference to “king” keeps everything about king (royal, a person) and adds “female”: the nearest word is “queen”. Use the bar chart to see this dimension by dimension.</p>
+<p><b>Try the cases</b> on the right: gender, adult → young, country → capital, present → past tense, singular → plural, adjective → comparative. Or choose any three words yourself.</p>
+<p><b>It is approximate, and it can fail.</b> Try <i>kitten − cat + man</i>: the answer is not “boy”, because in this space “boy” is not just “man + young”. Real embeddings behave the same way: analogies work for frequent, regular relations and break for others.</p>
+<p><b>Embeddings also learn our biases.</b> Trained on human text, real embeddings answered “man is to programmer as woman is to <i>homemaker</i>” (Bolukbasi et al., 2016). An AI engineer must test for such associations, because they flow into every model built on top.</p>
+<div class="callout tf"><b>Transformer link: static vs. contextual embeddings</b>The table \(E\) gives each token <b>one</b> vector, whatever the sentence: “bank” gets the same row in “river bank” and “bank account”. This is the static embedding you see here. The attention layers (steps 4–9) then mix in the other words, so after one layer the vector of “bank” is different in the two sentences: a <b>contextual</b> embedding. Embedding models used for RAG are Transformers whose final, contextual vectors are averaged into one vector per text.</div>
+<div class="terms"><span class="terms-t">Key terms</span><dl>
+<dt>Cosine similarity</dt><dd>The cosine of the angle between two vectors: 1 = same direction, 0 = unrelated, −1 = opposite.</dd>
+<dt>Nearest neighbours</dt><dd>The words whose vectors are most similar to a given vector.</dd>
+<dt>Analogy</dt><dd>“a is to b as c is to d”, solved as d ≈ b − a + c.</dd>
+<dt>Relation direction</dt><dd>A direction in embedding space that means one change (male → female, singular → plural).</dd>
+<dt>word2vec / GloVe</dt><dd>Early (2013–2014) methods that learn static word embeddings. An LLM learns its table E the same way: from next-token prediction.</dd>
+<dt>Contextual embedding</dt><dd>A token vector that depends on the surrounding words, produced by attention layers.</dd>
+</dl></div>
+</div><div class="fig"><h4>Word arithmetic: b − a + c ≈ ?</h4>
+<div class="seg" id="emb3m"><button data-v="gender" class="on">male → female</button><button data-v="young">adult → young</button><button data-v="capital">country → capital</button><button data-v="past">present → past</button><button data-v="plural">singular → plural</button><button data-v="compar">comparative</button></div>
+<div class="ctl-row emb-eq"><select id="emb3b"></select><span>−</span><select id="emb3a"></select><span>+</span><select id="emb3c"></select><span>≈ ?</span></div>
+<canvas id="emb3" width="640" height="400"></canvas>
+<div class="out" id="emb3o"></div>
+<canvas id="emb4" width="640" height="190"></canvas>
+<div class="out" id="emb4o"></div>
+<div class="how"><b>How to read this</b><ul>
+<li><b>Buttons</b> load an example of each relation; the three lists let you build any “b − a + c”.</li>
+<li><b>Top plot</b>: horizontal = the relation direction (the average of all arrows of this relation), vertical = the main other difference between the words. <span class="sw ln" style="background:#2f54eb"></span>Blue arrow = your example a → b. <span class="sw ln" style="background:#2f9e44"></span>Green dashed arrow = the same arrow moved to start at c; it ends at the ✕ (the point b − a + c). The green dot is the nearest real word, the answer. Grey arrows = the other pairs of the same relation: they are almost parallel, which is why the trick works.</li>
+<li><b>Bottom bars</b>: the two difference vectors, b − a (blue) and answer − c (green), one pair of bars per dimension. In a good analogy the bars match: only one or two dimensions change (for example “female” or “capital”). The last pair shows the size of the change in the remaining 12 unnamed dimensions.</li>
+<li>Our toy dimensions have names so you can read them. In a real model no single dimension means “female”: the meaning is a direction spread over many dimensions, but the arithmetic works the same way.</li></ul></div></div></div>
 
 <h2 data-step="3">Step 3 · Add positional encoding: inject word order</h2>
 <div class="pair"><div>
@@ -458,4 +545,5 @@ html{scroll-padding-top:130px}
 </div><aside class="flow" aria-label="Transformer flowchart"><h5>Transformer pipeline · click a step</h5><svg id="flow" viewBox="0 0 300 800" preserveAspectRatio="xMidYMin meet"></svg><div class="fx" id="flowx"></div></aside></div>
 {% endraw %}{% include "_lesson_scripts.html" %}
 <script src="{{ url_for('static', filename='transformer-lesson.js') }}"></script>
+<script src="{{ url_for('static', filename='embedding-demo.js') }}"></script>
 {% endblock %}

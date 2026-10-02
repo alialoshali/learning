@@ -1,6 +1,7 @@
 import os
 from flask import Flask, render_template, abort
 from navigation import NAV, find, url_for_slug
+from releases import RELEASES, CURRENT, nice_date, page_release, build_info
 
 app = Flask(__name__)
 app.config["SITE_TITLE"] = "EPI learning"
@@ -8,7 +9,8 @@ app.config["SITE_TITLE"] = "EPI learning"
 
 @app.context_processor
 def inject_nav():
-    return {"nav": NAV, "site_title": app.config["SITE_TITLE"], "url_for_slug": url_for_slug}
+    return {"nav": NAV, "site_title": app.config["SITE_TITLE"], "url_for_slug": url_for_slug,
+            "release": CURRENT, "nice_date": nice_date, "page_release": page_release}
 
 
 def show(slug):
@@ -29,6 +31,13 @@ def home():
 @app.route("/<slug>")
 def page(slug):
     return show(slug)
+
+
+@app.route("/releases")
+def releases():
+    node = {"title": "Releases", "slug": "releases"}
+    return render_template("releases.html", node=node, trail=(), active="releases", open_slugs={"home"},
+                           releases=RELEASES, build=build_info())
 
 
 @app.errorhandler(404)

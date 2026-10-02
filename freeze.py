@@ -44,6 +44,8 @@ def main():
             raise SystemExit(f"{url} returned {r.status_code}")
         write("index.html" if slug == "home" else f"{slug}/index.html", r.get_data(as_text=True))
         print("rendered", url)
+    write("releases/index.html", client.get("/releases").get_data(as_text=True))
+    print("rendered /releases")
     write("404.html", client.get("/__missing__").get_data(as_text=True))
     shutil.copytree(os.path.join(app.root_path, "static"), os.path.join(OUT, "static"))
     open(os.path.join(OUT, ".nojekyll"), "w").close()
