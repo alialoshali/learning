@@ -4,6 +4,9 @@
 .race{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:.6em 0 0}
 .race .rc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px}
 .race .rc h3{margin:0 0 8px;font-size:1em}
+.race .rc svg.arch{display:block;width:100%;height:auto;margin:0 0 8px;background:#f8f9fb;border-radius:8px}
+#xt1 table{width:100%;border-collapse:collapse;font-size:.88em;margin-bottom:8px}#xt1 th,#xt1 td{padding:5px 6px;text-align:center;border-bottom:1px solid var(--line)}#xt1 tr.r{cursor:pointer}#xt1 tr.r:hover{background:#f1f3f7}#xt1 tr.on{background:#e6ecff;font-weight:600}#xt1 .y1{color:#2f54eb}#xt1 .y0{color:#e8590c}
+#c1h{margin-top:6px}
 .race canvas{width:100%;height:auto;display:block;border-radius:8px;border:1px solid var(--line)}
 .race .bar{height:9px;background:var(--line);border-radius:5px;margin:9px 0 4px;position:static;padding:0;border:0;display:block;backdrop-filter:none}
 .race .bar i{display:block;height:100%;width:50%;background:var(--accent);border-radius:5px;transition:width .3s}
@@ -21,8 +24,20 @@
 <h2><span class="n">01</span>Why we need more than a linear model</h2>
 <div class="pair"><div>
 <p>Logistic regression computes \(\hat p=\sigma(w_1x_1+w_2x_2+b)\). Its decision boundary \(w_1x_1+w_2x_2+b=0\) is always a <b>straight line</b>. Many real problems are not separable by a line. The classic example is <b>XOR</b>: class 1 when exactly one of the inputs is positive.</p>
-<p><b>Try it:</b> on the right, logistic regression is trained on XOR. It cannot do better than about 50–75% accuracy. Now tick <b>add feature</b> \(x_1x_2\): with this hand-made feature, the problem becomes linear and the model succeeds.</p>
-<p>That is the old way of doing machine learning: people <b>engineer features</b> by hand. A neural network <b>learns the features itself</b>. Its hidden layer computes new features \(h=\phi(W_1x+b_1)\), and a linear model on top of \(h\) makes the decision.</p>
+<div class="table compact leg"><table><tbody>
+<tr><td>\(x_1, x_2\)</td><td>the two input features of one example (its horizontal and vertical position)</td></tr>
+<tr><td>\(w_1, w_2\)</td><td>weights: how strongly each input pushes towards class 1</td></tr>
+<tr><td>\(b\)</td><td>bias: shifts the line without turning it</td></tr>
+<tr><td>\(\sigma\)</td><td>sigmoid, squashes the score into a probability between 0 and 1</td></tr>
+<tr><td>\(\hat p\)</td><td>predicted probability of class 1</td></tr>
+</tbody></table></div>
+<p><b>Try it</b> with the three buttons on the right:</p>
+<ol>
+<li><b>Logistic regression</b> (no hidden layer): it cannot do better than about 50–75% accuracy, because one straight line can never separate XOR.</li>
+<li><b>+ hand-made feature</b> \(x_1x_2\): a person adds a clever extra input. Now a straight line in 3-D works, and the model succeeds. This is the old way: people <b>engineer features</b> by hand.</li>
+<li><b>ANN with a hidden layer</b>: no hand-made feature. A hidden layer of 4 neurons <b>learns its own features</b> \(h=\phi(W_1x+b_1)\), and a linear output neuron on top of \(h\) makes the decision. It reaches ~100% by itself.</li>
+</ol>
+<p>How exactly does a hidden layer do that? The worked example just below solves XOR with only <b>2 hidden neurons</b> whose weights you can check by hand.</p>
 <div class="terms"><span class="terms-t">Key terms</span><dl>
 <dt>Linear model</dt><dd>A model whose score is a weighted sum w₁x₁ + w₂x₂ + b. Its decision boundary is always a straight line (a flat plane in more dimensions).</dd>
 <dt>Linearly separable</dt><dd>Data whose classes can be split perfectly by one straight line. XOR is <i>not</i>.</dd>
@@ -33,29 +48,80 @@
 </div><div class="fig"><h4>Logistic regression on XOR</h4>
 <div class="seg" id="ds1"><button data-v="xor" class="on">XOR</button><button data-v="circle">circle</button></div>
 <canvas id="c1" width="640" height="380"></canvas>
-<label class="chk"><input type="checkbox" id="f1"> add hand-made feature (x₁·x₂ for XOR, x₁²+x₂² for circle)</label>
+<canvas id="c1h" width="640" height="96"></canvas>
+<div class="seg" id="m1"><button data-v="lin" class="on">logistic regression</button><button data-v="feat">+ hand-made feature</button><button data-v="ann">ANN: 1 hidden layer (4 neurons)</button></div>
 <div class="out" id="o1"></div>
 <div class="how"><b>How to read this graph</b><ul>
 <li>Each dot is one example with two input features: x₁ (horizontal) and x₂ (vertical). Its colour is the true class: <span class="sw dot" style="background:#2f54eb"></span>blue = class 1, <span class="sw dot" style="background:#e8590c"></span>orange = class 0.</li>
 <li><b>XOR data</b>: blue in the top-left and bottom-right corners, orange in the other two. No single straight line can put both blue corners on one side.</li>
 <li>The background colour is the model’s prediction at every location (stronger = more confident). Where background and dot colours disagree, the model is wrong.</li>
-<li>Tick the hand-made feature: the model gets a third input (x₁·x₂ or x₁²+x₂²); the boundary becomes curved in this 2-D picture and accuracy jumps.</li></ul></div></div></div>
+<li><b>Hand-made feature</b>: the model gets a third input (x₁·x₂ for XOR, x₁²+x₂² for the circle); the boundary becomes curved in this 2-D picture and accuracy jumps.</li>
+<li><b>ANN</b>: the small squares under the plot show what each of the 4 hidden neurons learned: each one is a straight cut through the plane (blue = high output, orange = low). The output neuron adds these cuts together, which is why the final boundary can bend.</li></ul></div></div></div>
+
+<div class="pair" style="margin-top:22px"><div>
+<h3>Worked example: an ANN that solves XOR, by hand</h3>
+<p>Use the 4 classic XOR inputs, where \(x_1, x_2\) are 0 or 1 and the answer is 1 when <b>exactly one</b> input is 1. The network has 2 inputs → <b>2 hidden neurons</b> → 1 output. To keep it readable each neuron uses the <b>step</b> activation: output 1 if its score is above 0, otherwise 0.</p>
+<div class="formula">$$h_1=\mathrm{step}(1\cdot x_1+1\cdot x_2-0.5)$$$$h_2=\mathrm{step}(1\cdot x_1+1\cdot x_2-1.5)$$$$\hat y=\mathrm{step}(1\cdot h_1-2\cdot h_2-0.5)$$<span class="cap">\(x_1,x_2\) = inputs (0 or 1) · \(h_1,h_2\) = outputs of the two hidden neurons · \(\hat y\) = the network’s answer · the numbers 1, 1, −2 are <b>weights</b> and −0.5, −1.5, −0.5 are <b>biases</b> · \(\mathrm{step}(z)=1\) if \(z>0\), else 0.</span></div>
+<p><b>What each neuron learned to detect:</b></p>
+<ul>
+<li>\(h_1\) fires when \(x_1+x_2>0.5\), i.e. when <b>at least one</b> input is 1. It is an <b>OR</b> detector.</li>
+<li>\(h_2\) fires when \(x_1+x_2>1.5\), i.e. when <b>both</b> inputs are 1. It is an <b>AND</b> detector.</li>
+<li>The output fires when \(h_1=1\) and \(h_2=0\): “at least one, but not both”. That is exactly <b>XOR</b>.</li>
+</ul>
+<p><b>The key idea (plot ② in the figure):</b> the hidden layer <b>moves the points to new coordinates</b> \((h_1, h_2)\). In the original space no line separates the classes. In the hidden space the two blue points (0,1) and (1,0) both land on the same spot (1, 0), and now <b>one straight line</b> separates blue from orange. The output neuron is just a linear classifier, but working on better features.</p>
+<p>In a trained network nobody chooses these weights: gradient descent finds them (or a different but equivalent set), and the step is replaced by a smooth function such as tanh or ReLU so that gradients exist. Click the rows of the truth table to follow each input through the network.</p>
+</div><div class="fig"><h4>XOR solved by a 2-2-1 network</h4>
+<div id="xt1"></div>
+<canvas id="cx1" width="640" height="250"></canvas>
+<canvas id="cx2" width="640" height="230"></canvas>
+<div class="how"><b>How to read this figure</b><ul>
+<li><b>Table</b>: the 4 XOR inputs. For each row you can see the hidden neurons’ outputs h₁ (OR), h₂ (AND) and the final answer ŷ, which always equals the true XOR. Click a row to select it.</li>
+<li><b>Network diagram</b>: the selected input flowing through. Numbers on the lines are weights, numbers under the neurons are biases; a filled neuron fires (output 1), an empty one is silent (0).</li>
+<li><b>① Input space</b>: the 4 points at (x₁, x₂); blue = XOR is 1, orange = XOR is 0. The two dashed lines are where h₁ and h₂ switch on. No single line separates blue from orange.</li>
+<li><b>② Hidden space</b>: the same 4 points placed at (h₁, h₂). Both blue points land on (1, 0). The green line is the output neuron’s boundary h₁ − 2h₂ = 0.5: now one straight line is enough.</li></ul></div></div></div>
 
 <h2><span class="n">02</span>From one neuron to a deep network: a live race</h2>
-<p>Four networks learn the <b>same data</b> at the same time, with the same loss and the same training rule. The only difference is their <b>architecture</b>: how many neurons and layers they have. Training starts when the race scrolls into view. Watch the accuracy bars for about 20 seconds, then switch the dataset. (They use plain gradient descent with the same learning rate, so the comparison is fair.)</p>
+<div class="pair even"><div>
+<p><b>The question:</b> if we want a network to learn a complicated shape, is it better to add <b>more neurons in one layer</b> (wider) or <b>more layers</b> (deeper)? And what can a network with no hidden layer do at all?</p>
+<p><b>The experiment:</b> four networks learn the <b>same data</b> at the same time, with the same loss (cross-entropy), the same activation (tanh), the same training rule (plain gradient descent, learning rate 0.5) and the same number of steps. The <b>only</b> difference is the <b>architecture</b>, shown in the small diagram in each card.</p>
+<p>Networks ③ and ④ are the fair duel: they have <b>about the same number of parameters</b> (161 vs 177), but ③ spends them on <b>one wide layer</b> of 40 neurons, ④ on <b>three narrow layers</b> of 8.</p>
+<p>Training starts when the race scrolls into view. Watch for about 20 seconds, then switch the dataset.</p>
+</div><div>
+<div class="table compact"><table><thead><tr><th></th><th>Hidden layers</th><th>Neurons</th><th>Parameters</th></tr></thead><tbody>
+<tr><td>① one neuron</td><td>0</td><td>1</td><td>2·1 + 1 = <b>3</b></td></tr>
+<tr><td>② tiny ANN</td><td>1 × 2</td><td>2 + 1</td><td>(2·2+2) + (2·1+1) = <b>9</b></td></tr>
+<tr><td>③ wide ANN</td><td>1 × 40</td><td>40 + 1</td><td>(2·40+40) + (40·1+1) = <b>161</b></td></tr>
+<tr><td>④ deep NN</td><td>3 × 8</td><td>24 + 1</td><td>(2·8+8) + 2·(8·8+8) + (8+1) = <b>177</b></td></tr>
+</tbody></table></div>
+<div class="formula">$$\#\text{params}=\sum_{\text{layers}}\big(n_{\text{in}}\cdot n_{\text{out}}+n_{\text{out}}\big)$$<span class="cap">For every layer: \(n_{\text{in}}\) = numbers coming in, \(n_{\text{out}}\) = neurons in the layer. Each neuron has one weight per input (\(n_{\text{in}}\cdot n_{\text{out}}\) weights) plus one bias (\(n_{\text{out}}\) biases).</span></div>
+</div></div>
 <div class="btns" style="margin-bottom:10px"><span class="seg" id="rd"><button data-v="spiral" class="on">Spiral (hard)</button><button data-v="xor">XOR (medium)</button><button data-v="circle">Circle (easy)</button></span><button id="rr">Restart ↻</button><button id="rp">Pause</button><span class="out" id="rt" style="margin:0 0 0 8px"></span></div>
 <div class="race" id="race"></div>
 <div class="how"><b>How to read the race</b><ul>
 <li>Each square is the input space (horizontal = x₁, vertical = x₂). Dots are the training data (<span class="sw dot" style="background:#2f54eb"></span>blue = class 1, <span class="sw dot" style="background:#e8590c"></span>orange = class 0). The background is that network’s current prediction; where it matches the dots, the network is right.</li>
 <li>The bar and the “accuracy” number show the % of dots classified correctly (about 50% = guessing). The <b>loss</b> should fall; lower is better.</li>
-<li><b>On Spiral:</b> ① and ② stay near guessing (~58%); ③ climbs slowly; ④ (deep) reaches ~95% roughly twice as fast as ③. <b>On XOR:</b> ① stays near 55% (one line cannot solve XOR); ② gets ~80%: two neurons are just enough in theory but easily get stuck; ③ and ④ reach ~95%+. <b>On Circle:</b> ① ~70%; ② ~80%, because two lines can only cut out a band, not a ring; ③ and ④ reach ~100%. (Exact numbers vary a little with each restart.)</li>
-<li><b>Lesson:</b> (1) a single neuron is just a line; (2) one hidden layer with a non-linear activation lets the boundary bend; (3) harder shapes need more capacity, and <b>depth uses it more efficiently than width</b>: ④ uses narrow layers of 8 yet learns the spiral faster than the 16-wide ③.</li></ul></div>
+<li>The small diagram at the top of each card is the architecture: left column = the 2 inputs (x₁, x₂), middle columns = hidden layers, right = the output neuron. Every line is one weight.</li></ul></div>
+<div class="summary"><b>What we measured</b> (accuracy on the training dots, typical run; it varies a little with each restart):
+<div class="table compact" style="margin:8px 0"><table><thead><tr><th></th><th>Spiral (hard)</th><th>XOR (medium)</th><th>Circle (easy)</th></tr></thead><tbody>
+<tr><td>① one neuron</td><td>~58% (guessing)</td><td>~55%</td><td>~70%</td></tr>
+<tr><td>② 1 × 2</td><td>~58%</td><td>~80%</td><td>~80%</td></tr>
+<tr><td>③ 1 × 40 (161 params)</td><td>95% after ~1,100 steps, unsteady</td><td>~97%</td><td>~99%</td></tr>
+<tr><td>④ 3 × 8 (177 params)</td><td><b>95% after ~600 steps</b></td><td>~96%</td><td>~100%</td></tr>
+</tbody></table></div>
+<b style="display:block;margin-top:6px">Conclusions</b>
+<ol style="margin:.3em 0 0">
+<li><b>No hidden layer = one straight line.</b> ① can never learn XOR, the circle or the spiral, however long it trains.</li>
+<li><b>A hidden layer lets the boundary bend</b>, but only as much as its neurons allow: 2 neurons give 2 straight cuts, enough for a band (XOR, roughly) but not a ring or a spiral.</li>
+<li><b>Easy shapes: width and depth tie.</b> On XOR and the circle, ③ and ④ are equally good: one wide layer is enough.</li>
+<li><b>Hard shapes: depth wins.</b> With the same parameter budget, the deep network learns the spiral about <b>twice as fast</b> and more steadily, using fewer neurons (24 vs 40). Each layer builds on the previous one: layer 1 makes straight cuts, layer 2 combines them into curved regions, layer 3 combines those into spiral arms. The wide network must build every curve from straight cuts in a single step.</li>
+</ol>
+This is why modern models are <b>deep</b>: GPT-3 has 96 layers rather than one enormous layer. Section 06 shows the mathematical reason.</div>
 <div class="callout tf"><b>Transformer link</b>A Transformer is the deep end of this ladder: dozens of layers, each re-using the features of the previous one, trained with exactly this loss and update rule.</div>
 
 <h2><span class="n">03</span>The neuron and activation functions</h2>
 <div class="pair"><div>
 <p>An artificial neuron is logistic regression with a choice of output function \(\phi\), the <b>activation</b>:</p>
-<div class="formula">$$a=\phi\Big(\sum_j w_jx_j+b\Big)=\phi(w^\top x+b)$$</div>
+<div class="formula">$$a=\phi\Big(\sum_j w_jx_j+b\Big)=\phi(w^\top x+b)$$<span class="cap">\(x_j\) = the \(j\)-th input · \(w_j\) = its weight · \(\sum_j\) = add over all inputs · \(b\) = bias · \(w^\top x\) = the same weighted sum written as a dot product of the weight vector and input vector · \(\phi\) = activation function · \(a\) = the neuron’s output (its activation).</span></div>
 <p>A <b>layer</b> is many neurons side by side, written as one matrix product: \(h=\phi(Wx+b)\) with \(W\in\mathbb R^{m\times n}\).</p>
 <p><b>Why must \(\phi\) be non-linear?</b> Without it, two layers collapse into one: \(W_2(W_1x+b_1)+b_2=(W_2W_1)x+(W_2b_1+b_2)\), still a single linear map. The non-linearity is what lets depth add power.</p>
 <div class="table compact"><table><thead><tr><th>Activation</th><th>Formula</th><th>Notes</th></tr></thead><tbody>
@@ -88,7 +154,7 @@
 <h2><span class="n">04</span>Universal approximation: bumps from ReLUs</h2>
 <div class="pair"><div>
 <p>How can stacking such simple pieces fit <i>any</i> shape? Look at one hidden layer of ReLUs feeding one output:</p>
-<div class="formula">$$\hat y(x)=\sum_{j=1}^{H}v_j\,\mathrm{ReLU}(w_jx+b_j)+c$$</div>
+<div class="formula">$$\hat y(x)=\sum_{j=1}^{H}v_j\,\mathrm{ReLU}(w_jx+b_j)+c$$<span class="cap">\(x\) = input · \(H\) = number of hidden neurons · \(w_j, b_j\) = weight and bias of hidden neuron \(j\) (they set where its hinge bends: at \(x=-b_j/w_j\)) · \(\mathrm{ReLU}(z)=\max(0,z)\) · \(v_j\) = output weight of neuron \(j\) (how steep its ramp is in the sum) · \(c\) = output bias · \(\hat y\) = network output.</span></div>
 <p>Each ReLU is a “hinge”: flat, then a straight ramp starting at \(x=-b_j/w_j\). Adding hinges with different start points and weights gives a <b>piecewise-linear</b> curve. With enough hinges it can follow any continuous curve as closely as we like. This is the <b>universal approximation theorem</b>.</p>
 <p><b>Try it:</b> raise the number of hidden units \(H\). Thin lines are the individual weighted hinges \(v_j\,\mathrm{ReLU}(\cdot)\); the thick line is their sum. (Here the hinge positions are spread evenly and only \(v\) is fitted, by least squares. A trained network also learns where to put the hinges.)</p>
 <div class="callout"><b>Width vs. depth</b>One very wide layer can approximate anything in theory, but <b>deep</b> networks do it with far fewer units, because each layer can reuse and combine the features of the previous one: edges → shapes → objects, or characters → words → meaning.</div>
@@ -107,7 +173,7 @@
 <h2><span class="n">05</span>The forward pass, layer by layer</h2>
 <div class="pair"><div>
 <p>A <b>multi-layer perceptron</b> (MLP) applies layers one after another. For a 2-layer classifier:</p>
-<div class="formula">$$h=\phi(W_1x+b_1)\qquad z=W_2h+b_2\qquad \hat p=\mathrm{softmax}(z)$$</div>
+<div class="formula">$$h=\phi(W_1x+b_1)\qquad z=W_2h+b_2$$$$\hat p=\mathrm{softmax}(z)$$<span class="cap">All symbols are listed in the table below.</span></div>
 <div class="table compact leg"><table><tbody>
 <tr><td>\(x\in\mathbb R^{2}\)</td><td>input features</td></tr>
 <tr><td>\(W_1\in\mathbb R^{4\times 2},\ b_1\)</td><td>first layer: 4 hidden neurons, each with 2 weights</td></tr>
@@ -145,11 +211,19 @@
 <tr><td><b>Features</b></td><td>none, uses the raw inputs</td><td>one level of learned features</td><td>a <b>hierarchy</b>: features of features</td></tr>
 <tr><td><b>Examples</b></td><td>logistic regression, perceptron (1958)</td><td>1980s–90s networks</td><td>CNNs, ResNets, Transformers (2012 →)</td></tr>
 </tbody></table></div>
+<p>Symbols in the formula row: \(x\) = input vector; \(w, b\) = weights and bias of a single neuron; \(\sigma\) = sigmoid; \(W_1, W_2, W_3\) = the weight matrices of layers 1, 2, 3 (one row of weights per neuron); \(\phi\) = the activation function (ReLU, tanh…) applied after each hidden layer. Biases are left out of the shallow and deep formulas to keep them short.</p>
 <p><b>Deep learning</b> simply means training deep networks. Depth matters for two reasons:</p>
 <ol>
 <li><b>Hierarchy.</b> Each layer combines the features of the layer below: pixels → edges → shapes → objects; letters → words → phrases → meaning. Every level reuses the previous one instead of starting from scratch.</li>
-<li><b>Efficiency.</b> Some functions need <b>exponentially many</b> neurons in one wide layer but only a few in several narrow layers. The right-hand figure shows this with a simple example: each layer of just 2 ReLU neurons <b>folds</b> the input once, doubling the number of zig-zags. \(d\) layers make \(2^d\) linear pieces with only \(2d\) neurons; a single hidden layer needs about \(2^d\) neurons for the same curve.</li>
+<li><b>Efficiency.</b> Some functions need <b>exponentially many</b> neurons in one wide layer but only a few in several narrow layers. The figure on the right proves this with a simple example, explained step by step below.</li>
 </ol>
+<h3>The folding example, step by step</h3>
+<p><b>Step 1: one layer of 2 ReLU neurons makes a “tent”.</b> Take an input \(x\) between 0 and 1 and compute</p>
+<div class="formula">$$t(x)=2\,\mathrm{ReLU}(x)\;-\;4\,\mathrm{ReLU}(x-0.5)$$<span class="cap">\(x\) = input between 0 and 1 · \(\mathrm{ReLU}(z)=\max(0,z)\) · neuron 1 computes \(\mathrm{ReLU}(x)\) (weight 1, bias 0) · neuron 2 computes \(\mathrm{ReLU}(x-0.5)\) (weight 1, bias −0.5) · the output adds them with weights 2 and −4 · \(t(x)\) = the layer’s output.</span></div>
+<p>For \(x\) from 0 to 0.5 only neuron 1 is active, so \(t\) rises from 0 to 1. After 0.5 neuron 2 switches on and pulls it back down to 0 at \(x=1\). The output is again between 0 and 1: the layer has <b>folded</b> the interval [0, 1] in half, like folding a strip of paper.</p>
+<p><b>Step 2: stack the same layer.</b> Feed the output into the same layer again: \(f_d(x)=t(t(\cdots t(x)))\), \(d\) times. Each fold doubles the number of zig-zags, so after \(d\) layers the curve has \(2^d\) straight pieces. Use the slider and look at the small curves “after layer 1, 2, 3…”: each row is the previous one folded again.</p>
+<p><b>Step 3: count the neurons.</b> The deep network uses \(2d\) hidden neurons (2 per layer). A network with <b>one</b> hidden layer can only add up hinges (section 04): it needs roughly one ReLU per corner of the curve, about \(2^d\) neurons. For \(d=10\): 20 neurons deep versus about 1,024 shallow; for \(d=20\): 40 versus about a million.</p>
+<p><b>Why this matters:</b> real-world patterns are built from repeated parts (edges → shapes → objects; letters → words → sentences). Depth lets a network reuse the same computation again and again, just as the folding reuses one small layer.</p>
 <div class="callout"><b>Why didn’t we always go deep?</b>Until about 2010, deep networks were very hard to train: gradients vanished (section 11), computers were slow, and datasets were small. ReLU, better initialisation, GPUs, big datasets and residual connections changed that, and the deep-learning era began (AlexNet, 2012).</div>
 <div class="terms"><span class="terms-t">Key terms</span><dl>
 <dt>ANN</dt><dd>Artificial neural network: any network of artificial neurons. Often used for small, shallow ones.</dd>
@@ -162,12 +236,14 @@
 </dl></div>
 </div><div class="fig"><h4>Depth vs. width: folding a line</h4>
 <canvas id="cd" width="640" height="220"></canvas>
-<canvas id="cd2" width="640" height="260"></canvas>
+<canvas id="cd2" width="640" height="220"></canvas>
+<canvas id="cd3" width="640" height="190"></canvas>
 <div class="ctl-row"><span>depth d (layers)</span><input type="range" id="dd" min="1" max="6" step="1" value="3"><output id="ddv"></output></div>
 <div class="out" id="od"></div>
 <div class="how"><b>How to read this figure</b><ul>
 <li><b>Top</b>: two architectures that compute the <b>same</b> function. Left: a <b>deep</b> network with d layers of only 2 neurons each. Right: a <b>shallow</b> network with one hidden layer, which needs 2<sup>d</sup> neurons (drawn up to 16; the label gives the real number).</li>
-<li><b>Bottom</b>: the function both compute. Horizontal = input x from 0 to 1, vertical = output. Each layer of the deep network folds the line once (like folding paper), so the number of zig-zag pieces doubles per layer.</li>
+<li><b>Middle</b>: the function both compute, f_d(x). Horizontal = input x from 0 to 1, vertical = output.</li>
+<li><b>Bottom</b>: the output <b>after each layer</b> of the deep network (layer 1 at the top). Each row is the row above folded once more: 1 tent → 2 tents → 4 tents… The number of straight pieces doubles with every layer.</li>
 <li>Move the slider. Deep cost grows by 2 neurons per layer (linear); shallow cost doubles (exponential). At d = 20 the deep net would need 40 neurons and the shallow one about a million.</li></ul></div></div></div>
 
 <h2><span class="n">07</span>Loss and gradient descent for a neural network</h2>
@@ -205,8 +281,8 @@
 <h2><span class="n">08</span>Backpropagation: the chain rule, backwards</h2>
 <div class="pair"><div>
 <p>To train with gradient descent we need \(\partial L/\partial w\) for <b>every</b> weight. Backpropagation computes them all in one backward sweep using the <b>chain rule</b>. Take the smallest example, one neuron with squared loss:</p>
-<div class="formula">$$z=wx+b,\qquad a=\sigma(z),\qquad L=(a-y)^2$$</div>
-<div class="formula">$$\frac{\partial L}{\partial w}=\underbrace{\frac{\partial L}{\partial a}}_{2(a-y)}\cdot\underbrace{\frac{\partial a}{\partial z}}_{\sigma(z)(1-\sigma(z))}\cdot\underbrace{\frac{\partial z}{\partial w}}_{x}$$</div>
+<div class="formula">$$z=wx+b,\qquad a=\sigma(z),\qquad L=(a-y)^2$$<span class="cap">\(x\) = input · \(w, b\) = weight and bias · \(z\) = weighted sum · \(\sigma\) = sigmoid · \(a\) = neuron output (prediction) · \(y\) = the correct answer · \(L\) = loss (squared error).</span></div>
+<div class="formula">$$\frac{\partial L}{\partial w}=\underbrace{\frac{\partial L}{\partial a}}_{2(a-y)}\cdot\underbrace{\frac{\partial a}{\partial z}}_{\sigma(z)(1-\sigma(z))}\cdot\underbrace{\frac{\partial z}{\partial w}}_{x}$$<span class="cap">\(\partial L/\partial w\) (“partial derivative of L with respect to w”) = how much the loss changes when w is increased a tiny bit, all else fixed · each factor is a <b>local derivative</b>, written under its brace · \(\sigma(z)(1-\sigma(z))\) is the slope of the sigmoid.</span></div>
 <ol>
 <li><b>Forward</b> (blue, left → right): compute and <b>store</b> every intermediate value.</li>
 <li><b>Backward</b> (orange, right → left): start with \(\partial L/\partial L=1\). At each node, multiply the incoming gradient by the node’s <b>local derivative</b> and pass it on.</li>
@@ -241,7 +317,7 @@
 <h2><span class="n">09</span>Training playground: watch a network learn features</h2>
 <div class="pair"><div>
 <p>Now everything at once: a real MLP, trained in your browser with backpropagation and the Adam optimizer on binary cross-entropy:</p>
-<div class="formula">$$\hat p=\sigma\big(w_3^\top\,\phi(W_2\,\phi(W_1x+b_1)+b_2)+b_3\big)$$$$\mathcal L=-\tfrac1N\textstyle\sum \big[y\log\hat p+(1-y)\log(1-\hat p)\big]$$</div>
+<div class="formula">$$\hat p=\sigma\big(w_3^\top\,\phi(W_2\,\phi(W_1x+b_1)+b_2)+b_3\big)$$$$\mathcal L=-\tfrac1N\textstyle\sum \big[y\log\hat p+(1-y)\log(1-\hat p)\big]$$<span class="cap">\(x\) = input point · \(W_1, b_1\) and \(W_2, b_2\) = weights and biases of hidden layers 1 and 2 · \(\phi\) = activation (tanh, ReLU or none) · \(w_3, b_3\) = output neuron · \(\sigma\) = sigmoid · \(\hat p\) = predicted probability of class 1 · \(y\) = true class (0 or 1) · \(N\) = number of training points · \(\mathcal L\) = binary cross-entropy loss.</span></div>
 <p><b>The whole story in four clicks.</b> Press the stage buttons on the right <b>in order</b>. Each one sets up the playground and starts training:</p>
 <ol>
 <li><b>① Linear model</b>: no hidden layer, so one straight line. Fails on XOR (loss stays near 0.69 = guessing).</li>
@@ -284,7 +360,7 @@
 <li><b>Momentum</b>: keep a running average of gradients (velocity). Zig-zags cancel out, and consistent directions build up speed.</li>
 <li><b>Adaptive steps</b>: divide each parameter’s step by a running average of its squared gradient. Steep directions get small steps, flat directions get large ones.</li>
 </ul>
-<div class="formula">$$m\leftarrow\beta_1m+(1-\beta_1)g\qquad v\leftarrow\beta_2v+(1-\beta_2)g^2$$$$\theta\leftarrow\theta-\eta\,\frac{\hat m}{\sqrt{\hat v}+\epsilon}$$<span class="cap">\(\hat m,\hat v\) = bias-corrected averages. Typical: \(\beta_1=0.9,\ \beta_2=0.999\).</span></div>
+<div class="formula">$$m\leftarrow\beta_1m+(1-\beta_1)g\qquad v\leftarrow\beta_2v+(1-\beta_2)g^2$$$$\theta\leftarrow\theta-\eta\,\frac{\hat m}{\sqrt{\hat v}+\epsilon}$$<span class="cap">\(\theta\) = one parameter · \(g\) = its current gradient · \(m\) = running average of gradients (momentum) · \(v\) = running average of squared gradients · \(\beta_1, \beta_2\) = how much of the old averages to keep · \(\hat m,\hat v\) = bias-corrected averages (they start at 0, so early values are scaled up) · \(\eta\) = learning rate · \(\epsilon\) = tiny number to avoid dividing by 0. Typical: \(\beta_1=0.9,\ \beta_2=0.999\).</span></div>
 <p><b>Try it:</b> press <b>Race</b>. All three start at the same point on a banana-shaped valley (the Rosenbrock function); the minimum is at ★. Change the learning rate and race again.</p>
 <p>Real training uses <b>mini-batches</b>: each gradient is computed on a random batch of examples, not the whole dataset. That makes it noisy (stochastic gradient descent, SGD), but much cheaper and, surprisingly, it often finds solutions that generalise better.</p>
 <div class="terms"><span class="terms-t">Key terms</span><dl>
@@ -311,7 +387,7 @@
 <h2><span class="n">11</span>Going deep: vanishing gradients and residual connections</h2>
 <div class="pair"><div>
 <p>Backprop multiplies one local derivative per layer. In a deep network the gradient reaching layer 1 is a <b>product of many factors</b>:</p>
-<div class="formula">$$\frac{\partial L}{\partial h_1}=\frac{\partial L}{\partial h_n}\prod_{l=1}^{n-1}\frac{\partial h_{l+1}}{\partial h_l}$$</div>
+<div class="formula">$$\frac{\partial L}{\partial h_1}=\frac{\partial L}{\partial h_n}\prod_{l=1}^{n-1}\frac{\partial h_{l+1}}{\partial h_l}$$<span class="cap">\(h_l\) = the output vector of layer \(l\) · \(n\) = number of layers · \(\partial L/\partial h_1\) = the gradient arriving at the first layer · \(\prod\) = multiply all the factors together · each factor \(\partial h_{l+1}/\partial h_l\) = how much layer \(l+1\) changes when layer \(l\) changes (weights × activation slope).</span></div>
 <p>If those factors are typically smaller than 1 (sigmoid’s derivative is at most 0.25), the gradient <b>vanishes</b> exponentially and early layers stop learning. If they are larger than 1, it <b>explodes</b>. Fixes developed between 2010 and 2016 made deep learning work:</p>
 <ul>
 <li><b>ReLU</b> activations (derivative 1 where active).</li>
@@ -369,15 +445,66 @@ else if(kind==='moons'){var t=r()*Math.PI;c=i%2;if(c){x=Math.cos(t)-.5;y=Math.si
 else{c=i%2;var t2=1.0*i/n*3.2+.4,rad=t2*.55;t2=t2*2.6+(c?Math.PI:0);x=rad*Math.cos(t2)+r.g()*.07;y=rad*Math.sin(t2)+r.g()*.07}
 P.push([x,y,c])}return P}
 
-/* ---------- 01 logistic on XOR ---------- */
-var ds1='xor';
-function draw1(){var P=data(ds1,200,4),feat=$('f1').checked,f=function(x,y){return feat?[x,y,ds1==='xor'?x*y:x*x+y*y]:[x,y]};
+/* ---------- 01 logistic vs feature vs ANN ---------- */
+var ds1='xor',m1='lin';
+function trainMLP(P,H,seed){var r=L.rng(seed),W1=[],b1=[],W2=[],b2=0,lr=.08,b1m=.9,b2m=.999,eps=1e-8,
+prm=[],t=0;for(var i=0;i<H;i++){W1.push([r.g()*.9,r.g()*.9]);b1.push(r.g()*.3);W2.push(r.g()*.5)}
+var m=new Array(4*H+1).fill(0),v=new Array(4*H+1).fill(0);
+function fw(x,y){var h=[];for(var i=0;i<H;i++)h.push(Math.tanh(W1[i][0]*x+W1[i][1]*y+b1[i]));var z=b2;for(i=0;i<H;i++)z+=W2[i]*h[i];return{h:h,o:S(z)}}
+for(var it=0;it<1500;it++){var g=new Array(4*H+1).fill(0);P.forEach(function(q){var f=fw(q[0],q[1]),e=f.o-q[2];g[4*H]+=e;for(var i=0;i<H;i++){g[3*H+i]+=e*f.h[i];var d=e*W2[i]*(1-f.h[i]*f.h[i]);g[i*2]+=d*q[0];g[i*2+1]+=d*q[1];g[2*H+i]+=d}});
+t++;var th=[];for(var i=0;i<H;i++)th.push(W1[i][0],W1[i][1]);th=th.concat(b1,W2,[b2]);
+for(var j=0;j<th.length;j++){var gj=g[j]/P.length;m[j]=b1m*m[j]+(1-b1m)*gj;v[j]=b2m*v[j]+(1-b2m)*gj*gj;th[j]-=lr*(m[j]/(1-Math.pow(b1m,t)))/(Math.sqrt(v[j]/(1-Math.pow(b2m,t)))+eps)}
+for(i=0;i<H;i++){W1[i][0]=th[2*i];W1[i][1]=th[2*i+1];b1[i]=th[2*H+i];W2[i]=th[3*H+i]}b2=th[4*H]}
+return{fw:fw,W1:W1,b1:b1,W2:W2,b2:b2}}
+function draw1(){var P=data(ds1,200,4),pr,txt,net=null;
+if(m1==='ann'){net=trainMLP(P,4,ds1==='xor'?7:5);pr=function(x,y){return net.fw(x,y).o}}
+else{var feat=m1==='feat',f=function(x,y){return feat?[x,y,ds1==='xor'?x*y:x*x+y*y]:[x,y]};
 var w=[0,0,0],b=0;for(var it=0;it<1500;it++){var g=[0,0,0],gb=0;P.forEach(function(q){var v=f(q[0],q[1]),e=S(L.dot(w.slice(0,v.length),v)+b)-q[2];for(var j=0;j<v.length;j++)g[j]+=e*v[j];gb+=e});for(var j=0;j<3;j++)w[j]-=.3*g[j]/P.length;b-=.3*gb/P.length}
-var pr=function(x,y){var v=f(x,y);return S(L.dot(w.slice(0,v.length),v)+b)},acc=P.filter(function(q){return (pr(q[0],q[1])>.5?1:0)===q[2]}).length;
+pr=function(x,y){var v=f(x,y);return S(L.dot(w.slice(0,v.length),v)+b)}}
+var acc=P.filter(function(q){return (pr(q[0],q[1])>.5?1:0)===q[2]}).length;
 var p=L.plot('c1',{x:[-2.2,2.2],y:[-2.2,2.2],xl:'x₁',yl:'x₂'});p.field(function(x,y){var q=pr(x,y);return[q>.5?C.blue:C.orange,Math.abs(q-.5)*.6+.04]},70);
 P.forEach(function(q){p.dot(q[0],q[1],q[2]?C.blue:C.orange,4.5)});
-$('o1').innerHTML='accuracy <b>'+(acc/P.length*100).toFixed(0)+'%</b> · '+(feat?'with the extra feature the boundary can curve (it is linear in the 3 features, curved in the 2-D picture)':'boundary must be a straight line → cannot separate the classes')}
-L.seg('ds1',function(v){ds1=v;draw1()});$('f1').onchange=draw1;L.reg(draw1);
+/* hidden-neuron thumbnails */
+var k=L.ctx('c1h'),g2=k.g;g2.clearRect(0,0,k.W,k.H);
+if(net){var sz=k.H-26,gap=22,x0=8,N=24,cw=sz/N;g2.font='600 11px IBM Plex Sans,sans-serif';
+for(var n=0;n<4;n++){var ox=x0+n*(sz+gap);for(var i=0;i<N;i++)for(var j=0;j<N;j++){var hv=Math.tanh(net.W1[n][0]*(-2.2+4.4*(i+.5)/N)+net.W1[n][1]*(2.2-4.4*(j+.5)/N)+net.b1[n]);g2.fillStyle=hv>0?'rgba(47,84,235,'+(.1+.6*Math.abs(hv))+')':'rgba(232,89,12,'+(.1+.6*Math.abs(hv))+')';g2.fillRect(ox+i*cw,4+j*cw,cw+.5,cw+.5)}
+g2.strokeStyle='#c5cbd6';g2.strokeRect(ox,4,sz,sz);g2.fillStyle=C.ink;g2.textAlign='center';g2.fillText('h'+(n+1)+' · w='+net.W2[n].toFixed(1),ox+sz/2,k.H-6)}
+var ex=x0+4*(sz+gap)+6;g2.textAlign='left';g2.fillStyle=col('--muted');g2.font='12.5px IBM Plex Sans,sans-serif';
+['← each hidden neuron = one straight cut','output = σ( Σ w₂·h + b ): the cuts are','weighted and added → a bent boundary'].forEach(function(t,i){g2.fillText(t,ex,22+i*20)})}
+else{g2.fillStyle=col('--muted');g2.font='12.5px IBM Plex Sans,sans-serif';g2.textAlign='left';g2.fillText(m1==='lin'?'No hidden layer: the model is one neuron σ(w₁x₁ + w₂x₂ + b) → one straight line.':'Still one neuron, but with a 3rd input made by hand ('+(ds1==='xor'?'x₁·x₂':'x₁² + x₂²')+'). Choose “ANN” to let the network invent features.',8,40)}
+txt=m1==='lin'?'boundary must be a straight line → cannot separate the classes':m1==='feat'?'with the hand-made feature the boundary can curve (linear in 3 features, curved in the 2-D picture), but a human had to invent the feature':'the 4 hidden neurons <b>learned</b> their own features (the 4 squares below); the output neuron combines them, so the boundary bends without any hand-made feature';
+$('o1').innerHTML='accuracy <b>'+(acc/P.length*100).toFixed(0)+'%</b> · '+txt}
+L.seg('ds1',function(v){ds1=v;draw1()});L.seg('m1',function(v){m1=v;draw1()});L.reg(draw1);
+
+/* ---------- 01b XOR worked example ---------- */
+var xsel=1,XR=[[0,0],[0,1],[1,0],[1,1]],stp=function(z){return z>0?1:0};
+function xf(a){var h1=stp(a[0]+a[1]-.5),h2=stp(a[0]+a[1]-1.5);return{h1:h1,h2:h2,y:stp(h1-2*h2-.5)}}
+function drawX(){$('xt1').innerHTML='<table><tr><th>x₁</th><th>x₂</th><th>h₁ = OR</th><th>h₂ = AND</th><th>ŷ</th><th>true XOR</th></tr>'+XR.map(function(a,i){var f=xf(a),t=a[0]^a[1];return'<tr class="r'+(i===xsel?' on':'')+'" data-i="'+i+'"><td>'+a[0]+'</td><td>'+a[1]+'</td><td>'+f.h1+'</td><td>'+f.h2+'</td><td class="y'+f.y+'">'+f.y+'</td><td class="y'+t+'">'+t+(f.y===t?' ✓':' ✗')+'</td></tr>'}).join('')+'</table>';
+[].forEach.call($('xt1').querySelectorAll('tr.r'),function(tr){tr.onclick=function(){xsel=+tr.dataset.i;drawX()}});
+var a=XR[xsel],f=xf(a),k=L.ctx('cx1'),g=k.g,W=k.W,H=k.H;g.clearRect(0,0,W,H);
+var I=[[90,75],[90,175]],Hn=[[320,75],[320,175]],O=[[540,125]];
+var edge=function(p,q,w,act){g.strokeStyle=act?(w>0?C.blue:C.red):'#ced4da';g.lineWidth=act?1.5+Math.abs(w)*1.2:1.2;g.beginPath();g.moveTo(p[0]+22,p[1]);g.lineTo(q[0]-22,q[1]);g.stroke();var t=.3,mx=p[0]+(q[0]-p[0])*t+22*(1-2*t),my=p[1]+(q[1]-p[1])*t;g.fillStyle='#fff';g.fillRect(mx-12,my-9,24,17);g.fillStyle=w>0?C.blue:C.red;g.font='600 12px IBM Plex Sans,sans-serif';g.textAlign='center';g.fillText(w>0?'+'+w:'−'+(-w),mx,my+4)};
+[[0,0,1],[1,0,1],[0,1,1],[1,1,1]].forEach(function(e){edge(I[e[0]],Hn[e[1]],e[2],a[e[0]]===1)});
+edge(Hn[0],O[0],1,f.h1===1);edge(Hn[1],O[0],-2,f.h2===1);
+var node=function(p,on,lab,val,bias,sub){g.beginPath();g.arc(p[0],p[1],22,0,7);g.fillStyle=on?C.blue:'#fff';g.fill();g.lineWidth=2;g.strokeStyle=C.blue;g.stroke();g.fillStyle=on?'#fff':C.ink;g.font='600 14px IBM Plex Sans,sans-serif';g.textAlign='center';g.fillText(lab+'='+val,p[0],p[1]+5);g.fillStyle=col('--muted');g.font='12px IBM Plex Sans,sans-serif';if(bias!=null)g.fillText('bias '+bias,p[0],p[1]+38);if(sub)g.fillText(sub,p[0],p[1]-30)};
+node(I[0],a[0],'x₁',a[0],null,'input');node(I[1],a[1],'x₂',a[1]);
+var z1=a[0]+a[1]-.5,z2=a[0]+a[1]-1.5,z3=f.h1-2*f.h2-.5;
+node(Hn[0],f.h1,'h₁',f.h1,'−0.5','OR');node(Hn[1],f.h2,'h₂',f.h2,'−1.5','AND');node(O[0],f.y,'ŷ',f.y,'−0.5','output = XOR');
+g.textAlign='left';g.font='12.5px IBM Plex Sans,sans-serif';g.fillStyle=C.ink;
+g.fillText('h₁: '+a[0]+'+'+a[1]+'−0.5 = '+z1.toFixed(1)+' → '+f.h1,8,H-30);g.fillText('h₂: '+a[0]+'+'+a[1]+'−1.5 = '+z2.toFixed(1)+' → '+f.h2,8,H-10);
+g.fillText('ŷ: '+f.h1+' − 2·'+f.h2+' − 0.5 = '+z3.toFixed(1)+' → '+f.y,400,H-10);
+/* ② spaces */
+var k2=L.ctx('cx2'),g3=k2.g;g3.clearRect(0,0,k2.W,k2.H);
+var panel=function(ox,title,pts,lines){var s=150,oy=36,X=function(x){return ox+30+(x+.25)/1.5*s},Y=function(y){return oy+s-(y+.25)/1.5*s};
+g3.strokeStyle='#dfe3ea';g3.lineWidth=1;g3.strokeRect(X(-.25),Y(1.25),s,s);g3.fillStyle=C.ink;g3.font='600 13px IBM Plex Sans,sans-serif';g3.textAlign='left';g3.fillText(title,ox+30,20);
+g3.save();g3.beginPath();g3.rect(X(-.25),Y(1.25),s,s);g3.clip();lines.forEach(function(l){g3.strokeStyle=l[3];g3.lineWidth=2;g3.setLineDash(l[4]?[6,4]:[]);g3.beginPath();g3.moveTo(X(-.5),Y(l[0]*-.5+l[1]));g3.lineTo(X(1.5),Y(l[0]*1.5+l[1]));g3.stroke()});g3.restore();g3.setLineDash([]);
+lines.forEach(function(l){if(l[2]){g3.fillStyle=l[3];g3.font='12px IBM Plex Sans,sans-serif';g3.fillText(l[2],X(1.25)+6,Y(Math.max(-.2,Math.min(1.2,l[0]*1.2+l[1]))))}});
+g3.fillStyle=col('--muted');g3.font='11.5px IBM Plex Sans,sans-serif';[0,1].forEach(function(v){g3.textAlign='center';g3.fillText(v,X(v),Y(-.25)+14);g3.textAlign='right';g3.fillText(v,X(-.25)-4,Y(v)+4)});
+var drawn={};pts.forEach(function(q){var key=q[0]+','+q[1],o=drawn[key]||0;drawn[key]=o+1;var px=X(q[0])+o*12,py=Y(q[1]);if(q[3]){g3.beginPath();g3.arc(px,py,13,0,7);g3.strokeStyle=C.yellow;g3.lineWidth=3;g3.stroke()}g3.beginPath();g3.arc(px,py,8,0,7);g3.fillStyle=q[2]?C.blue:C.orange;g3.fill();g3.strokeStyle='#fff';g3.lineWidth=1.5;g3.stroke()})};
+panel(0,'① Input space (x₁, x₂)',XR.map(function(q,i){return[q[0],q[1],q[0]^q[1],i===xsel]}),[[-1,.5,'h₁ = 1 above',C.purple,1],[-1,1.5,'h₂ = 1 above',C.teal||'#0ca678',1]]);
+panel(320,'② Hidden space (h₁, h₂)',XR.map(function(q,i){var f=xf(q);return[f.h1,f.h2,q[0]^q[1],i===xsel]}),[[.5,-.25,'h₁ − 2h₂ = 0.5',C.green,0]]);
+g3.fillStyle=C.ink;g3.font='600 20px IBM Plex Sans,sans-serif';g3.textAlign='center';g3.fillText('→',300,120);g3.font='11px IBM Plex Sans,sans-serif';g3.fillStyle=col('--muted');g3.fillText('hidden layer',300,138)}
+L.reg(drawX);
 
 /* ---------- 02 activations ---------- */
 function erf(x){var t=1/(1+.3275911*Math.abs(x)),y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-.284496736)*t+.254829592)*t*Math.exp(-x*x);return x>=0?y:-y}
@@ -502,7 +629,7 @@ dsSeg6.set(st[0]);$('stg6').innerHTML=st[5];if(!run6R.running())$('run6').click(
 document.querySelectorAll('#stages6 button').forEach(function(b){b.classList.remove('on')});
 
 /* ---------- race: four architectures learn together ---------- */
-var RC=[[0,0,'① One neuron','A single neuron σ(w·x + b) can only draw ONE straight line, so it cannot wrap around curved data.'],[1,2,'② 2 hidden neurons','Two neurons = two lines combined. Just enough for XOR in theory, far too little for a spiral.'],[1,16,'③ 1 layer × 16 neurons','Wide but shallow: many lines glued together. Can work, but slowly and with many neurons.'],[3,8,'④ 3 layers × 8 neurons','Deep: each layer builds on the previous one’s features, so curves of curves come cheaply.']];
+var RC=[[0,0,'① One neuron','A single neuron σ(w·x + b) can only draw ONE straight line, so it cannot wrap around curved data.'],[1,2,'② 2 hidden neurons','Two neurons = two lines combined. Just enough for XOR in theory, far too little for a spiral.'],[1,40,'③ 1 layer × 40 neurons','Wide but shallow: 40 straight cuts added together in one step.'],[3,8,'④ 3 layers × 8 neurons','Deep: each layer builds on the previous one’s features, so curves of curves come cheaply.']];
 var RDk='spiral',RD=null,RN=[],RS=0,RP=true,rVis=true;
 function mkNet(h,w,seed){var sz=[2];for(var i=0;i<h;i++)sz.push(w);sz.push(1);var r=L.rng(seed),W=[],B=[],M=[],V=[],MB=[],VB=[];
 for(var l=0;l<sz.length-1;l++){var Wl=[],z=[];for(var a=0;a<sz[l+1];a++){var row=[];for(var c=0;c<sz[l];c++)row.push((r()*2-1)*Math.sqrt(3/sz[l]));Wl.push(row);z.push(new Array(sz[l]).fill(0))}W.push(Wl);B.push(new Array(sz[l+1]).fill(0));M.push(z.map(function(q){return q.slice()}));V.push(z.map(function(q){return q.slice()}));MB.push(new Array(sz[l+1]).fill(0));VB.push(new Array(sz[l+1]).fill(0))}
@@ -513,7 +640,13 @@ RD.forEach(function(q){var A=rFwd(n,[q[0],q[1]]),o=A[Lr][0];loss-=Math.log(Math.
 for(var l=Lr-1;l>=0;l--){var prev=A[l],nd=new Array(prev.length).fill(0);for(var i=0;i<d.length;i++){gB[l][i]+=d[i];for(var j=0;j<prev.length;j++){gW[l][i][j]+=d[i]*prev[j];nd[j]+=d[i]*n.W[l][i][j]}}if(l>0)d=nd.map(function(v,j){return v*(1-prev[j]*prev[j])})}});
 for(var l=0;l<Lr;l++)for(var i=0;i<n.W[l].length;i++){for(var j=0;j<n.W[l][i].length;j++)n.W[l][i][j]-=lr*gW[l][i][j]/N;n.B[l][i]-=lr*gB[l][i]/N}
 n.loss=loss/N;n.acc=ok/N}
-function rBuild(){$('race').innerHTML=RC.map(function(c,k){var n=mkNet(c[0],c[1],k+3),np=0;n.W.forEach(function(W){np+=W.length*W[0].length+W.length});return'<div class="rc"><h3>'+c[2]+'</h3><canvas id="rc'+k+'" width="240" height="240"></canvas><div class="bar"><i id="rb'+k+'"></i></div><div class="out" id="rs'+k+'"></div><div class="out">'+np+' parameters · '+(c[0]===0?'no hidden layer':c[0]+' hidden layer'+(c[0]>1?'s':'')+' × '+c[1])+'</div><p>'+c[3]+'</p></div>'}).join('')}
+function archSVG(nl,w){var cols=[2];for(var i=0;i<nl;i++)cols.push(w);cols.push(1);var Wd=240,Hd=96,xs=cols.map(function(_,i){return 22+i*(Wd-44)/(cols.length-1)}),o='';
+var pos=cols.map(function(n,l){var m=Math.min(n,10),r=[];for(var i=0;i<m;i++)r.push([xs[l],Hd/2-4+(i-(m-1)/2)*Math.min(14,72/Math.max(1,m-1))]);return r});
+for(var l=0;l<pos.length-1;l++)pos[l].forEach(function(a){pos[l+1].forEach(function(b){o+='<line x1="'+a[0]+'" y1="'+a[1]+'" x2="'+b[0]+'" y2="'+b[1]+'" stroke="#adb5bd" stroke-opacity="'+(pos[l].length*pos[l+1].length>40?.25:.6)+'" stroke-width="0.8"/>'})});
+pos.forEach(function(P,l){var io=l===0||l===pos.length-1;P.forEach(function(p){o+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="'+(io?5:4)+'" fill="'+(io?'#868e96':'#2f54eb')+'"/>'});
+var lab=l===0?'x₁,x₂':l===pos.length-1?'ŷ':cols[l]+(cols[l]>10?' (10 drawn)':'');o+='<text x="'+xs[l]+'" y="'+(Hd-3)+'" font-size="10.5" text-anchor="middle" fill="#5d6675" font-family="IBM Plex Sans,sans-serif">'+lab+'</text>'});
+return'<svg class="arch" viewBox="0 0 '+Wd+' '+Hd+'">'+o+'</svg>'}
+function rBuild(){$('race').innerHTML=RC.map(function(c,k){var n=mkNet(c[0],c[1],k+3),np=0;n.W.forEach(function(W){np+=W.length*W[0].length+W.length});return'<div class="rc"><h3>'+c[2]+'</h3>'+archSVG(c[0],c[1])+'<canvas id="rc'+k+'" width="240" height="240"></canvas><div class="bar"><i id="rb'+k+'"></i></div><div class="out" id="rs'+k+'"></div><div class="out">'+np+' parameters · '+(c[0]===0?'no hidden layer':c[0]+' hidden layer'+(c[0]>1?'s':'')+' × '+c[1])+'</div><p>'+c[3]+'</p></div>'}).join('')}
 function raceData(k){if(k!=='spiral')return data(k,200,11);var r=L.rng(11),P=[];for(var i=0;i<200;i++){var l=i%2,rr=.12+.85*(i>>1)/100,a=rr*9+l*Math.PI;P.push([2*rr*Math.cos(a)+r.g()*.05,2*rr*Math.sin(a)+r.g()*.05,l])}return P}
 function rInit(){RD=raceData(RDk);RN=RC.map(function(c,k){return mkNet(c[0],c[1],k+3)});RS=0;rDraw()}
 function rDraw(){RN.forEach(function(n,k){var c=L.ctx('rc'+k),g=c.g,W=c.W,N=30,cw=W/N,Lr=n.W.length;
@@ -536,6 +669,10 @@ var deep=[1];for(var i=0;i<d;i++)deep.push(2);deep.push(1);net(30,deep,'Deep: '+
 net(410,[1,Math.pow(2,d),1],'Shallow: 1 layer','≈ '+Math.pow(2,d)+' hidden neurons'+(Math.pow(2,d)>16?' (16 drawn)':''));
 g.strokeStyle=col('--line');g.beginPath();g.moveTo(380,10);g.lineTo(380,k.H-10);g.stroke();
 var f=function(x){for(var i=0;i<d;i++)x=tent(x);return x},p=L.plot('cd2',{x:[0,1],y:[-.05,1.1],xl:'input x',yl:'output'});p.line(f,C.purple,2.5,null,1200);
+var k3=L.ctx('cd3'),g4=k3.g;g4.clearRect(0,0,k3.W,k3.H);var rows=d,rh=(k3.H-8)/rows,lw=110;g4.font='12px IBM Plex Sans,sans-serif';
+for(var r=1;r<=rows;r++){var y0=4+(r-1)*rh,fr=function(x){for(var i=0;i<r;i++)x=tent(x);return x};g4.fillStyle=r===rows?C.ink:col('--muted');g4.textAlign='left';g4.fillText('after layer '+r+' ('+Math.pow(2,r)+' pieces)',4,y0+rh/2+4);
+g4.strokeStyle='#eef0f4';g4.lineWidth=1;g4.beginPath();g4.moveTo(lw+40,y0+rh-3);g4.lineTo(k3.W-8,y0+rh-3);g4.stroke();g4.strokeStyle=r===rows?C.purple:'rgba(156,54,181,.5)';g4.lineWidth=r===rows?2:1.5;g4.beginPath();
+for(var i=0;i<=600;i++){var x=i/600,px=lw+40+x*(k3.W-lw-48),py=y0+rh-3-fr(x)*(rh-6);i?g4.lineTo(px,py):g4.moveTo(px,py)}g4.stroke()}
 var pieces=Math.pow(2,d);$('od').innerHTML='depth <b>'+d+'</b> → <b>'+pieces+'</b> linear pieces · deep network: <b>'+(2*d)+'</b> hidden neurons · shallow network: about <b>'+pieces+'</b> hidden neurons'}
 L.bind('dd',drawDepth);L.reg(drawDepth);
 
