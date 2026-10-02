@@ -2,8 +2,9 @@
 
 {% block h1 %}Linear Regression{% endblock %}
 
+{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='explain.css') }}">{% endblock %}
 {% block lead %}
-<p class="lead">Linear regression is a statistical method used to predict the value of one variable based on the value of another.</p>
+<p class="lead"><b>Why it exists:</b> very often we want to predict a <b>number</b> from other numbers: a flat’s price from its size, tomorrow’s temperature from today’s, sales from advertising spend. Linear regression is the simplest method that <b>learns</b> such a rule from examples: it fits the straight line that is closest to the data. It is also the first building block of every neural network, including the Transformers behind ChatGPT. Every plot below is interactive and has a <b>👁 How to read this graph</b> guide.</p>
 {% endblock %}
 
 {% block content %}
@@ -402,7 +403,15 @@
 
       <div class="split">
         <div>
-          <p><b>Problem.</b> Imagine you have a bunch of data points—say, the square footage of different houses and their sale prices. If you plot them on a graph. We have pairs (x, y), for example house size and price. We want a rule that predicts y for a new x.</p>
+          <p><b>Problem.</b> Imagine we know the size and the sale price of 25 houses. Plotted on a graph, each house becomes one <b>data point</b> (x, y): x = size (horizontal), y = price (vertical). The points roughly rise together: bigger houses cost more. We want a <b>rule</b> that predicts the price y of a <i>new</i> house from its size x.</p>
+<div class="terms"><span class="terms-t">Key terms</span><dl>
+<dt>Data point / example</dt><dd>One observed pair (x, y), e.g. one house: its size and its real price.</dd>
+<dt>Feature (input) x</dt><dd>The quantity we know and use to predict, e.g. size.</dd>
+<dt>Target (output) y</dt><dd>The quantity we want to predict, e.g. price. Also called the <i>label</i>.</dd>
+<dt>Regression</dt><dd>Predicting a <b>number</b> (as opposed to classification, which predicts a category).</dd>
+<dt>Model</dt><dd>The rule that turns x into a prediction. Here: a straight line.</dd>
+<dt>Parameters</dt><dd>The numbers inside the model that we adjust to fit the data. A line has two: the slope w and the intercept b.</dd>
+</dl></div>
 
           <p><b>Model.</b> The goal of linear regression is to find a single straight line that minimizes the total distance between itself and all those scattered data points. The algorithm looks at the errors (the vertical distance from each point to the line, called "residuals") and adjusts the line until the sum of those squared errors is as small as possible.</p>
 
@@ -420,9 +429,11 @@
             <div class="source-note"><b>Where it came from:</b> the straight-line model used in linear regression; in the lesson it is also the scalar form of a single <code>nn.Linear</code> layer.</div>
           </div>
 
-          <p><b>Residual.</b> For each point, the vertical gap between the prediction ŷ and the truth y is the error <code>eᵢ = ŷᵢ − yᵢ</code>. The red segments in the plot are residuals.</p>
+          <p><b>Reading the two parameters.</b> The <b>slope w</b> says how much the prediction rises when x grows by 1 (w = 2 means “each extra unit of size adds 2 units of price”). The <b>intercept b</b> is the prediction at x = 0, where the line crosses the vertical axis. A negative w makes the line go down.</p>
+<p><b>Worked example.</b> With w = 2 and b = 1, a house of size x = 4 gets the prediction ŷ = 2·4 + 1 = <b>9</b>. If its true price is y = 11, the error is ŷ − y = 9 − 11 = <b>−2</b>: the line predicted 2 too low.</p>
+<p><b>Residual.</b> For each point, the vertical gap between the prediction ŷ and the truth y is the error <code>eᵢ = ŷᵢ − yᵢ</code>, called the <b>residual</b>. The red segments in the plot are residuals. A good line makes all of them short.</p>
 
-          <p><b>Try it:</b> drag <code>w</code> and <code>b</code> and watch the MSE. Then press "Best fit". Turn on "squares" to see why big misses hurt so much.</p>
+          <p><b>Try it:</b> drag <code>w</code> and <code>b</code> and watch the MSE (the average squared error, explained in section 2). Try to make it as small as you can by hand, then press "Best fit" to see the mathematically best line. Turn on "squares" to see why big misses hurt so much.</p>
 
           <div class="callout">
             <b>Transformer link</b>
@@ -452,6 +463,14 @@
             <label><input type="checkbox" id="sq"> squares</label>
             <button id="best">Best fit</button>
           </div>
+          <div class="how"><b>How to read this graph</b><ul>
+            <li><b>Horizontal axis x</b> = the input (e.g. house size, 0–10). <b>Vertical axis y</b> = the output (e.g. price).</li>
+            <li><span class="sw dot" style="background:#2f54eb"></span><b>Blue dots</b> = the 25 training examples (true data). They were generated around the hidden rule y ≈ 2x + 1 plus random noise.</li>
+            <li><span class="sw ln" style="background:#12a594"></span><b>Green line</b> = the current model ŷ = w·x + b. Changing w tilts it; changing b moves it up or down.</li>
+            <li><span class="sw ln" style="background:#e5484d"></span><b>Red vertical segments</b> = residuals: how far each prediction is from its true value.</li>
+            <li><b>“squares”</b> draws each residual as a red square. Its area is the squared error, so you can <i>see</i> that one big miss (a big square) costs more than several small ones.</li>
+            <li><b>MSE</b> = the average area of those squares. <b>Best fit</b> jumps to the line with the smallest possible MSE (close to w ≈ 2, b ≈ 1).</li>
+          </ul></div>
         </div>
       </div>
 
@@ -478,7 +497,15 @@
             <div class="source-note"><b>Where it came from:</b> this is the Mean Squared Error definition applied to the linear model ŷᵢ = w·xᵢ+b.</div>
           </div>
 
-          <p>Why squared? (1) errors never cancel, (2) big misses are punished more, (3) it is smooth, so we can differentiate it.</p>
+          <p>Why squared? (1) Errors never cancel: without squaring, an error of +3 and one of −3 would add up to 0 and look perfect. (2) Big misses are punished more: an error of 4 costs 16, four times more than an error of 2. (3) It is smooth, so we can differentiate it (needed in section 3).</p>
+          <p><b>Worked example.</b> Three houses with residuals −2, +1 and +3: MSE = ((−2)² + 1² + 3²) / 3 = (4 + 1 + 9) / 3 = <b>4.67</b>.</p>
+          <div class="terms"><span class="terms-t">Key terms</span><dl>
+            <dt>Loss function</dt><dd>A formula that turns all the errors into one number. Lower = better model. Training = making it small.</dd>
+            <dt>MSE</dt><dd>Mean Squared Error: the average of the squared residuals.</dd>
+            <dt>Loss landscape</dt><dd>The loss drawn as a function of the parameters. For one parameter it is a curve; for two, a surface.</dd>
+            <dt>Minimum</dt><dd>The lowest point of the loss: the best parameter value.</dd>
+            <dt>Convex (“bowl”)</dt><dd>A loss with a single valley and no other dips, so walking downhill always reaches the best answer. True for linear regression, not for neural networks.</dd>
+          </dl></div>
 
           <p>Fix <code>b</code> and vary only <code>w</code>: the loss forms a <b>bowl</b> (a parabola). Linear regression has exactly one bottom and no traps. The dot on the right follows the <code>w</code> slider from section 1. Move it to the bottom of the bowl.</p>
 
@@ -497,6 +524,12 @@
           </div>
 
           <p class="cap">Interactive: move the pointer over the curve or tap it to inspect the slope <i>w</i> and loss. The dot still follows the section-1 slider.</p>
+          <div class="how"><b>How to read this graph</b><ul>
+            <li><b>Horizontal axis w</b> = a candidate value of the slope (from −1 to 5). The intercept b is kept fixed at the value of the section-1 slider.</li>
+            <li><b>Vertical axis L</b> = the MSE you would get with that slope: every point of the curve is one whole line from section 1, summarised by its error.</li>
+            <li><span class="sw dot" style="background:#e5484d"></span><b>Red dot</b> = your current slope from section 1 (or the point under your mouse). The dashed line marks its position.</li>
+            <li>The <b>bottom of the bowl</b> is the best slope for this b. Left of it the line is too flat, right of it too steep. The further from the bottom, the faster the loss grows, which is the shape that gradient descent exploits next.</li>
+          </ul></div>
         </div>
       </div>
 
@@ -536,6 +569,16 @@
           </div>
 
           <p><code>η</code> (eta) is the <b>learning rate</b>, the step size. The training loop is: predict → compute loss → compute gradient → update → repeat.</p>
+          <div class="terms"><span class="terms-t">Key terms</span><dl>
+            <dt>Derivative</dt><dd>The slope of a curve at one point: how much the output changes for a tiny change of the input. Positive = going uphill.</dd>
+            <dt>Partial derivative ∂L/∂w</dt><dd>The derivative with respect to one parameter while the others are held fixed.</dd>
+            <dt>Gradient ∇L</dt><dd>The list of all partial derivatives, (∂L/∂w, ∂L/∂b). It points in the direction where the loss increases fastest.</dd>
+            <dt>Gradient descent</dt><dd>Repeatedly stepping <b>against</b> the gradient (downhill) to reduce the loss.</dd>
+            <dt>Learning rate η</dt><dd>How big each step is. A hyper-parameter chosen by you, not learned.</dd>
+            <dt>Step / iteration</dt><dd>One update of the parameters.</dd>
+            <dt>Converge / diverge</dt><dd>Converge: the loss settles at the minimum. Diverge: steps overshoot and the loss grows without limit.</dd>
+          </dl></div>
+          <p><b>Intuition for the gradient formula.</b> ∂L/∂b is the average residual times 2: if the line is on average too high (positive residuals), the gradient is positive and b is lowered. ∂L/∂w additionally multiplies each residual by its xᵢ: points far to the right have more leverage on the slope.</p>
 
           <p><b>Experiment:</b> (1) η = 0.01, press "×50": smooth descent. (2) η = 0.001: painfully slow. (3) η = 0.04: the loss <em>explodes</em>, because steps overshoot the bowl. The graph is MSE by default; you can switch on <b>log₁₀ display</b> only when the range becomes too large to see comfortably.</p>
 
@@ -576,6 +619,12 @@
           </div>
 
           <p class="cap">Top: the line moving toward the data. Bottom: loss per step. Select a point to inspect it.</p>
+          <div class="how"><b>How to read these two graphs</b><ul>
+            <li><b>Top graph</b> = the same data as section 1 (blue dots) with the line the algorithm has learned so far (green). It starts at w = 0, b = 0 (a flat line at height 0) and, step by step, tilts and lifts towards the data. Red segments are the remaining residuals.</li>
+            <li><b>Bottom graph</b> = the <b>training curve</b>. Horizontal axis: step number (how many updates so far). Vertical axis: the MSE after that step. A healthy curve falls quickly, then flattens: the line has reached the bottom of the bowl.</li>
+            <li>If the curve shoots <b>up</b>, the learning rate is too large: each step jumps over the valley to a higher point on the other side (divergence). Tick <b>log₁₀ display</b> to see values that differ by many powers of ten on one graph.</li>
+            <li>Hover over the bottom curve to inspect any step; the numbered cards below compute one step by hand with the same numbers.</li>
+          </ul></div>
 
           <div class="step-explain">
             <h3>One gradient-descent step, calculated from the same data</h3>
@@ -627,7 +676,7 @@
         </div>
       </div>
 
-      <h2>4 Concrete example: use flat size + age to predict price</h2>
+      <h2>4. Concrete example: use flat size + age to predict price</h2>
 
       <div class="split">
         <div>
@@ -732,6 +781,11 @@
           </div>
 
           <p class="cap">Drag the two inputs. The prediction updates immediately. The model weights are kept fixed so you can focus on what the <b>inputs</b> do.</p>
+          <div class="how"><b>How to read this graph</b><ul>
+            <li>Each horizontal <b>bar</b> is one term of the formula: the size contribution (w<sub>size</sub>·Size), the age contribution (w<sub>age</sub>·Age, negative so it points left/reduces the price) and the base price b.</li>
+            <li>The bar length is the amount in €k it adds to (or subtracts from) the prediction. The numbers under each bar show the multiplication.</li>
+            <li>The <b>predicted price</b> is simply the sum of all bars. Drag Size: only the first bar changes. Drag Age: only the second. This is what “linear” means: each feature contributes independently and proportionally.</li>
+          </ul></div>
         </div>
       </div>
 
@@ -780,10 +834,32 @@
             <div class="source-note"><b>Where it came from:</b> solving the least-squares objective analytically by setting its gradient with respect to w to zero.</div>
           </div>
 
+          <div class="terms"><span class="terms-t">Key terms</span><dl>
+            <dt>Vector</dt><dd>An ordered list of numbers, e.g. x = [size, age, rooms] = [70, 20, 3].</dd>
+            <dt>Matrix</dt><dd>A table of numbers. X has one <b>row per example</b> and one <b>column per feature</b>.</dd>
+            <dt>X·w</dt><dd>Matrix–vector product: for each row, multiply every feature by its weight and add them up. Gives one prediction per example in one operation.</dd>
+            <dt>Transpose Xᵀ</dt><dd>The matrix flipped so that rows become columns.</dd>
+            <dt>Inverse (A)⁻¹</dt><dd>The matrix that “undoes” A, like dividing by a number. Exists only when A is not degenerate.</dd>
+            <dt>Closed form</dt><dd>A direct formula for the answer, with no iterations needed.</dd>
+            <dt>Feature scaling</dt><dd>Rescaling every feature to a similar range (e.g. mean 0, standard deviation 1) so gradient descent treats all of them fairly.</dd>
+          </dl></div>
           <p><b>Practical rule:</b> scale features to similar ranges (e.g. mean 0, std 1). If one feature is 1000× larger, its bowl direction is steep and the learning rate must shrink for everything, so training crawls. Transformers get the same benefit from LayerNorm.</p>
         </div>
 
         <div>
+          <div class="card" style="position:static;margin-bottom:16px">
+            <h3 style="margin:0 0 6px;font-size:1em">Matrix form, live: ŷ = X·w + b for all 6 flats at once</h3>
+            <div class="row"><label>w<sub>size</sub> <input type="range" id="mxWs" min="0" max="8" step="0.1" value="4"> <b id="mxWsV"></b></label></div>
+            <div class="row"><label>w<sub>age</sub> <input type="range" id="mxWa" min="-6" max="2" step="0.1" value="-1.5"> <b id="mxWaV"></b></label></div>
+            <div class="row"><label>b <input type="range" id="mxB" min="-100" max="300" step="5" value="100"> <b id="mxBV"></b></label></div>
+            <style>#mxOut td,#mxOut th{padding:5px 8px;white-space:nowrap}</style><div id="mxOut" style="overflow-x:auto;margin-top:8px"></div>
+            <div class="how"><b>How to read this table</b><ul>
+              <li>The grey block is the <b>data matrix X</b>: each row is one flat, the columns are its features (size, age).</li>
+              <li>The blue column is the <b>weight vector w</b>, the same weights for every row.</li>
+              <li>Each prediction ŷ is the row of X times w, plus b: size·w<sub>size</sub> + age·w<sub>age</sub> + b. One matrix product computes all rows at once, which is why GPUs are so fast at this.</li>
+              <li>The last columns compare ŷ with the true price y; the error is coloured red when it is large. Move the sliders to make the MSE small: you are doing gradient descent by hand.</li>
+            </ul></div>
+          </div>
           <div class="table">
             <table>
               <thead>
@@ -799,7 +875,7 @@
                 <tr><td>MSE loss</td><td>Cross-entropy on the next token</td></tr>
                 <tr><td>Gradient by hand</td><td>Backpropagation (automatic)</td></tr>
                 <tr><td>Gradient descent</td><td>Adam / AdamW, mini-batches</td></tr>
-                <tr><td>Feature scaling</td><td>LayerNorm</td></tr>
+                <tr><td>Feature scaling</td><td>LayerNorm (normalises every token vector inside the network)</td></tr>
                 <tr><td>No nonlinearity</td><td>GELU/ReLU and softmax added</td></tr>
               </tbody>
             </table>
@@ -1693,6 +1769,21 @@
   });
 
   onScroll();
+})();
+
+/* ---------- Section 5: matrix form live ---------- */
+(function(){
+  var $=function(i){return document.getElementById(i)};
+  var F=[['A',50,30,235],['B',70,20,345],['C',80,10,445],['D',100,15,500],['E',120,5,600],['F',60,40,210]];
+  function upd(){
+    var ws=+$('mxWs').value,wa=+$('mxWa').value,b=+$('mxB').value,se=0;
+    $('mxWsV').textContent=ws.toFixed(1);$('mxWaV').textContent=wa.toFixed(1);$('mxBV').textContent=b;
+    var h='<table style="font-size:13px;font-family:var(--lr-mono,monospace)"><thead><tr><th></th><th colspan="2" style="background:#f1f3f5">X (size, age)</th><th></th><th style="background:#e6ecff">w</th><th></th><th>ŷ = X·w + b</th><th>y</th><th>error</th></tr></thead><tbody>';
+    F.forEach(function(f,i){var yh=ws*f[1]+wa*f[2]+b,e=yh-f[3];se+=e*e;
+      h+='<tr><td>'+f[0]+'</td><td style="background:#f1f3f5">'+f[1]+'</td><td style="background:#f1f3f5">'+f[2]+'</td><td>'+(i===0?'·':'')+'</td><td style="background:#e6ecff">'+(i===0?ws.toFixed(1):i===1?wa.toFixed(1):'')+'</td><td>'+(i===0?'+ '+b:'')+'</td><td><b>'+yh.toFixed(0)+'</b></td><td>'+f[3]+'</td><td style="color:'+(Math.abs(e)>40?'#e5484d':'#12a594')+'">'+(e>0?'+':'')+e.toFixed(0)+'</td></tr>'});
+    h+='</tbody></table><div style="margin-top:6px;font-size:13px">MSE = <b>'+(se/F.length).toFixed(0)+'</b> (€k)² &nbsp;·&nbsp; root of MSE ≈ <b>'+Math.sqrt(se/F.length).toFixed(0)+' €k</b> typical error</div>';
+    $('mxOut').innerHTML=h}
+  ['mxWs','mxWa','mxB'].forEach(function(i){$(i).addEventListener('input',upd)});upd();
 })();
 </script>
 

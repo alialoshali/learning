@@ -1,0 +1,33 @@
+/* Shared "explain" components: graph-reading guides and key-term glossaries.
+   Used by every lesson (also the older hand-built pages). */
+
+.how { margin-top: 12px; padding: 12px 14px; border: 1px dashed #c5cbd6; border-radius: 10px; font-size: .84em; line-height: 1.55; background: rgba(255,255,255,.6); text-align: left; }
+.how > b:first-child, .how .how-t { display: block; color: #2f54eb; margin-bottom: 4px; font-size: .95em; letter-spacing: .01em; }
+.how > b:first-child::before, .how .how-t::before { content: "👁 "; }
+.how ul, .how ol { margin: .3em 0 0; padding-left: 1.2em; }
+.how li { margin: .25em 0; max-width: none; }
+.how p { margin: .4em 0 0; max-width: none; }
+.how b { display: inline; }
+.how .sw { display: inline-block; width: .9em; height: .9em; border-radius: 3px; vertical-align: -.1em; margin-right: .25em; }
+.how .sw.dot { border-radius: 50%; }
+.how .sw.ln { height: .25em; vertical-align: .2em; border-radius: 2px; }
+
+.terms { margin: 1em 0; border: 1px solid #dfe3ea; border-radius: 12px; background: #fff; overflow: hidden; }
+.terms > .terms-t { display: block; padding: 8px 14px; font-size: .78em; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #5d6675; background: #f1f3f7; border-bottom: 1px solid #dfe3ea; }
+.terms dl { margin: 0; display: grid; grid-template-columns: minmax(90px, 30%) minmax(0, 1fr); }
+.terms dt, .terms dd { margin: 0; padding: 7px 14px; border-bottom: 1px solid #eef0f4; font-size: .88em; line-height: 1.5; }
+.terms dt { font-weight: 600; color: #171b24; }
+.terms dd { color: #3d4452; }
+.terms dl > :nth-last-child(-n+2) { border-bottom: 0; }
+.terms code { font-size: .85em; }
+@media (max-width: 700px) { .terms dl { grid-template-columns: 1fr; } .terms dt { border-bottom: 0; padding-bottom: 0; white-space: normal; } }
+
+/* callouts: only the title is a block, inline bold stays inline */
+.callout b { display: inline; }
+.callout > b:first-child { display: block; }
+
+/* older hand-built lessons: never let a wide canvas push the page sideways on phones */
+@media (max-width: 1000px) {
+  .lr-layout, .lr-layout .row, .lr-page .lr-wrap, .split, #lesson .pair { grid-template-columns: minmax(0, 1fr) !important; }
+  canvas { max-width: 100%; }
+}

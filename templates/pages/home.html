@@ -1,32 +1,372 @@
 {% extends "base.html" %}
-{% block h1 %}Learn AI &amp; machine learning{% endblock %}
-{% block lead %}<p class="lead">A guided path from a single straight line to modern deep learning. Each lesson explains the idea, shows the equation with every symbol named, and lets you experiment.</p>{% endblock %}
-{% block content %}
-<h2>What this course covers</h2>
-<p>The course follows the main families of machine learning. Use the index on the right to jump to any topic, or follow the order below.</p>
+{% block head %}{% include "_lesson_head.html" %}
+<style>
+.hero + h2{margin-top:1.6em!important;border-top:1px solid var(--line)!important;padding-top:1.1em!important}
+.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:34px;align-items:center;margin-bottom:10px}
+.hero .big{font-size:1.25em;line-height:1.55;margin:0 0 .6em}
+.hero .chips{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.hero .chips a{font-family:var(--mono);font-size:12.5px;padding:5px 11px;border-radius:99px;background:var(--accent-soft);color:var(--accent);text-decoration:none}
+.hero .chips a:hover{background:var(--accent);color:#fff}
+.stat-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}
+.stat-row div{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:.85em;line-height:1.4}
+.stat-row b{display:block;font-size:1.5em;color:var(--accent);font-family:var(--mono)}
+.apps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:1em 0}
+.apps a{display:block;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;text-decoration:none;color:var(--text);transition:border-color .15s,transform .15s}
+.apps a:hover{border-color:var(--accent);transform:translateY(-2px)}
+.apps a svg{width:100%;height:96px;display:block;margin-bottom:8px;border-radius:10px;background:#f4f6fb}
+.apps b{display:block;margin-bottom:3px}.apps span{font-size:.84em;color:var(--muted);line-height:1.45;display:block}
+.apps em{display:block;font-style:normal;font-family:var(--mono);font-size:11.5px;color:var(--accent);margin-top:6px}
+.path{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:1em 0;counter-reset:step}
+.path a{position:relative;display:block;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 14px 12px 50px;text-decoration:none;color:var(--text);font-size:.88em;line-height:1.45;min-height:96px}
+.path a:hover{border-color:var(--accent)}
+.path a::before{counter-increment:step;content:counter(step);position:absolute;left:12px;top:12px;width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;font:600 13px/28px var(--mono);text-align:center}
+.path a b{display:block;font-size:1.05em;margin-bottom:2px}.path a span{color:var(--muted)}
+.path a.tf::before{background:var(--warm)}
+.gl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin-top:10px}
+.gl-grid div{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:.86em;line-height:1.5}
+.gl-grid div b{display:block;font-size:1.05em}.gl-grid div a{font-size:.9em}
+.gl-grid div i{display:block;font-style:normal;font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:3px}
+#glq{width:100%;font:inherit;padding:9px 12px;border:1px solid var(--line);border-radius:10px}
+@media(max-width:1000px){.hero{grid-template-columns:1fr}.apps{grid-template-columns:repeat(2,minmax(0,1fr))}.path{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.apps,.path,.stat-row{grid-template-columns:1fr}}
+</style>{% endblock %}
+{% block h1 %}Learn AI &amp; Machine Learning{% endblock %}
+{% block lead %}<div class="meta"><span class="tag">start here</span><span class="tag">from a straight line to Transformers</span><span class="tag">every figure is interactive</span></div>
+<p class="lead">A guided course for future <b>AI engineers</b>. You will build up, one idea at a time, every piece inside a modern language model such as ChatGPT or Claude. Each lesson explains <b>why</b> the idea is needed, shows the maths with every symbol named, and lets you <b>play with it</b> next to the text.</p>{% endblock %}
+{% block content %}{% raw %}
+<div class="lsn"><div class="lsn-main">
 
-<div class="table"><table>
-<thead><tr><th>Topic</th><th>What you learn</th></tr></thead>
-<tbody>
-<tr><td><a href="/machine-learning">Machine learning</a></td><td>What it means to learn from data instead of writing rules.</td></tr>
-<tr><td><a href="/supervised-learning">Supervised learning</a></td><td>Learning from examples that have known answers.</td></tr>
-<tr><td><a href="/linear-regression">Linear regression</a></td><td>Fit a line, measure error, improve it with gradient descent.</td></tr>
-<tr><td><a href="/logistic-regression">Logistic regression</a></td><td>Predict categories and probabilities.</td></tr>
-<tr><td><a href="/deep-learning">Deep learning</a></td><td>Neural networks and transformers.</td></tr>
-<tr><td><a href="/unsupervised-learning">Unsupervised learning</a></td><td>Find structure in data without answers: clustering, PCA.</td></tr>
-<tr><td><a href="/reinforcement-learning">Reinforcement learning</a></td><td>Learn by trial and reward.</td></tr>
+<div class="hero"><div>
+<p class="big">Artificial intelligence today is mostly <b>machine learning</b>: instead of writing rules by hand, we give a computer many <b>examples</b> and it adjusts millions of numbers (<b>parameters</b>) until its answers match. The animation on the right is a tiny version of that: a network of artificial <b>neurons</b> passing numbers from an input to an output.</p>
+<p>Nothing on this site needs installation or prior AI knowledge. You need school algebra and curiosity. Every new term is defined where it first appears, and every graph has a <b>👁 How to read this graph</b> box.</p>
+<div class="chips"><a href="#sec-1">What is AI?</a><a href="#sec-2">See a machine learn</a><a href="#sec-6">History</a><a href="#sec-8">Glossary</a><a href="#sec-9">Course path</a></div>
+<div class="stat-row"><div><b>12</b>interactive lessons</div><div><b>80+</b>live plots &amp; demos</div><div><b>1</b>goal: understand Transformers</div></div>
+</div><div class="fig"><h4>A neural network at work (animated)</h4>
+<canvas id="hero" width="640" height="340"></canvas>
+<div class="how"><b>How to read this picture</b>Circles are <b>neurons</b>, small units that each compute one number. Lines are <b>weights</b>: blue = positive, orange = negative, thicker = stronger. Pulses travel left → right: the <b>input layer</b> receives the data (here 4 measurements of a flower), the <b>hidden layers</b> transform it, and the <b>output layer</b> gives a probability for each answer. Click <b>New input</b> to send a different example through.</div>
+<div class="btns"><button id="heroBtn">New input ↻</button></div></div></div>
+
+<h2><span class="n">01</span>AI, machine learning, deep learning, generative AI: what is the difference?</h2>
+<div class="pair"><div>
+<p>These four words are often used as if they meant the same thing. They are actually <b>nested</b>: each one is a special case of the one around it. Hover over (or tap) the rings on the right.</p>
+<div class="terms"><span class="terms-t">Key definitions</span><dl>
+<dt>Artificial intelligence (AI)</dt><dd>Any technique that makes a computer do something we would call “intelligent” if a person did it: planning, recognising, translating, deciding. Includes hand-written rules (e.g. a chess program searching moves).</dd>
+<dt>Machine learning (ML)</dt><dd>AI that <b>learns from data</b>: the program’s behaviour comes from numbers fitted to examples, not from rules a person wrote.</dd>
+<dt>Deep learning (DL)</dt><dd>Machine learning with <b>neural networks of many layers</b>. Each layer learns features from the previous one. Behind almost all modern vision, speech and language AI.</dd>
+<dt>Generative AI</dt><dd>Deep-learning models that <b>create</b> new content (text, images, audio, code) by learning the probability distribution of their training data. Large language models (LLMs) are generative AI for text.</dd>
+<dt>Model</dt><dd>The learned function: input → output. Concretely, a formula plus its fitted numbers (parameters).</dd>
+</dl></div>
+<div class="callout tf"><b>Transformer link</b>ChatGPT and Claude sit in the innermost ring: a <a href="/transformers">Transformer</a> (deep learning) trained on text (machine learning) to generate answers (generative AI).</div>
+</div><div class="fig"><h4>Nested fields of AI</h4>
+<svg id="rings" viewBox="0 0 640 400" style="cursor:pointer"></svg>
+<div class="ex" id="ringx"></div>
+<div class="how"><b>How to read this diagram</b>Each ring is a field; a ring <b>inside</b> another is a subset of it. So every deep-learning model is a machine-learning model, but a decision tree is machine learning without being deep learning, and a rule-based chess engine is AI without being machine learning. The years show roughly when each field became prominent.</div></div></div>
+
+<h2><span class="n">02</span>See a machine learn, right now</h2>
+<div class="pair"><div>
+<p>“Learning” in machine learning is surprisingly concrete. Here is the whole idea in one small experiment: a model must separate <span style="color:var(--accent);font-weight:600">blue</span> points from <span style="color:var(--warm);font-weight:600">orange</span> points with a straight line.</p>
+<ol>
+<li><b>Predict.</b> With its current numbers, the model guesses a colour for every point. The shading on the right shows the guess for every location.</li>
+<li><b>Measure the error.</b> One number, the <b>loss</b>, says how wrong the guesses are (lower = better).</li>
+<li><b>Adjust.</b> Calculus tells us in which direction to nudge each number to reduce the loss. This is <b>gradient descent</b>.</li>
+<li><b>Repeat</b> hundreds of times. The line rotates into place and the loss curve falls.</li>
+</ol>
+<p><b>Try it:</b> press <b>Learn</b>. Then click on the plot to add your own points (left-click blue, right-click or shift-click orange) and watch the model adapt. Put an orange point deep among the blue ones: a straight line can no longer separate them perfectly, which is why we later need <a href="/neural-networks">neural networks</a>.</p>
+<div class="terms"><span class="terms-t">Terms used here</span><dl>
+<dt>Training data</dt><dd>The examples the model learns from (the dots, each with its true colour).</dd>
+<dt>Parameters</dt><dd>The adjustable numbers of a model, here 3: two weights \(w_1,w_2\) and a bias \(b\).</dd>
+<dt>Loss</dt><dd>A single number measuring how wrong the model is on the training data.</dd>
+<dt>Decision boundary</dt><dd>The line where the model switches its answer from one class to the other.</dd>
+</dl></div>
+</div><div class="fig"><h4>Logistic regression learning live</h4>
+<canvas id="c2" class="click" width="640" height="380"></canvas>
+<canvas id="c2b" width="640" height="110"></canvas>
+<div class="btns"><button id="go2">Learn ▶</button><button id="rs2">Reset model</button><button id="nd2">New data</button></div>
+<div class="out" id="o2"></div>
+<div class="how"><b>How to read this graph</b><ul>
+<li><b>Top plot:</b> each dot is one training example placed by its two features \(x_1\) (horizontal) and \(x_2\) (vertical); its colour is the true answer. The <b>background shading</b> is the model’s prediction for every location (stronger colour = more confident). The <b>black line</b> is the decision boundary.</li>
+<li><b>Bottom plot:</b> the loss after each training step (horizontal = step number, vertical = loss). A falling curve means the model is learning. 0.69 = random guessing.</li>
+<li>The text line shows the current parameters and the accuracy (share of dots on the correct side).</li></ul></div></div></div>
+
+<h2><span class="n">03</span>What AI can do today, and which lesson explains it</h2>
+<p>Every application below is built from ideas taught in this course. Click a card to jump to the lesson that explains the core technique.</p>
+<div class="apps" id="apps"></div>
+
+<h2><span class="n">04</span>The recipe behind every model</h2>
+<div class="pair"><div>
+<p>From the simplest line to GPT, every model in this course is built with the <b>same five ingredients</b>. Click each box in the diagram to see what it means, its formula, and where it is taught.</p>
+<div class="formula">$$\theta^\star=\arg\min_{\theta}\ \frac1N\sum_{i=1}^{N}\ell\big(f_\theta(x_i),\,y_i\big)$$<span class="cap">Read: “find the parameters \(\theta\) that make the average error \(\ell\) between the model’s predictions \(f_\theta(x_i)\) and the true answers \(y_i\) as small as possible.” This one line summarises machine learning.</span></div>
+<div class="table compact leg"><table><tbody>
+<tr><td>\(x_i,\ y_i\)</td><td>the \(i\)-th example: its input and its correct answer</td></tr>
+<tr><td>\(f_\theta\)</td><td>the model, a function with adjustable parameters \(\theta\) (theta)</td></tr>
+<tr><td>\(\ell\)</td><td>the loss for one example: how far the prediction is from the answer</td></tr>
+<tr><td>\(N\)</td><td>the number of training examples</td></tr>
+<tr><td>\(\arg\min\)</td><td>“the value that gives the minimum”</td></tr>
 </tbody></table></div>
+</div><div class="fig"><h4>The learning loop (click a box)</h4>
+<svg id="loop" viewBox="0 0 640 330"></svg>
+<div class="ex" id="loopx"></div>
+<div class="how"><b>How to read this diagram</b>Arrows show the order of work. The top row is the <b>forward pass</b>: data goes in, the model predicts. The loss compares the prediction with the truth, and the <b>orange feedback arrow</b> is training: the optimizer changes the model’s parameters to reduce the loss. After training, only the top row is used (that is called <b>inference</b>).</div></div></div>
 
-<h2>How each lesson works</h2>
+<h2><span class="n">05</span>Four ways a machine can learn</h2>
+<div class="pair"><div>
+<p>Learning methods are grouped by <b>what kind of feedback</b> the learner gets. Click a tab to see a picture of the data each one learns from.</p>
+<div class="table compact"><table><thead><tr><th>Paradigm</th><th>Feedback</th><th>Example</th></tr></thead><tbody>
+<tr><td><a href="/supervised-learning">Supervised</a></td><td>the correct answer for every example</td><td>photos labelled “cat”/“dog”</td></tr>
+<tr><td><a href="/unsupervised-learning">Unsupervised</a></td><td>no answers at all, find structure</td><td>grouping customers</td></tr>
+<tr><td><a href="/self-supervised-learning">Self-supervised</a></td><td>answers made from the data itself</td><td>predict the next word</td></tr>
+<tr><td><a href="/reinforcement-learning">Reinforcement</a></td><td>a reward after acting</td><td>learning to play a game</td></tr>
+</tbody></table></div>
+<p>Separately, we choose an <b>architecture</b>, the shape of the model: linear models, <a href="/neural-networks">neural networks</a>, <a href="/cnn">CNNs</a> for images, <a href="/rnn">RNNs</a> and <a href="/transformers">Transformers</a> for sequences. Any architecture can be trained with any paradigm: GPT is a Transformer trained first self-supervised, then supervised, then with reinforcement learning.</p>
+</div><div class="fig"><h4 id="h5">Supervised</h4>
+<div class="seg" id="s5"><button data-v="sup" class="on">Supervised</button><button data-v="uns">Unsupervised</button><button data-v="ssl">Self-supervised</button><button data-v="rl">Reinforcement</button></div>
+<canvas id="c5" width="640" height="320"></canvas>
+<div class="ex" id="o5"></div></div></div>
+
+<h2><span class="n">06</span>A short history of AI</h2>
+<div class="pair"><div>
+<p>Modern AI is the result of 80 years of ideas, failures and comebacks. Click the dots on the timeline. Notice how often an idea taught in this course appeared decades before it became useful. Neural networks only took off when <b>data</b> (the internet) and <b>compute</b> (GPUs) became large enough.</p>
+<p>Periods of disappointment and reduced funding are called <b>AI winters</b> (shaded). Each ended when a new idea, more data, or faster hardware made the old promises work.</p>
+<div class="callout"><b>Pattern to notice</b>The neuron (1943) → the trainable perceptron (1958) → backpropagation for many layers (1986) → deep CNNs on GPUs (2012) → attention and the Transformer (2017) → large language models (2018–today). This course follows the same path.</div>
+</div><div class="fig"><h4>Timeline (click a dot)</h4>
+<canvas id="c6" class="click" width="640" height="230"></canvas>
+<div class="ex" id="o6"></div>
+<div class="btns"><button id="pv6">◀ Previous</button><button id="nx6">Next ▶</button></div>
+<div class="how"><b>How to read this timeline</b>Time runs left to right (the scale is stretched after 2010, when events speed up). Each dot is a milestone; its colour shows the theme: <span class="sw dot" style="background:#2f54eb"></span>neural-network ideas, <span class="sw dot" style="background:#e8590c"></span>landmark results, <span class="sw dot" style="background:#2f9e44"></span>language models. Grey bands are the two AI winters.</div></div></div>
+
+<h2><span class="n">07</span>Inside a Transformer: where this course is heading</h2>
+<div class="pair"><div>
+<p>A <b>Transformer</b> is the architecture inside ChatGPT, Claude, Gemini and Llama. It looks complicated, but it is built almost entirely from pieces you will learn one by one. Hover over (or tap) a block in the diagram to see which lesson teaches it.</p>
+<ol>
+<li>Text is cut into <b>tokens</b> and each token becomes a vector (<b>embedding</b>).</li>
+<li><b>Attention</b> lets every token gather information from the others.</li>
+<li>A small <b>neural network (MLP)</b> processes each token.</li>
+<li>Steps 2–3 repeat in dozens of identical <b>blocks</b>, held stable by residual connections and normalisation.</li>
+<li>A final <b>softmax</b> turns scores into the probability of every possible next token.</li>
+</ol>
+<p>Training uses the same loop as section 04: predict the next token, measure the error with cross-entropy, adjust billions of parameters by gradient descent.</p>
+</div><div class="fig"><h4>A Transformer, block by block</h4>
+<svg id="tf7" viewBox="0 0 640 485"></svg>
+<div class="ex" id="o7"></div>
+<div class="how"><b>How to read this diagram</b>Data flows from the <b>bottom</b> (input text) to the <b>top</b> (the predicted next word). The dashed frame is one Transformer <b>block</b>; real models stack 12–100+ of them. The curved arrows on the right are <b>residual connections</b>: each block adds its result to its input instead of replacing it.</div></div></div>
+
+<h2><span class="n">08</span>Glossary: the words you will meet</h2>
+<p>Type to filter. Each entry links to the lesson where the idea is explained with an interactive example.</p>
+<input id="glq" type="search" placeholder="Search a term, e.g. gradient, softmax, embedding…">
+<div class="gl-grid" id="gl"></div>
+
+<h2><span class="n">09</span>Course path and how to use this site</h2>
+<p>Follow the lessons in this order. Each one reuses the previous ones, and the orange steps are where the Transformer ingredients come together.</p>
+<div class="path">
+<a href="/machine-learning"><b>Machine learning</b><span>the recipe, generalisation, over-fitting</span></a>
+<a href="/supervised-learning"><b>Supervised learning</b><span>labels, losses, k-NN, metrics</span></a>
+<a href="/linear-regression"><b>Linear regression</b><span>a line, MSE, gradient descent</span></a>
+<a href="/logistic-regression"><b>Logistic regression</b><span>probabilities, cross-entropy, softmax</span></a>
+<a href="/unsupervised-learning"><b>Unsupervised learning</b><span>structure without labels, embeddings</span></a>
+<a href="/clustering"><b>Clustering</b><span>similarity, k-means, soft assignment</span></a>
+<a href="/pca"><b>PCA</b><span>projections, eigenvectors, low rank</span></a>
+<a href="/neural-networks"><b>Neural networks</b><span>layers, backprop, ANN vs deep NN</span></a>
+<a href="/cnn"><b>CNNs</b><span>convolution, images, patches</span></a>
+<a href="/rnn"><b>RNNs</b><span>sequences, memory, first attention</span></a>
+<a href="/self-supervised-learning" class="tf"><b>Self-supervised</b><span>next-token pre-training</span></a>
+<a href="/transformers" class="tf"><b>Transformers</b><span>attention, the whole model</span></a>
+<a href="/reinforcement-learning" class="tf"><b>Reinforcement learning</b><span>rewards, RLHF for chatbots</span></a>
+</div>
+<div class="pair even"><div>
+<h3>How every lesson is built</h3>
 <ul>
-  <li><b>Idea.</b> The problem and the model in plain words.</li>
-  <li><b>Equation.</b> Every formula lists its symbols and where it comes from.</li>
-  <li><b>Experiment.</b> Sliders and buttons to see the maths move.</li>
-  <li><b>Transformer link.</b> How the same idea appears in modern language models.</li>
-</ul>
+<li><b>Why it exists</b>: the problem the method solves, in the first paragraph.</li>
+<li><b>Text on the left, live figure on the right</b>: the figure stays next to the paragraph it explains.</li>
+<li><b>👁 How to read this graph</b>: every figure says what its axes, colours and controls mean.</li>
+<li><b>Key terms</b> boxes define each new word.</li>
+<li><b>Equations</b> with every symbol named and a worked numeric example.</li>
+<li><span style="color:var(--warm);font-weight:600">Transformer link</span> boxes show where the idea reappears inside GPT-style models.</li>
+</ul></div><div>
+<h3>Tips for students</h3>
+<ul>
+<li>Use <code>A−</code> / <code>A+</code> at the top to change the text size (it is remembered).</li>
+<li>The index on the left can be collapsed with ✕ to give the figures more room.</li>
+<li>Do the “Try it” experiments: predicting what will happen <i>before</i> moving a slider is the fastest way to learn.</li>
+<li>New to the subject? Start with <a href="/machine-learning">Machine learning</a>, then <a href="/linear-regression">Linear regression</a>: every later topic reuses its three steps: model, loss, update.</li>
+</ul></div></div>
 
-<div class="callout"><b>Where to start</b>New to the subject? Begin with <a href="/linear-regression">linear regression</a>. Every later topic reuses its three steps: model, loss, update.</div>
+</div><aside class="lsn-toc"><p>On this page</p><nav></nav></aside></div>
+{% endraw %}{% include "_lesson_scripts.html" %}{% raw %}
+<script>
+(function(){
+var $=L.$,C=L.C,col=L.col,PAL=L.PAL;
 
-<h2>Reading settings</h2>
-<p>Use the <code>A−</code> / <code>A+</code> controls at the top to change text size. Your choice is remembered in this browser.</p>
-{% endblock %}
+/* ---------- hero: animated network ---------- */
+var LAY=[4,6,6,3],rH=L.rng(3),WH=[],t0=performance.now(),inp=[.8,.3,.6,.9];
+for(var l=0;l<3;l++){var M=[];for(var i=0;i<LAY[l+1];i++){var r=[];for(var j=0;j<LAY[l];j++)r.push(rH.g()*1.1);M.push(r)}WH.push(M)}
+function heroFwd(){var a=[inp];for(var l=0;l<3;l++){var z=WH[l].map(function(w){return L.dot(w,a[l])});a.push(l<2?z.map(Math.tanh):L.softmax(z.map(function(v){return v*2})))}return a}
+function drawHero(now){var k=L.ctx('hero'),g=k.g,A=heroFwd(),xs=[130,265,395,505],pos=LAY.map(function(n,l){var o=[];for(var i=0;i<n;i++)o.push([xs[l],k.H/2+(i-(n-1)/2)*44]);return o}),ph=((now-t0)/1600)%1;
+for(var l=0;l<3;l++)WH[l].forEach(function(w,i){w.forEach(function(v,j){var a=pos[l][j],b=pos[l+1][i];g.strokeStyle=v>0?'rgba(47,84,235,.35)':'rgba(232,89,12,.35)';g.lineWidth=Math.abs(v)*2.2;g.beginPath();g.moveTo(a[0],a[1]);g.lineTo(b[0],b[1]);g.stroke();
+var seg=(ph*3)-l;if(seg>=0&&seg<1){var x=a[0]+(b[0]-a[0])*seg,y=a[1]+(b[1]-a[1])*seg;g.fillStyle=v>0?C.blue:C.orange;g.globalAlpha=.75;g.beginPath();g.arc(x,y,2.6,0,7);g.fill();g.globalAlpha=1}})});
+var names=['petal length','petal width','sepal length','sepal width'],outs=['setosa','versicolor','virginica'];
+pos.forEach(function(L_,l){L_.forEach(function(p,i){var v=l===0?inp[i]:A[l][i],a=Math.min(1,Math.abs(v));g.beginPath();g.arc(p[0],p[1],15,0,7);g.fillStyle='#fff';g.fill();g.fillStyle=(l===3||v>=0)?'rgba(47,84,235,'+a+')':'rgba(232,89,12,'+a+')';g.fill();g.strokeStyle=C.ink;g.lineWidth=1.3;g.stroke();
+if(l===0){g.fillStyle=col('--muted');g.font='11px IBM Plex Sans,sans-serif';g.textAlign='right';g.fillText(names[i],p[0]-20,p[1]+4);g.textAlign='left'}
+if(l===3){g.fillStyle=C.ink;g.font='12px IBM Plex Sans,sans-serif';g.fillText(outs[i]+'  '+(v*100).toFixed(0)+'%',p[0]+20,p[1]+4)}})});
+g.fillStyle=col('--muted');g.font='600 12px IBM Plex Sans,sans-serif';g.textAlign='center';['input layer','hidden layer 1','hidden layer 2','output (probabilities)'].forEach(function(t,l){g.fillText(t,xs[l],18)});g.textAlign='left';
+requestAnimationFrame(drawHero)}
+requestAnimationFrame(drawHero);
+$('heroBtn').onclick=function(){inp=inp.map(function(){return rH()})};
+
+/* ---------- 01 rings ---------- */
+var RG=[['Artificial intelligence','1956 →','Any technique that makes computers act intelligently: search, planning, logic, rules <i>and</i> learning. Example: a chess engine that searches millions of moves (Deep Blue, 1997) or a route planner.','#e6ecff','#2f54eb'],
+['Machine learning','1980s–1990s →','Systems that improve with data instead of being programmed rule by rule. Examples: a spam filter, credit scoring, recommendations, house-price prediction. Methods: <a href="/linear-regression">linear</a> and <a href="/logistic-regression">logistic regression</a>, decision trees, <a href="/clustering">clustering</a>.','#d0dcff','#2f54eb'],
+['Deep learning','2012 →','Machine learning with many-layered <a href="/neural-networks">neural networks</a> that learn their own features from raw data (pixels, sound, text). Examples: face unlock (<a href="/cnn">CNNs</a>), speech recognition, translation.','#9db4ff','#1c3fbf'],
+['Generative AI · LLMs','2018 →','Deep models that generate new content by learning \\(p(\\text{data})\\). Examples: ChatGPT, Claude (text, <a href="/transformers">Transformers</a>), image generators (diffusion models).','#e8590c','#e8590c']],selR=3;
+function drawRings(){var cx=300,cy=210,R=[190,145,100,55],h='<g font-family="IBM Plex Sans,sans-serif">';
+RG.forEach(function(r,i){var on=i===selR;h+='<circle data-i="'+i+'" cx="'+(cx+i*18)+'" cy="'+(cy+i*12)+'" r="'+R[i]+'" fill="'+r[3]+'" stroke="'+(on?'#171b24':r[4])+'" stroke-width="'+(on?3:1.5)+'" opacity="'+(i===3?.9:1)+'"/>'});
+var ly=[44,92,140,214];RG.forEach(function(r,i){h+='<text data-i="'+i+'" x="'+(cx+i*18)+'" y="'+(i===3?cy+i*12+4:ly[i]+i*12)+'" text-anchor="middle" font-size="'+(i===3?13:15)+'" font-weight="700" fill="'+(i===3?'#fff':'#171b24')+'">'+r[0].replace(' · LLMs','')+'</text>'+(i<3?'<text data-i="'+i+'" x="'+(cx+i*18)+'" y="'+(ly[i]+i*12+16)+'" text-anchor="middle" font-size="11.5" fill="#3d4452">'+r[1]+'</text>':'')});
+h+='<text x="520" y="70" font-size="12" fill="#5d6675">examples:</text><text x="520" y="90" font-size="12" fill="#2f54eb">chess search</text><text x="520" y="150" font-size="12" fill="#2f54eb">spam filter</text><text x="520" y="210" font-size="12" fill="#1c3fbf">face unlock</text><text x="520" y="270" font-size="12" fill="#e8590c">ChatGPT, Claude</text>';
+h+='<path d="M512 86 L470 100M512 146 L430 150M512 206 L395 210M512 266 L380 248" stroke="#adb5bd" stroke-dasharray="3 3"/></g>';
+$('rings').innerHTML=h;$('rings').querySelectorAll('[data-i]').forEach(function(e){var f=function(ev){ev.stopPropagation();selR=+e.dataset.i;drawRings()};e.addEventListener('mouseenter',f);e.addEventListener('click',f)});
+$('ringx').innerHTML='<b>'+RG[selR][0]+'</b> <span class="pill">'+RG[selR][1]+'</span><br>'+RG[selR][2];L.renderMath($('ringx'))}
+drawRings();
+
+/* ---------- 02 live learning ---------- */
+var P2=[],M2={w1:0,w2:0,b:0},hist2=[],step2=0,seed2=4;
+function data2(){var r=L.rng(seed2);P2=[];for(var i=0;i<40;i++){var c=i%2;P2.push([(c?6.4:3.6)+r.g()*1.2,(c?3.6:6.2)+r.g()*1.2,c])}}
+function lossAcc(){var s=0,a=0;P2.forEach(function(q){var p=L.clamp(L.sigmoid(M2.w1*(q[0]-5)+M2.w2*(q[1]-5)+M2.b),1e-7,1-1e-7);s-=q[2]*Math.log(p)+(1-q[2])*Math.log(1-p);if((p>.5?1:0)===q[2])a++});return[s/P2.length,a/P2.length]}
+function train2(){var g1=0,g2=0,g0=0;P2.forEach(function(q){var e=L.sigmoid(M2.w1*(q[0]-5)+M2.w2*(q[1]-5)+M2.b)-q[2];g1+=e*(q[0]-5);g2+=e*(q[1]-5);g0+=e});var n=P2.length||1;M2.w1-=.25*g1/n;M2.w2-=.25*g2/n;M2.b-=.25*g0/n;step2++;hist2.push(lossAcc()[0])}
+function draw2(){var p=L.plot('c2',{x:[0,10],y:[0,10],xl:'feature x₁',yl:'feature x₂'});
+p.field(function(x,y){var q=L.sigmoid(M2.w1*(x-5)+M2.w2*(y-5)+M2.b);return[q>.5?C.orange:C.blue,Math.abs(q-.5)*.6+.03]},60);
+if(Math.abs(M2.w2)>1e-6)p.line(function(x){return 5-(M2.w1*(x-5)+M2.b)/M2.w2},C.ink,2.5);
+P2.forEach(function(q){p.dot(q[0],q[1],q[2]?C.orange:C.blue,6)});
+var q=L.plot('c2b',{x:[0,Math.max(60,hist2.length)],y:[0,.8],xl:'training step',yl:'loss',m:[6,10,30,46]});q.hl(Math.log(2),C.red,[4,4]);q.path(hist2.map(function(v,i){return[i+1,v]}),C.purple,2.5);
+var la=lossAcc();$('o2').innerHTML='step <b>'+step2+'</b> · parameters w₁ = <b>'+M2.w1.toFixed(2)+'</b>, w₂ = <b>'+M2.w2.toFixed(2)+'</b>, b = <b>'+M2.b.toFixed(2)+'</b> · loss <b>'+la[0].toFixed(3)+'</b> · accuracy <b>'+(la[1]*100).toFixed(0)+'%</b>'}
+L.runner('go2',function(){for(var i=0;i<3;i++)train2();draw2();if(step2>900)return false},40);
+$('rs2').onclick=function(){M2={w1:0,w2:0,b:0};hist2=[];step2=0;draw2()};$('nd2').onclick=function(){seed2++;data2();M2={w1:0,w2:0,b:0};hist2=[];step2=0;draw2()};
+L.pointer('c2',{down:function(x,y,e){var p=L.coords('c2',{x:[0,10],y:[0,10],xl:'a',yl:'b'}),X=p.ix(x),Y=p.iy(y);if(X<0||X>10||Y<0||Y>10)return;P2.push([X,Y,(e.button===2||e.shiftKey)?1:0]);draw2()}});
+data2();L.reg(draw2);
+
+/* ---------- 03 applications ---------- */
+var APP=[['Image recognition','Face unlock, medical scans, self-driving perception. A network finds edges, then shapes, then objects.','cnn','CNN lesson','<rect x="30" y="18" width="60" height="60" rx="6" fill="#d0ebff"/><circle cx="60" cy="42" r="12" fill="#ffd43b"/><path d="M30 78 L52 56 L68 70 L78 60 L90 78Z" fill="#2f9e44"/><rect x="26" y="14" width="68" height="68" fill="none" stroke="#e8590c" stroke-width="2.5" stroke-dasharray="5 3"/><text x="110" y="40" font-size="12" fill="#171b24">“sunny landscape”</text><text x="110" y="58" font-size="11" fill="#5d6675">p = 0.94</text>'],
+['Chatbots & language','ChatGPT, Claude, translation, summaries: predict the next word, one token at a time.','transformers','Transformers lesson','<rect x="16" y="16" width="120" height="26" rx="13" fill="#e6ecff"/><text x="28" y="34" font-size="12" fill="#2f54eb">What is a neuron?</text><rect x="70" y="50" width="150" height="34" rx="13" fill="#2f54eb"/><text x="82" y="71" font-size="12" fill="#fff">A tiny unit that…▍</text>'],
+['Speech','Voice assistants and live captions turn a sound wave into a sequence of words.','rnn','RNN lesson','<path d="M14 50 '+Array.from({length:30},function(_,i){return'L'+(14+i*6)+' '+(50+Math.sin(i*1.3)*(10+((i*7)%13)))}).join(' ')+'" fill="none" stroke="#2f54eb" stroke-width="2.5"/><text x="200" y="55" font-size="12" fill="#171b24">→ “hello”</text>'],
+['Recommendations','Netflix, Spotify, shops: similar users and items are close vectors.','clustering','Clustering lesson','<g>'+[[40,30],[52,40],[46,52],[120,60],[132,48],[128,70],[200,30],[212,42]].map(function(p,i){return'<circle cx="'+p[0]+'" cy="'+p[1]+'" r="6" fill="'+['#2f54eb','#e8590c','#2f9e44'][i<3?0:i<6?1:2]+'"/>'}).join('')+'</g><text x="30" y="88" font-size="11" fill="#5d6675">people who liked this also liked…</text>'],
+['Games & robots','AlphaGo, robot walking, and the “helpfulness” training of chatbots all learn from rewards.','reinforcement-learning','Reinforcement learning','<g>'+Array.from({length:12},function(_,i){var x=20+(i%6)*30,y=14+Math.floor(i/6)*30;return'<rect x="'+x+'" y="'+y+'" width="28" height="28" fill="'+(i===5?'#d3f9d8':i===8?'#495057':'#f1f3f5')+'"/>'}).join('')+'<text x="173" y="34" font-size="16" fill="#2f9e44">★</text><circle cx="34" cy="58" r="8" fill="#e8590c"/><path d="M50 58 H110" stroke="#171b24" stroke-width="2" marker-end="url(#ah)"/></g>'],
+['Science & data','Protein folding (AlphaFold), weather, finance: find patterns in measurements, compress and predict.','pca','PCA lesson','<g>'+Array.from({length:40},function(_,i){var t=(i-20)/6,x=120+t*30+((i*37)%9)-4,y=50-t*14+((i*53)%11)-5;return'<circle cx="'+x+'" cy="'+y+'" r="3" fill="#2f54eb"/>'}).join('')+'<path d="M30 92 L210 8" stroke="#e8590c" stroke-width="2.5"/></g>']];
+$('apps').innerHTML='<svg width="0" height="0" style="position:absolute"><defs><marker id="ah" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8z" fill="#171b24"/></marker></defs></svg>'+APP.map(function(a){return'<a href="/'+a[2]+'"><svg viewBox="0 0 260 96" font-family="IBM Plex Sans,sans-serif">'+a[4]+'</svg><b>'+a[0]+'</b><span>'+a[1]+'</span><em>→ '+a[3]+'</em></a>'}).join('');
+
+/* ---------- 04 learning loop ---------- */
+var LP=[['data','Data',40,40,'<b>Data</b>: examples \\((x_i,y_i)\\). The input \\(x\\) is turned into a vector of numbers (pixels, word ids, measurements); \\(y\\) is the correct answer when we have one. Quality and quantity of data usually matter more than the model. <a href="/machine-learning">Machine learning lesson →</a>'],
+['model','Model \\(f_\\theta\\)',250,40,'<b>Model</b>: a function with adjustable parameters \\(\\theta\\). Simplest: a line \\(\\hat y=wx+b\\) (2 parameters). Largest: a Transformer with billions. <a href="/linear-regression">Start with linear regression →</a>'],
+['pred','Prediction \\(\\hat y\\)',460,40,'<b>Prediction</b> \\(\\hat y\\) (“y-hat”): the model’s output for an input, e.g. a price, a class probability or the next word. Producing predictions with a trained model is called <b>inference</b>.'],
+['loss','Loss \\(\\mathcal L\\)',460,200,'<b>Loss</b>: one number for how wrong the predictions are. Mean squared error \\((\\hat y-y)^2\\) for numbers; cross-entropy \\(-\\log\\hat p_{y}\\) for classes and next words. <a href="/logistic-regression">Cross-entropy lesson →</a>'],
+['opt','Optimizer',250,200,'<b>Optimizer</b>: changes the parameters to lower the loss. Gradient descent: \\(\\theta\\leftarrow\\theta-\\eta\\nabla_\\theta\\mathcal L\\), where the gradient \\(\\nabla\\mathcal L\\) points uphill and \\(\\eta\\) is the step size. Backpropagation computes the gradient for every parameter. <a href="/neural-networks">Neural networks lesson →</a>']],selL=1;
+function drawLoop(){var h='<defs><marker id="la" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9z" fill="#5d6675"/></marker><marker id="lb" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9z" fill="#e8590c"/></marker></defs><g font-family="IBM Plex Sans,sans-serif">';
+h+='<path d="M180 70 H245" stroke="#5d6675" stroke-width="2" marker-end="url(#la)"/><path d="M390 70 H455" stroke="#5d6675" stroke-width="2" marker-end="url(#la)"/><path d="M530 100 V195" stroke="#5d6675" stroke-width="2" marker-end="url(#la)"/><text x="540" y="150" font-size="12" fill="#5d6675">compare with true y</text>';
+h+='<path d="M455 230 H395" stroke="#e8590c" stroke-width="2.5" marker-end="url(#lb)"/><path d="M320 200 V105" stroke="#e8590c" stroke-width="2.5" marker-end="url(#lb)"/><text x="330" y="160" font-size="12" fill="#e8590c">update θ</text><text x="400" y="250" font-size="12" fill="#e8590c">gradient</text>';
+h+='<text x="40" y="20" font-size="12" font-weight="600" fill="#2f54eb">FORWARD PASS (prediction)</text><text x="250" y="300" font-size="12" font-weight="600" fill="#e8590c">BACKWARD PASS (training only)</text>';
+LP.forEach(function(n,i){var on=i===selL;h+='<g data-i="'+i+'" style="cursor:pointer"><rect x="'+n[2]+'" y="'+n[3]+'" width="140" height="60" rx="12" fill="'+(on?'#2f54eb':i>=3?'#fff3e8':'#e6ecff')+'" stroke="'+(i>=3?'#e8590c':'#2f54eb')+'" stroke-width="1.5"/><text x="'+(n[2]+70)+'" y="'+(n[3]+36)+'" text-anchor="middle" font-size="15" font-weight="600" fill="'+(on?'#fff':'#171b24')+'">'+n[1].replace(/\\\(|\\\)/g,'').replace('f_\\theta','f θ').replace('\\hat y','ŷ').replace('\\mathcal L','L')+'</text></g>'});
+$('loop').innerHTML=h+'</g>';$('loop').querySelectorAll('g[data-i]').forEach(function(e){e.onclick=function(){selL=+e.dataset.i;drawLoop()}});$('loopx').innerHTML=LP[selL][4];L.renderMath($('loopx'))}
+drawLoop();
+
+/* ---------- 05 paradigms ---------- */
+var r5=L.rng(3),P5=[];for(var i=0;i<60;i++){var c=i%3,ct=[[-1.2,-.6],[1.2,-.4],[0,1.2]][c];P5.push([ct[0]+r5.g()*.42,ct[1]+r5.g()*.42,c])}
+var T5={sup:['Supervised','Every point comes with its correct label (its colour). The model learns the coloured regions, so a new point gets the colour of its region. Like a student with an answer key.'],
+uns:['Unsupervised','Same points, no colours. The model has to discover the three groups by itself: which points are close together? Like sorting photos without being told the categories.'],
+ssl:['Self-supervised','Hide part of the data and predict it: the hidden word is the label, so no human labelling is needed. This is how GPT reads the internet: “the cat sat on the ___”.'],
+rl:['Reinforcement','An agent tries actions and only gets a reward (+1 at the star, −1 in the trap). Nobody shows the correct move; it learns which actions lead to rewards. Like training a dog with treats.']};
+function draw5(v){$('h5').textContent=T5[v][0];$('o5').innerHTML=T5[v][1];
+if(v==='sup'||v==='uns'){var p=L.plot('c5',{x:[-2.8,2.8],y:[-2,2.6],grid:false,ticks:false});if(v==='sup')p.field(function(x,y){var b=0,bd=1e9;[[-1.2,-.6],[1.2,-.4],[0,1.2]].forEach(function(c,k){var d=(x-c[0])*(x-c[0])+(y-c[1])*(y-c[1]);if(d<bd){bd=d;b=k}});return[PAL[b],.12]},50);P5.forEach(function(q){p.dot(q[0],q[1],v==='sup'?PAL[q[2]]:C.gray,6)});if(v==='uns')p.ptext('which points belong together?',p.L+10,p.T+18,C.ink,'left','600 13px IBM Plex Sans,sans-serif');return}
+var k=L.ctx('c5'),g=k.g;
+if(v==='ssl'){var w=['the','cat','sat','on','the','???'],x=24;g.font='600 20px IBM Plex Mono,monospace';w.forEach(function(t,i){var tw=g.measureText(t).width+20;g.fillStyle=i===5?C.ink:'#eef1f6';g.fillRect(x,60,tw,40);g.fillStyle=i===5?'#fff':C.ink;g.fillText(t,x+10,87);x+=tw+8});
+g.font='13px IBM Plex Sans,sans-serif';g.fillStyle=col('--muted');g.fillText('model’s guesses for the hidden word:',24,140);[['mat',.46],['floor',.2],['sofa',.12],['roof',.05]].forEach(function(q,i){g.fillStyle=i?'#c5cbd6':C.blue;g.fillRect(110,155+i*30,q[1]*900,22);g.fillStyle=C.ink;g.font='13px IBM Plex Mono,monospace';g.fillText(q[0],24,171+i*30);g.fillText((q[1]*100).toFixed(0)+'%',118+q[1]*900,171+i*30)});return}
+var n=5,s=56,ox=160,oy=16,pol=[['→','→','→','→','★'],['↑','↑','■','↑','✕'],['↑','↑','■','↑','←'],['→','→','→','↑','←'],['↑','↑','↑','↑','↑']];
+for(var rr=0;rr<n;rr++)for(var cc=0;cc<n;cc++){var t=pol[rr][cc];g.fillStyle=t==='■'?'#495057':t==='★'?'#e9f7ec':t==='✕'?'#ffe3e3':'#f8f9fb';g.fillRect(ox+cc*s,oy+rr*s,s-3,s-3);g.fillStyle=t==='★'?C.green:t==='✕'?C.red:C.blue;g.font='22px sans-serif';g.textAlign='center';if(t!=='■')g.fillText(t,ox+cc*s+s/2-1,oy+rr*s+s/2+8)}
+g.textAlign='left';g.fillStyle=C.orange;g.beginPath();g.arc(ox+s/2,oy+4*s+s/2,10,0,7);g.fill();g.font='12px IBM Plex Sans,sans-serif';g.fillStyle=col('--muted');g.fillText('reward +1',ox+5*s+6,oy+30);g.fillText('reward −1',ox+5*s+6,oy+s+30);g.fillText('arrows = learned policy',ox+5*s+6,oy+4*s+30)}
+L.seg('s5',draw5);draw5('sup');
+
+/* ---------- 06 timeline ---------- */
+var EV=[[1943,'First artificial neuron','McCulloch & Pitts describe a mathematical model of a neuron: weighted inputs, a threshold, an on/off output. The ancestor of every unit in a neural network.',0,'neural-networks'],
+[1950,'The Turing test','Alan Turing asks “Can machines think?” and proposes the imitation game: can a machine’s written conversation be told apart from a person’s?',1,'machine-learning'],
+[1956,'“Artificial intelligence” is named','The Dartmouth workshop (McCarthy, Minsky, Shannon, Rochester) coins the term and launches AI as a research field.',1,'machine-learning'],
+[1958,'The perceptron','Frank Rosenblatt builds a neuron that <b>learns its weights from examples</b>: essentially logistic regression with a step function.',0,'logistic-regression'],
+[1969,'Limits of one layer','Minsky & Papert show that a single-layer perceptron cannot learn XOR. Interest in neural networks collapses, followed by the first AI winter.',0,'neural-networks'],
+[1986,'Backpropagation','Rumelhart, Hinton & Williams popularise backpropagation, which trains networks with hidden layers. XOR is solved by adding a hidden layer.',0,'neural-networks'],
+[1997,'LSTM · Deep Blue','Hochreiter & Schmidhuber invent the LSTM, an RNN with long memory. The same year IBM’s Deep Blue beats chess champion Kasparov (search, not learning).',1,'rnn'],
+[1998,'LeNet reads handwriting','Yann LeCun’s convolutional network reads handwritten digits on bank cheques.',0,'cnn'],
+[2012,'AlexNet: deep learning wins','A deep CNN trained on GPUs wins the ImageNet competition by a huge margin. The deep-learning era begins.',1,'cnn'],
+[2014,'Attention · GANs','Bahdanau et al. add attention to RNN translation; seq2seq models translate sentences; GANs generate realistic images.',0,'rnn'],
+[2016,'AlphaGo','DeepMind’s AlphaGo, trained with deep networks and reinforcement learning, beats Go champion Lee Sedol.',1,'reinforcement-learning'],
+[2017,'The Transformer','“Attention Is All You Need” removes recurrence entirely. Attention + MLP blocks become the basis of nearly all modern AI.',2,'transformers'],
+[2018,'BERT and GPT','Self-supervised pre-training on large text collections: BERT (masked words) and GPT (next word).',2,'self-supervised-learning'],
+[2020,'GPT-3 · AlphaFold 2','GPT-3 (175 billion parameters) writes fluent text from a prompt. AlphaFold 2 predicts protein structures with high accuracy.',2,'transformers'],
+[2022,'ChatGPT','A GPT model fine-tuned with human feedback (RLHF) becomes a public chatbot and reaches 100 million users within months. Diffusion models generate images from text.',2,'reinforcement-learning'],
+[2023,'Multimodal LLMs','GPT-4, Claude, Gemini and open models such as Llama: language models that also read images and use tools.',2,'transformers'],
+[2024,'Nobel prizes for AI','Physics: Hopfield and Hinton for foundational neural-network work. Chemistry: Hassabis and Jumper (AlphaFold) together with Baker for protein design.',1,'neural-networks']],sel6=11,EC=[C.blue,C.orange,C.green];
+function tx6(y,W){var a=40,b=W-30,mid=a+(b-a)*.5;return y<=2010?a+(y-1940)/(2010-1940)*(mid-a):mid+(y-2010)/(2025-2010)*(b-mid)}
+function draw6(){var k=L.ctx('c6'),g=k.g,W=k.W,y0=110;
+[[1974,1980],[1987,1993]].forEach(function(w){g.fillStyle='#e9ecef';g.fillRect(tx6(w[0],W),40,tx6(w[1],W)-tx6(w[0],W),130);g.fillStyle=col('--muted');g.font='11px IBM Plex Sans,sans-serif';g.fillText('AI winter',tx6(w[0],W)+2,52)});
+g.strokeStyle=C.ink;g.lineWidth=2;g.beginPath();g.moveTo(30,y0);g.lineTo(W-20,y0);g.stroke();
+[1940,1960,1980,2000,2010,2015,2020,2025].forEach(function(y){var x=tx6(y,W);g.strokeStyle=col('--muted');g.lineWidth=1;g.beginPath();g.moveTo(x,y0-5);g.lineTo(x,y0+5);g.stroke();g.fillStyle=col('--muted');g.font='11px IBM Plex Mono,monospace';g.textAlign='center';g.fillText(y,x,y0+60);g.textAlign='left'});
+EV.forEach(function(e,i){var x=tx6(e[0],W),up=i%2===0,on=i===sel6;g.strokeStyle='#ced4da';g.lineWidth=1;g.beginPath();g.moveTo(x,y0);g.lineTo(x,up?y0-26:y0+26);g.stroke();g.beginPath();g.arc(x,up?y0-26:y0+26,on?9:6,0,7);g.fillStyle=EC[e[3]];g.fill();if(on){g.strokeStyle=C.ink;g.lineWidth=2;g.stroke()}});
+var e=EV[sel6],x=tx6(e[0],W);g.fillStyle=C.ink;g.font='700 13px IBM Plex Sans,sans-serif';g.textAlign=x>W-140?'right':x<140?'left':'center';g.fillText(e[0]+' · '+e[1],x,sel6%2===0?y0-44:y0+50+28);g.textAlign='left';
+$('o6').innerHTML='<b>'+e[0]+' — '+e[1]+'</b><br>'+e[2]+' <a href="/'+e[4]+'">Related lesson →</a>'}
+L.pointer('c6',{down:function(px,py){var W=+$('c6').dataset.w,b=-1,bd=400;EV.forEach(function(e,i){var x=tx6(e[0],W),y=110+(i%2===0?-26:26),d=(x-px)*(x-px)+(y-py)*(y-py);if(d<bd){bd=d;b=i}});if(b>=0){sel6=b;draw6()}}});
+$('pv6').onclick=function(){sel6=(sel6+EV.length-1)%EV.length;draw6()};$('nx6').onclick=function(){sel6=(sel6+1)%EV.length;draw6()};L.reg(draw6);
+
+/* ---------- 07 transformer diagram ---------- */
+var TB=[['out','Softmax → next-token probabilities','logistic-regression','Turns the final scores (logits) into a probability for every word in the vocabulary. The same softmax and cross-entropy as in logistic regression.',30],
+['lin','Linear layer (to vocabulary)','linear-regression','A big \\(Wx+b\\): exactly the linear model from the first lessons, with ~50,000 outputs, one score per possible token.',80],
+['ln2','Add & LayerNorm','neural-networks','Residual connection (add the input back) plus normalisation: the tricks that let 100-layer networks train.',150],
+['mlp','Feed-forward MLP','neural-networks','A 2-layer neural network applied to every token: \\(W_2\\,\\mathrm{GELU}(W_1x)\\). About two-thirds of all the parameters live here.',200],
+['ln1','Add & LayerNorm','neural-networks','Again a residual connection and normalisation around the attention sub-layer.',260],
+['att','Multi-head self-attention','transformers','Each token compares itself with every other token (dot products), turns the scores into weights with softmax, and takes a weighted average. Taught step by step in the Transformers lesson; related to soft clustering.',310],
+['pos','+ positional encoding','rnn','Attention ignores word order, so position information is added to each vector. RNNs got order for free; Transformers must add it.',380],
+['emb','Token embeddings','unsupervised-learning','Every token id is looked up in a learned table and becomes a vector, an embedding where similar words are close.',420]],sel7=5;
+function draw7(){var h='<defs><marker id="ta" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8z" fill="#5d6675"/></marker></defs><g font-family="IBM Plex Sans,sans-serif">';
+h+='<rect x="120" y="140" width="330" height="210" rx="14" fill="none" stroke="#adb5bd" stroke-dasharray="6 5"/><text x="126" y="134" font-size="12" font-weight="600" fill="#5d6675">× N blocks (12–100+)</text>';
+h+='<path d="M450 345 C 520 300, 520 270, 455 268" fill="none" stroke="#e8590c" stroke-width="1.8" marker-end="url(#ta)"/><path d="M450 255 C 520 220, 520 165, 455 160" fill="none" stroke="#e8590c" stroke-width="1.8" marker-end="url(#ta)"/><text x="520" y="250" font-size="11.5" fill="#e8590c">residual</text>';
+TB.forEach(function(b,i){var on=i===sel7,y=b[4],hgt=b[0]==='ln1'||b[0]==='ln2'||b[0]==='pos'?30:40;h+='<g data-i="'+i+'" style="cursor:pointer"><rect x="140" y="'+y+'" width="290" height="'+hgt+'" rx="9" fill="'+(on?'#e8590c':b[0]==='att'?'#d0dcff':b[0]==='mlp'?'#d3f9d8':b[0]==='out'||b[0]==='lin'?'#fff3bf':'#f1f3f5')+'" stroke="#495057" stroke-width="1"/><text x="285" y="'+(y+hgt/2+5)+'" text-anchor="middle" font-size="13.5" font-weight="600" fill="'+(on?'#fff':'#171b24')+'">'+b[1]+'</text></g>';if(i<TB.length-1){}});
+for(var i=TB.length-1;i>0;i--){var a=TB[i],b=TB[i-1];h+='<path d="M285 '+(a[4]-2)+' V '+(b[4]+(b[0]==='ln1'||b[0]==='ln2'||b[0]==='pos'?30:40)+4)+'" stroke="#5d6675" stroke-width="1.5" marker-end="url(#ta)"/>'}
+h+='<text x="285" y="478" text-anchor="middle" font-size="12" fill="#5d6675">input: “the cat sat on the”</text><text x="285" y="20" text-anchor="middle" font-size="12" fill="#5d6675">output: “mat” 42% · “floor” 21% · …</text></g>';
+$('tf7').innerHTML=h;$('tf7').querySelectorAll('g[data-i]').forEach(function(e){var f=function(){sel7=+e.dataset.i;draw7()};e.addEventListener('mouseenter',f);e.addEventListener('click',f)});
+var b=TB[sel7];$('o7').innerHTML='<b>'+b[1]+'</b>: '+b[3]+' <a href="/'+b[2]+'">Lesson →</a>';L.renderMath($('o7'))}
+draw7();
+
+/* ---------- 08 glossary ---------- */
+var GL=[['Activation function','A non-linear function (ReLU, sigmoid, GELU) applied after each neuron’s weighted sum. Without it, a deep network collapses into one linear layer.','neural-networks'],
+['Attention','A mechanism where each token computes similarity scores with other tokens and takes a weighted average of their information.','transformers'],
+['Backpropagation','The algorithm that computes the gradient of the loss for every parameter by applying the chain rule backwards through the network.','neural-networks'],
+['Bias (parameter)','A number added to a weighted sum so that the output can shift up or down: the \\(b\\) in \\(wx+b\\).','linear-regression'],
+['Classification','Predicting a category (spam / not spam, which digit, which next word).','logistic-regression'],
+['Clustering','Grouping unlabelled data points so that similar points end up together.','clustering'],
+['Convolution','Sliding a small learned filter over an image and computing a dot product at every position.','cnn'],
+['Cross-entropy','The standard classification loss: \\(-\\log\\) of the probability the model gave to the correct answer.','logistic-regression'],
+['Deep neural network','A neural network with two or more hidden layers; each layer builds features from the previous one.','neural-networks'],
+['Embedding','A learned vector that represents a discrete item (a word, a product) so that similar items are close in space.','unsupervised-learning'],
+['Epoch','One full pass of the training algorithm over the whole training set.','machine-learning'],
+['Feature','One measurable input property, e.g. size, age, a pixel’s brightness. The input vector \\(x\\) is a list of features.','linear-regression'],
+['Generalisation','How well a model performs on new data it never saw during training.','machine-learning'],
+['Gradient','The vector of partial derivatives of the loss; it points in the direction in which the loss increases fastest.','linear-regression'],
+['Gradient descent','Repeatedly moving parameters a small step against the gradient to reduce the loss: \\(\\theta\\leftarrow\\theta-\\eta\\nabla\\mathcal L\\).','linear-regression'],
+['Hyper-parameter','A setting chosen by you, not learned: learning rate, number of layers, k in k-means.','supervised-learning'],
+['Inference','Using a trained model to make predictions on new inputs.','machine-learning'],
+['Label','The correct answer \\(y\\) attached to a training example.','supervised-learning'],
+['Learning rate','The step size \\(\\eta\\) of gradient descent. Too small: slow; too large: the loss explodes.','linear-regression'],
+['Logit','A raw score before softmax/sigmoid turns it into a probability.','logistic-regression'],
+['Loss function','A function that measures how wrong the model’s predictions are; training minimises it.','linear-regression'],
+['LLM','Large language model: a Transformer with billions of parameters trained to predict the next token on huge amounts of text.','transformers'],
+['Neuron','A unit computing \\(\\phi(w\\cdot x+b)\\): a weighted sum of inputs plus a bias, passed through an activation.','neural-networks'],
+['Overfitting','Memorising the training data, including its noise, so the model fails on new data.','machine-learning'],
+['Parameter / weight','A number inside the model that is learned from data. GPT-3 has 175 billion.','neural-networks'],
+['PCA','Principal component analysis: finds the directions of largest variance and projects data onto them.','pca'],
+['Regression','Predicting a number (a price, a temperature).','linear-regression'],
+['Reward','The number an RL agent receives after an action; the agent learns to maximise total reward.','reinforcement-learning'],
+['RLHF','Reinforcement learning from human feedback: tuning a chatbot so that its answers match human preferences.','reinforcement-learning'],
+['Softmax','Turns a list of scores into probabilities that are positive and sum to 1: \\(e^{z_k}/\\sum_j e^{z_j}\\).','logistic-regression'],
+['Token','A piece of text (a word or part of a word) that a language model reads and predicts.','transformers'],
+['Training / test set','Data used to fit the model vs. data held back to measure honest performance.','machine-learning'],
+['Transformer','The neural-network architecture built from attention and MLP blocks that powers modern LLMs.','transformers'],
+['Vector','An ordered list of numbers, e.g. \\([0.2, -1.3, 4.0]\\). All model inputs and internal states are vectors.','machine-learning']];
+function drawGl(){var q=$('glq').value.trim().toLowerCase(),items=GL.filter(function(t){return!q||(t[0]+' '+t[1]).toLowerCase().indexOf(q)>=0});
+$('gl').innerHTML=items.length?items.map(function(t){return'<div><b>'+t[0]+'</b><i>'+t[2].replace(/-/g,' ')+'</i>'+t[1]+'<br><a href="/'+t[2]+'">learn it →</a></div>'}).join(''):'<div>No match. Try another word.</div>';L.renderMath($('gl'))}
+$('glq').addEventListener('input',drawGl);drawGl();
+})();
+</script>
+{% endraw %}{% endblock %}
