@@ -1,297 +1,461 @@
 {% extends "base.html" %}
-{% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='explain.css') }}">{% endblock %}
-{% block h1 %}Transformers{% endblock %}
-{% block lead %}
-<p class="lead"><b>Why it exists:</b> to understand language, a model must connect words that can be far apart (“The <i>cat</i> that the dog chased all morning finally <i>slept</i>”) and it must be fast enough to train on trillions of words. The Transformer (2017) does both with one idea, <b>attention</b>: every word looks directly at every other word, all in parallel. It is the architecture behind GPT, BERT and Claude. Every idea here is built from tools you already know as an AI engineer: vectors, dot products, softmax, cross-entropy and gradient descent. Play with each widget; every one sits next to the idea it explains.</p>
-{% endblock %}
-{% block content %}
-{% raw %}
+{% block head %}{% include "_lesson_head.html" %}
 <style>
-/* ---- Page-specific styles, scoped to #lesson so nothing leaks into base chrome.
-   Colors use base variables when present, with the original palette as fallback. ---- */
-#lesson .meta{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
-#lesson .tag{font-family:var(--mono,ui-monospace,Menlo,Consolas,monospace);font-size:12px;padding:3px 10px;border-radius:99px;background:var(--accent-soft,#e6ecff);color:var(--accent,#2f54eb)}
-#lesson h2{font-size:1.55em;letter-spacing:-.02em;margin:2em 0 .5em;padding-top:1em;border-top:1px solid var(--line,#dfe3ea)}
-#lesson h2:first-of-type{margin-top:0;border:0;padding:0}
-#lesson h3{font-size:1.15em;margin:1.2em 0 .3em}
-#lesson a{color:var(--accent,#2f54eb)}
-#lesson code{font-family:var(--mono,ui-monospace,Menlo,Consolas,monospace);font-size:.85em;background:var(--accent-soft,#e6ecff);color:var(--accent,#2f54eb);padding:.1em .4em;border-radius:5px}
-#lesson .pair{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:32px;align-items:start}
-#lesson .pair>div>*:first-child{margin-top:0}
-#lesson .callout{border-left:3px solid var(--accent,#2f54eb);background:var(--surface,#fff);border-radius:0 10px 10px 0;padding:12px 18px;margin:1.2em 0}
-#lesson .callout b{display:block;margin-bottom:2px}
-#lesson .formula{font-family:var(--mono,ui-monospace,Menlo,Consolas,monospace);background:var(--surface,#fff);border:1px solid var(--line,#dfe3ea);border-radius:10px;padding:14px;text-align:center;margin:1.2em 0;overflow-x:auto;font-size:.95em}
-#lesson .code{position:relative;margin:1.2em 0}
-#lesson .code pre{margin:0;background:var(--code-bg,#0f1420);color:var(--code-text,#d9e1f2);border-radius:12px;padding:18px;overflow-x:auto;font:400 .8em/1.6 var(--mono,ui-monospace,Menlo,Consolas,monospace)}
-#lesson .code pre code{background:none;color:inherit;padding:0}
-#lesson .code .copy{position:absolute;top:10px;right:10px;font-size:12px;padding:6px 12px;min-height:32px;background:#1c2436;color:#c5cfe3;border:1px solid #2c3750;border-radius:8px;cursor:pointer}
-#lesson .table{overflow-x:auto;margin:1.2em 0;border:1px solid var(--line,#dfe3ea);border-radius:10px;background:var(--surface,#fff)}
-#lesson table{border-collapse:collapse;width:100%;font-size:.9em}
-#lesson th,#lesson td{text-align:left;padding:9px 14px;border-bottom:1px solid var(--line,#dfe3ea)}
-#lesson tr:last-child td{border:0}
-#lesson th{color:var(--muted,#5d6675);font-weight:500}
-#lesson .w{background:var(--surface,#fff);border:1px solid var(--line,#dfe3ea);border-radius:12px;padding:16px}
-#lesson .w h4{margin:0 0 8px;font-size:.95em}
-#lesson .hd.on{background:var(--accent,#2f54eb);color:#fff;border-color:var(--accent,#2f54eb)}
-#lesson .row{display:flex;flex-wrap:wrap;gap:14px;align-items:center;font-size:.85em;color:var(--muted,#5d6675);margin:8px 0}
-#lesson input[type=range]{accent-color:var(--accent,#2f54eb)}
-#lesson .hm{border-collapse:separate;border-spacing:3px;width:auto}
-#lesson .hm td,#lesson .hm th{padding:7px 10px;text-align:center;border:0;border-radius:6px;font-family:var(--mono,ui-monospace,Menlo,Consolas,monospace);font-size:.8em}
-#lesson .hm th.q{cursor:pointer;color:var(--text,#171b24);text-align:right;min-width:44px;min-height:44px}
-#lesson .hm th.sel{color:var(--accent,#2f54eb);font-weight:700}
-#lesson .bars div{display:flex;align-items:center;gap:8px;font-family:var(--mono,ui-monospace,Menlo,Consolas,monospace);font-size:.8em;margin:3px 0}
-#lesson .bars i{display:block;height:14px;background:var(--accent,#2f54eb);border-radius:4px;transition:width .2s}
-#lesson canvas{width:100%;border-radius:8px;display:block;background:var(--surface,#fff)}
-#lesson svg text{fill:var(--text,#171b24);font:12px var(--sans,system-ui,sans-serif)}
-@media (max-width:1000px){#lesson .pair{grid-template-columns:1fr}}
-</style>
+/* ---- page layout: lesson + live flowchart column ---- */
+.tfl{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:30px;align-items:start}
+.flow{position:sticky;top:70px;height:calc(100vh - 84px);display:flex;flex-direction:column}
+.flow h5{margin:0 0 4px;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.flow svg{flex:1;min-height:0;width:100%;height:100%}
+.flow .fx{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.4}
+.flow svg g.fb{cursor:pointer}
+.flow svg g.fb rect{transition:fill .2s,stroke .2s,opacity .2s}
+.flowbar{display:none}
+.tfl h2[data-badge]::after{content:attr(data-badge);float:right;font:600 11px var(--mono);color:#fff;background:var(--accent);border-radius:99px;padding:3px 9px;margin-top:6px}
+.phase{margin:2.2em 0 .4em;padding:12px 16px;border-radius:12px;background:linear-gradient(90deg,#171b24,#2b3342);color:#fff}
+.phase b{display:block;font-size:1.05em}.phase span{font-size:.85em;opacity:.85}
+.mx{border-collapse:separate;border-spacing:2px;width:auto;font:12.5px var(--mono);margin:4px 0}
+.mx td,.mx th{padding:4px 7px;text-align:center;border:0;border-radius:4px;min-width:38px}
+.mx th{color:var(--muted);font-weight:500;font-size:11.5px}
+.mx td.hl{outline:2px solid var(--warm);outline-offset:-1px}
+.mx td.off{color:#adb5bd;background:#f1f3f5!important}
+.mrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:6px 0}
+.mrow .op{font:600 18px var(--mono);color:var(--muted)}
+.mcap{font-size:11.5px;color:var(--muted);text-align:center;font-family:var(--sans)}
+.calc{font:12.5px/1.75 var(--mono);background:var(--bg);border-radius:8px;padding:8px 12px;margin-top:8px;overflow-x:auto;white-space:nowrap}
+.calc b{color:var(--accent)}
+.toks{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0}
+.toks .tok{font-size:14px;padding:4px 10px}
+.vocab button{font-family:var(--mono)}
+.sentence{position:sticky;top:58px;z-index:4;flex-wrap:nowrap!important;overflow-x:auto;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:12px;padding:8px 12px;margin:0 0 12px;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:14px}
+.sentence .lbl{color:var(--muted);font-size:12.5px;white-space:nowrap}
+.sentence .toks{flex-wrap:nowrap}.sentence button{white-space:nowrap;padding:4px 9px}
+html{scroll-padding-top:130px}
+.nbars .r{display:grid;grid-template-columns:3.6em 1fr 4em;gap:8px;align-items:center;font:12.5px var(--mono);margin:3px 0}
+.nbars .r i{display:block;height:14px;border-radius:3px}
+.nbars .r .z{position:relative;height:14px;background:#f1f3f5;border-radius:3px}
+.tfl .fig{overflow-x:auto}.sentence{max-width:100%}.mrow>div{max-width:100%;overflow-x:auto}
+.pc-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 18px}
+@media(max-width:1250px){.tfl{grid-template-columns:minmax(0,1fr)}.flow{display:none}
+.flowbar{display:flex;position:sticky;top:56px;z-index:5;gap:8px;align-items:center;background:#171b24;color:#fff;border-radius:10px;padding:6px 12px;font-size:13px;margin-bottom:10px}
+.flowbar b{color:#ffd8a8}.flowbar i{flex:1;height:4px;background:#495057;border-radius:2px;position:relative}.flowbar i u{position:absolute;left:0;top:0;bottom:0;background:#ffa94d;border-radius:2px}
+.sentence{top:96px}}
+</style>{% endblock %}
+{% block h1 %}Transformers{% endblock %}
+{% block lead %}<div class="meta"><span class="tag">attention</span><span class="tag">16 steps, computed by hand</span><span class="tag">training</span><span class="tag">LLM parameter counts</span></div>
+<p class="lead"><b>Why it exists:</b> to understand language, a model must connect words that can be far apart (“The <i>cat</i> that the dog chased all morning finally <i>slept</i>”), and it must be fast enough to train on trillions of words. The Transformer (2017) does both with one idea, <b>attention</b>: every word looks directly at every other word, all in parallel. It is the architecture behind GPT, Claude, Gemini and Llama. On this page we push the sentence <b>“I love”</b> through a complete, tiny Transformer, <b>every number visible</b>, and watch it predict the next word. The flowchart on the right follows you as you scroll.</p>{% endblock %}
+{% block content %}{% raw %}
+<div class="tfl lsn"><div class="lsn-main">
+<div class="flowbar" id="flowbar"><span>Step</span><b id="fbn">—</b><span id="fbt"></span><i><u id="fbp"></u></i></div>
+<div class="sentence"><span class="lbl">Sentence:</span><span class="toks" id="sent"></span><span class="vocab" id="vocab"></span><button id="sback">⌫</button><button id="sreset">reset to “I love”</button><span class="lbl">follow:</span><span class="toks" id="fol"></span></div>
 
-<article id="lesson">
-<div class="meta"><span class="tag">Deep learning</span><span class="tag">NLP</span><span class="tag">Attention</span></div>
-
-<h2>Why we needed Transformers</h2>
+<h2 data-step="0">Why we needed Transformers</h2>
 <div class="pair"><div>
-<p>Before 2017, sequences (text, audio) were handled by <b>RNNs</b>: read one token, update a hidden state, read the next. Two problems followed:</p>
-<ul><li><b>Sequential:</b> step <code>t</code> needs step <code>t-1</code>, so GPUs cannot process tokens in parallel. Training is slow.</li>
-<li><b>Long paths:</b> information from token 1 must survive n−1 updates to reach token n. Gradients vanish (the same issue you meet in deep networks) and early context is forgotten.</li></ul>
-<div class="callout"><b>Core idea</b>Let every token look directly at every other token in one step. That operation is <i>attention</i>. The price is n² pairwise comparisons, which is cheap on a GPU because it is one matrix multiplication.</div>
-</div>
-<div class="w"><h4>Sequence length vs. cost</h4>
-<div class="row">Tokens n = <b id="nv">20</b><input id="n" type="range" min="2" max="100" value="20" aria-label="Sequence length"></div>
-<div class="bars" id="cmp"></div>
-<p id="cmpt" style="font-size:.85em;color:var(--muted,#5d6675);margin:8px 0 0"></p>
+<p>Before 2017, text was processed by <b><a href="/rnn">recurrent networks (RNNs)</a></b>: read one word, update a memory vector, read the next word. Two problems followed:</p>
+<ul><li><b>Sequential, so slow to train.</b> Step <i>t</i> needs the result of step <i>t</i>−1, so a GPU cannot process the words of a sentence at the same time.</li>
+<li><b>Long paths, so forgetful.</b> Information from word 1 must survive <i>n</i>−1 updates to reach word <i>n</i>. The learning signal fades along the way (vanishing gradients), so early context is lost.</li></ul>
+<p>The Transformer’s answer: let <b>every token look directly at every other token in one step</b>. That operation is <b>attention</b>. The price is \(n^2\) pairwise comparisons, but those are one big matrix multiplication, exactly what GPUs are best at.</p>
+<div class="terms"><span class="terms-t">Key terms</span><dl>
+<dt>Token</dt><dd>A piece of text the model treats as one unit: a word or part of a word.</dd>
+<dt>Sequence length n</dt><dd>How many tokens the model reads at once (the “context”).</dd>
+<dt>Parallel</dt><dd>Many computations done at the same moment instead of one after another.</dd>
+<dt>Attention</dt><dd>Each token computes how relevant every other token is, then takes a weighted average of their information.</dd>
+</dl></div>
+<p><b>How to use this page.</b> The 16 numbered steps follow the flowchart on the right, which highlights the step you are reading. All numbers come from one small model with only <b>144 parameters</b> (we will count them), small enough to verify with a calculator. Change the sentence in the bar above and every step recomputes.</p>
+</div><div class="fig"><h4>RNN vs. attention: sequential steps and work</h4>
+<div class="ctl-row"><span>sequence length n</span><input type="range" id="n0" min="2" max="200" step="1" value="20"><output id="n0v"></output></div>
+<canvas id="c0" width="640" height="220"></canvas>
 <div class="how"><b>How to read this graph</b><ul>
-<li>The slider sets the <b>sequence length n</b>: how many tokens (words) the model reads.</li>
-<li><b>Bar 1 (RNN path)</b>: how many sequential steps information from the first token needs to reach the last one in an RNN: n − 1. These steps cannot run at the same time, and the signal fades along the way.</li>
-<li><b>Bar 2 (attention path)</b>: always 1 step, because every token is directly connected to every other token.</li>
-<li><b>Bar 3 (grey)</b>: the price of attention, n × n similarity scores. It grows with the <i>square</i> of n (double the text → 4× the scores), but a GPU computes them all at once in one matrix multiplication.</li></ul></div></div></div>
+<li><span class="sw" style="background:#e03131"></span><b>RNN steps</b>: how many updates information from token 1 must pass through to reach token n. They happen one after another.</li>
+<li><span class="sw" style="background:#2f54eb"></span><b>Attention steps</b>: always 1. Every token is directly connected to every other token.</li>
+<li><span class="sw" style="background:#adb5bd"></span><b>Attention scores</b>: the cost, n × n comparisons, which grows with the square of n (double the text → 4× the scores). But all of them are computed at once on a GPU.</li></ul></div></div></div>
 
-<div class="terms"><span class="terms-t">Key terms</span><dl>
-<dt>Sequence</dt><dd>An ordered list of items, here the tokens of a text.</dd>
-<dt>RNN</dt><dd>Recurrent neural network: reads a sequence one token at a time and keeps a memory vector (see the <a href="/rnn">RNN lesson</a>).</dd>
-<dt>Parallel</dt><dd>Many computations done at the same moment (what GPUs are built for), instead of one after another.</dd>
-<dt>Vanishing gradient</dt><dd>During training, the learning signal shrinks each time it passes through a step, so very early tokens barely affect learning.</dd>
-<dt>Attention</dt><dd>A weighted average where each token decides how much to take from every other token, based on similarity.</dd>
-</dl></div>
-<h2>Step 1: tokens become vectors</h2>
+<h2 data-step="0">The model we will compute by hand</h2>
 <div class="pair"><div>
-<p>Text is split into tokens (words or word pieces), each mapped to an integer id, then to a learned vector of size <code>d_model</code> using a lookup table <code>E</code> of shape (vocab, d_model).</p>
-<div class="formula">x_i = E[id_i]    X ∈ ℝ^(n × d_model)</div>
-<p><b>Link to what you know:</b> <code>E</code> is just a weight matrix, exactly like a first linear layer on one-hot input. It starts random and is trained by backpropagation, so similar words end up with nearby vectors.</p>
-</div>
-<div class="w"><h4>The pipeline at a glance</h4>
-<svg viewBox="0 0 520 250" width="100%" role="img" aria-label="Transformer block diagram">
-<g fill="none" stroke="var(--accent,#2f54eb)" stroke-width="1.5">
-<rect x="20" y="200" width="150" height="34" rx="8"/><rect x="20" y="140" width="150" height="34" rx="8"/><rect x="20" y="80" width="150" height="34" rx="8"/><rect x="20" y="20" width="150" height="34" rx="8"/>
-<path d="M95 200v-26M95 140v-26M95 80v-26" marker-end="url(#a)"/></g>
-<defs><marker id="a" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0 0L8 4L0 8z" fill="var(--accent,#2f54eb)"/></marker></defs>
-<text x="30" y="222">Tokens → embeddings + position</text><text x="30" y="162">Multi-head attention + residual</text><text x="30" y="102">Feed-forward (MLP) + residual</text><text x="30" y="42">Linear → softmax over vocab</text>
-<text x="200" y="152" style="fill:var(--muted,#5d6675)">tokens communicate</text><text x="200" y="92" style="fill:var(--muted,#5d6675)">each token thinks alone</text><text x="200" y="32" style="fill:var(--muted,#5d6675)">probability of next token</text>
-<text x="200" y="212" style="fill:var(--muted,#5d6675)">the middle two boxes repeat N times</text></svg>
-<div class="how"><b>How to read this diagram</b>Read from the <b>bottom up</b>: text enters at the bottom as tokens and is turned into vectors; attention lets the tokens exchange information; the feed-forward network processes each token on its own; the top box turns the final vector into a probability for every possible next token. The two middle boxes form one <b>Transformer block</b>; GPT-3 stacks 96 of them. The grey notes on the right say what each box is for.</div></div></div>
-
-<div class="terms"><span class="terms-t">Key terms</span><dl>
-<dt>Token</dt><dd>A piece of text the model treats as one unit: a word, part of a word (“un”, “break”, “able”) or a punctuation mark. GPT models use about 50,000–200,000 different tokens.</dd>
-<dt>Token id</dt><dd>The integer number of a token in the vocabulary list, e.g. “cat” → 9246.</dd>
-<dt>Vector</dt><dd>A list of numbers, e.g. 768 numbers per token in GPT-2.</dd>
-<dt>Embedding</dt><dd>The learned vector that represents a token. Similar words end up with similar vectors.</dd>
-<dt>d_model</dt><dd>The length of every token vector inside the model (768 in GPT-2, 12,288 in GPT-3).</dd>
-<dt>Embedding table E</dt><dd>A matrix with one row per vocabulary token; looking up row id gives the embedding.</dd>
-<dt>One-hot input</dt><dd>A vector of zeros with a single 1 at the token id. Multiplying it by E selects one row, which is why the lookup is “a linear layer”.</dd>
-</dl></div>
-<h2>Step 2: self-attention, the heart of the model</h2>
-<div class="pair"><div>
-<p>Each token vector is projected by three learned matrices into a <b>query</b> (what am I looking for?), a <b>key</b> (what do I offer?) and a <b>value</b> (what I hand over if chosen).</p>
-<div class="formula">Q = XW_Q,  K = XW_K,  V = XW_V</div>
-<div class="formula">Attention(Q,K,V) = softmax( QKᵀ / √d_k ) · V</div>
-<ol><li><code>QKᵀ</code>: dot product of every query with every key, giving an n×n score table (bigger = more similar).</li>
-<li>Divide by √d_k so scores don't grow with dimension.</li>
-<li><code>softmax</code> per row turns scores into weights that sum to 1. This is the same softmax as in classification.</li>
-<li>Multiply by V: each output is a weighted average of value vectors.</li></ol>
-<div class="callout"><b>Try it →</b>Click a row label to choose the query token. Drag the slider to divide scores by a bigger number: weights spread out (soft). A small divisor makes them peaky (hard). That is why we divide by √d_k: without it, large d_k makes scores huge, softmax saturates, and gradients vanish. Tick <i>causal mask</i> to see what GPT-style models do (next section).</div>
-</div>
-<div class="w"><h4>Attention weights (toy 2-D vectors, hand-picked)</h4>
-<div class="row">Divide scores by <b id="scv">1.0</b><input id="sc" type="range" min="0.2" max="4" step="0.1" value="1" aria-label="Score divisor"><label><input type="checkbox" id="cz"> causal mask</label></div>
-<div style="overflow-x:auto"><table class="hm" id="hm"></table></div>
-<p style="font-size:.85em;color:var(--muted,#5d6675);margin:8px 0 4px">Row = query token; column = token it looks at. Selected row in detail:</p>
-<div class="bars" id="bars"></div>
-<div class="how"><b>How to read this table</b><ul>
-<li>Each <b>row</b> is a token asking a question (the <b>query</b>); each <b>column</b> is a token that can be looked at (the <b>key</b>).</li>
-<li>Each cell is an <b>attention weight</b>: how much the row token takes from the column token. Darker blue = more attention. Every row adds up to 1.00 because of the softmax.</li>
-<li>Click a row label (e.g. “sat”) to select it; the bars underneath show that row’s weights larger.</li>
-<li><b>“Divide scores by”</b>: a small divisor makes one weight dominate (sharp attention); a large one spreads attention evenly.</li>
-<li><b>Causal mask</b>: the upper-right triangle becomes 0, so each token can only look at itself and earlier tokens, as in GPT.</li>
-<li>The vectors are tiny hand-picked 2-D examples so you can follow the numbers; real models learn vectors with 64–128 numbers per head.</li></ul></div></div></div>
-
-<div class="terms"><span class="terms-t">Key terms</span><dl>
-<dt>Query q</dt><dd>A vector saying “what am I looking for?”, computed from a token: q = x·W_Q.</dd>
-<dt>Key k</dt><dd>A vector saying “what do I contain?”: k = x·W_K. Query and key are compared.</dd>
-<dt>Value v</dt><dd>The information a token passes on if it is attended to: v = x·W_V.</dd>
-<dt>Dot product q·k</dt><dd>Multiply matching numbers and add them up. Large when the two vectors point in the same direction, so it acts as a similarity score.</dd>
-<dt>Kᵀ (transpose)</dt><dd>K flipped so that QKᵀ computes every query–key dot product at once, giving an n × n table.</dd>
-<dt>√d_k</dt><dd>The square root of the key length. Dividing by it keeps scores in a reasonable range.</dd>
-<dt>Softmax</dt><dd>Turns a row of scores into positive weights that add up to 1 (see <a href="/logistic-regression">logistic regression</a>).</dd>
-<dt>Weighted average</dt><dd>Σ weightⱼ · vⱼ: the output for a token is a blend of the values of all tokens.</dd>
-</dl></div>
-<p><b>Worked example (2-D).</b> Query of “sat” q = (1, 1.2). Keys: “cat” k = (0.2, 1.2), “mat” k = (1, 0.4). Scores: q·k<sub>cat</sub> = 1·0.2 + 1.2·1.2 = 1.64; q·k<sub>mat</sub> = 1 + 0.48 = 1.48. Softmax over just these two: e<sup>1.64</sup> / (e<sup>1.64</sup> + e<sup>1.48</sup>) ≈ 0.54 and 0.46. So “sat” takes 54% of its new vector from “cat” and 46% from “mat”.</p>
-<h2>Step 3: word order, positional encoding</h2>
-<div class="pair"><div>
-<p>Attention treats tokens as a <i>set</i>: shuffle the words and the weights just shuffle too. To inject order we add a position vector to each embedding. The original paper uses sines and cosines of different frequencies:</p>
-<div class="formula">PE(p,2i) = sin(p / 10000^(2i/d))<br>PE(p,2i+1) = cos(p / 10000^(2i/d))</div>
-<p>Low dimensions oscillate fast (fine position), high dimensions slowly (coarse position), like digits of a counter. Nearby positions get similar vectors, so relative distance is easy to learn. Modern models often learn positions or use rotary embeddings (RoPE), but the goal is identical.</p>
-<div class="callout"><b>Try it →</b>Move the anchor position: the bottom curve shows how similar it is to every other position (dot product). It peaks at the anchor and decays with distance.</div>
-</div>
-<div class="w"><h4>Positional encoding (rows = 64 positions, columns = dimensions)</h4>
-<div class="row">d_model <b id="dv">64</b><input id="d" type="range" min="8" max="128" step="8" value="64" aria-label="d_model"> anchor <b id="av">10</b><input id="a" type="range" min="0" max="63" value="10" aria-label="Anchor position"></div>
-<canvas id="pe" width="520" height="200"></canvas><canvas id="sim" width="520" height="110" style="margin-top:8px"></canvas>
-<div class="how"><b>How to read these two graphs</b><ul>
-<li><b>Top (heat map)</b>: each <b>row</b> is one position in the text (0 at the top to 63 at the bottom); each <b>column</b> is one of the d_model numbers of the position vector. <span class="sw" style="background:#e8590c"></span>Red/orange = positive value, <span class="sw" style="background:#2f54eb"></span>blue = negative. Left columns change quickly from row to row (fine position), right columns change slowly (coarse position), like the seconds and hours hands of a clock.</li>
-<li>The black frame marks the <b>anchor</b> position chosen with the slider.</li>
-<li><b>Bottom (curve)</b>: the similarity (dot product) between the anchor’s vector and every other position’s vector. It peaks at the anchor and falls with distance, so the model can tell which tokens are near each other.</li></ul></div></div></div>
-
-<div class="terms"><span class="terms-t">Key terms</span><dl>
-<dt>Positional encoding</dt><dd>A vector added to each token’s embedding that says where the token is in the text.</dd>
-<dt>Permutation</dt><dd>A reordering. Without positions, attention gives the same result for any permutation of the words.</dd>
-<dt>sin / cos</dt><dd>Wave functions; different frequencies give every position a unique pattern.</dd>
-<dt>RoPE</dt><dd>Rotary position embedding: a modern alternative that rotates query and key vectors by an angle depending on position.</dd>
-</dl></div>
-<h2>Step 4: multi-head, feed-forward, residuals</h2>
-<div class="pair"><div>
-<h3>Multi-head attention</h3>
-<p>One attention pattern is too limiting (one token may need syntax <i>and</i> meaning). So we run h smaller attentions in parallel, each with its own W_Q, W_K, W_V of size d_k = d_model/h, then concatenate and mix with W_O. Same cost, more perspectives, like several convolution filters.</p>
-<div class="formula">MultiHead = Concat(head_1..head_h) · W_O</div>
-<h3>Feed-forward, residual, LayerNorm</h3>
-<p>After attention, an ordinary two-layer MLP processes each token separately: <code>FFN(x) = W₂ · GELU(W₁x + b₁) + b₂</code>. Each sub-layer is wrapped as <code>x + Sublayer(x)</code> (a <b>residual connection</b>, the ResNet trick that lets gradients flow through 100+ layers) and normalised with LayerNorm. Attention moves information <i>between</i> tokens; the MLP transforms it <i>within</i> a token.</p>
-</div>
-<div class="w"><h4>Two heads, two different patterns</h4>
-<div class="row">Show: <button type="button" class="hd on" data-h="0">head 1: previous word</button><button type="button" class="hd" data-h="1">head 2: who is “it”?</button><button type="button" class="hd" data-h="2">average</button></div>
-<canvas id="heads" width="520" height="330"></canvas>
-<p id="headt" style="font-size:.85em;color:var(--muted,#5d6675);margin:6px 0 0"></p>
-<div class="how"><b>How to read this graph</b><ul>
-<li>Same layout as the step-2 table: <b>rows</b> = the token that is looking, <b>columns</b> = the token being looked at; darker = more attention. A causal mask is applied (no looking ahead).</li>
-<li><b>Head 1</b> attends almost only to the <b>previous</b> token (the diagonal just below the main one): a simple “what came before me?” pattern.</li>
-<li><b>Head 2</b> links the pronoun “it” to “cat” and the verb “was” to its subject: a <b>meaning</b> pattern.</li>
-<li>The two heads run <b>in parallel</b> with their own W_Q, W_K, W_V; their outputs are concatenated and mixed by W_O. Patterns here are illustrative, similar to patterns found in trained models.</li></ul></div>
-<h4 style="margin-top:14px">Minimal attention in PyTorch</h4>
-<div class="code" style="margin:0"><button class="copy" type="button">Copy</button>
-<pre><code>import torch, math
-import torch.nn.functional as F
-
-def attention(Q, K, V, causal=False):
-    # Q,K,V: (batch, heads, n, d_k)
-    scores = Q @ K.transpose(-2, -1) / math.sqrt(Q.size(-1))
-    if causal:
-        n = Q.size(-2)
-        mask = torch.triu(torch.ones(n, n), 1).bool()
-        scores = scores.masked_fill(mask, float('-inf'))
-    weights = F.softmax(scores, dim=-1)
-    return weights @ V</code></pre></div>
-<div class="how"><b>How to read this code</b><code>Q @ K.transpose(-2, -1)</code> computes all query–key dot products (the n × n table); <code>/ math.sqrt(...)</code> is the √d_k scaling; <code>masked_fill(mask, -inf)</code> is the causal mask (e<sup>−∞</sup> = 0 after softmax); <code>F.softmax(..., dim=-1)</code> normalises each row; <code>weights @ V</code> takes the weighted average of the values. That is the whole attention formula in 6 lines.</div></div></div>
-<div class="terms"><span class="terms-t">Key terms</span><dl>
-<dt>Head</dt><dd>One independent attention computation with its own Q/K/V weights. Multi-head = several heads side by side.</dd>
-<dt>Concat</dt><dd>Concatenate: put the head outputs one after the other into one longer vector.</dd>
-<dt>W_O</dt><dd>The output matrix that mixes the concatenated heads back into a d_model vector.</dd>
-<dt>Feed-forward network (FFN / MLP)</dt><dd>A small 2-layer <a href="/neural-networks">neural network</a> applied to each token separately.</dd>
-<dt>GELU</dt><dd>A smooth version of the ReLU activation function.</dd>
-<dt>Residual connection</dt><dd>Output = input + sublayer(input): the sublayer only adds a correction, and gradients have a direct path backwards.</dd>
-<dt>LayerNorm</dt><dd>Rescales each token vector to mean 0 and variance 1 (plus learned scale/shift), which keeps training stable.</dd>
-</dl></div>
-
-<h2>Step 5: how a Transformer is trained</h2>
-<div class="pair"><div>
-<p>A decoder-only model (GPT, Claude) learns <b>next-token prediction</b>. For text "the cat sat", the targets are: after "the" predict "cat", after "the cat" predict "sat". All positions are trained at once, which is why we need the <b>causal mask</b>: token i may only attend to tokens ≤ i, otherwise it could copy the answer. Set −∞ before softmax and those weights become 0 (tick the box in the widget above).</p>
-<div class="formula">L = −(1/n) Σ_t log p_θ( x_t | x_&lt;t )</div>
-<p>This is ordinary <b>cross-entropy</b> over the vocabulary, the same loss as image classification with vocabulary-sized classes. Training is the loop you know: forward pass, loss, backprop through every matrix (E, W_Q, W_K, W_V, W_O, MLP), then an <b>Adam</b> update, usually with warmup and a decaying learning rate. Perplexity = e^L.</p>
-</div>
-<div class="w"><h4>Everything connects to what you already know</h4>
-<div class="table" style="margin:0"><table><thead><tr><th>Transformer part</th><th>Familiar idea</th></tr></thead><tbody>
-<tr><td>Embedding table</td><td>Linear layer on one-hot input</td></tr>
-<tr><td>QKᵀ score</td><td>Dot-product / cosine similarity</td></tr>
-<tr><td>Softmax weights</td><td>Classification softmax; temperature</td></tr>
-<tr><td>Weighted sum of V</td><td>Soft dictionary lookup</td></tr>
-<tr><td>Multi-head</td><td>Multiple conv filters</td></tr>
-<tr><td>Residual + LayerNorm</td><td>ResNet, normalisation for stable gradients</td></tr>
-<tr><td>Feed-forward</td><td>Plain MLP with GELU</td></tr>
-<tr><td>Training</td><td>Cross-entropy + backprop + Adam</td></tr>
+<p>A real GPT has a vocabulary of ~50,000 tokens, vectors of 768–12,288 numbers and 12–96 layers. Ours is the same architecture shrunk until every number fits on the screen:</p>
+<div class="table compact"><table><tbody>
+<tr><td>vocabulary size \(V\)</td><td><b>5</b> tokens: I, love, you, cats, dogs</td></tr>
+<tr><td>vector size \(d\) (d_model)</td><td><b>4</b> numbers per token</td></tr>
+<tr><td>layers \(N\)</td><td><b>1</b></td></tr>
+<tr><td>attention heads \(h\)</td><td><b>1</b>, with \(d_k = 2\)</td></tr>
+<tr><td>feed-forward width \(d_{ff}\)</td><td><b>8</b> (= 2d here; usually 4d)</td></tr>
 </tbody></table></div>
-<div class="how"><b>How to read this table</b>Left column: a part of the Transformer. Right column: the earlier lesson idea it is built from. If a row feels unfamiliar, follow the course path back to that lesson: nothing inside a Transformer is entirely new.</div></div></div>
+<p><b>The task:</b> given “I love”, predict the next word. The correct answer is “you”. The weights below were picked by hand (round numbers so you can check the arithmetic), so the model starts out <i>untrained</i>: we will see it guess wrong, compute its error, and take one learning step that makes it less wrong.</p>
+<div class="callout"><b>Three phases</b>① <b>Getting text in</b> (steps 1–3): words → vectors. ② <b>The layer</b> (steps 4–13): attention lets words exchange information; a feed-forward network processes each word. ③ <b>Getting a word out</b> (steps 14–16): vector → probability of every word → pick one.</div>
+</div><div class="fig"><h4>Embedding table E (5 × 4): 20 learned numbers</h4>
+<div id="f0e"></div>
+<div class="how"><b>How to read this table</b>Each <b>row</b> belongs to one vocabulary token; its 4 numbers are that token’s position in a 4-dimensional “meaning space”. Columns d1–d4 are the 4 dimensions. In a trained model these numbers are learned; similar words end up with similar rows. Darker cells are larger values. Rows used by the current sentence are outlined.</div></div></div>
+
+<div class="phase"><b>Phase 1 — Getting text into the model</b><span>Steps 1–3: turn characters into vectors of numbers that carry meaning and position.</span></div>
+
+<h2 data-step="1">Step 1 · Tokenize: text → integer ids</h2>
+<div class="pair"><div>
+<p>A neural network can only compute with numbers. The first step cuts the text into <b>tokens</b> and replaces each token by its <b>id</b>, its row number in the vocabulary:</p>
+<div class="formula">$$\text{“I love”}\ \to\ [\text{“I”},\ \text{“love”}]\ \to\ [0,\ 1]$$</div>
+<p>Real models use <b>subword</b> tokens learned with an algorithm such as Byte-Pair Encoding (BPE): frequent words get one token (“the”), rare words are split into pieces (“tokenization” → “token” + “ization”). This keeps the vocabulary manageable (about 50,000–200,000 entries) while still being able to write <i>any</i> word, including names and typos.</p>
+<ul><li>Rough rule for English: 1 token ≈ ¾ of a word ≈ 4 characters.</li>
+<li>Context limits and API prices are counted in tokens, not words.</li>
+<li>Tokenization has <b>no trained parameters</b>: it is a fixed lookup decided before training.</li></ul>
 <div class="terms"><span class="terms-t">Key terms</span><dl>
-<dt>Decoder-only</dt><dd>A Transformer that only generates text left to right with a causal mask (GPT, Claude, Llama). BERT is encoder-only (looks both ways).</dd>
-<dt>Next-token prediction</dt><dd>The training task: given all previous tokens, give a probability to every possible next token.</dd>
-<dt>p_θ(x_t | x_&lt;t)</dt><dd>The probability the model with parameters θ gives to the true token x_t, given all tokens before position t.</dd>
-<dt>Cross-entropy</dt><dd>The average −log of the probability given to the correct token.</dd>
-<dt>Adam / warm-up</dt><dd>Adam: gradient descent with momentum and per-parameter step sizes. Warm-up: start with a tiny learning rate and increase it during the first steps.</dd>
-<dt>Perplexity</dt><dd>e<sup>loss</sup>: roughly “how many tokens the model is choosing between”. Lower is better.</dd>
+<dt>Vocabulary</dt><dd>The fixed list of all tokens the model knows. Each has an integer id.</dd>
+<dt>Subword</dt><dd>A piece of a word, e.g. “ization”. Lets a finite vocabulary spell any word.</dd>
+<dt>BPE</dt><dd>Byte-Pair Encoding: start from single characters and repeatedly merge the most frequent neighbouring pair into a new token.</dd>
 </dl></div>
-<p><b>Worked example.</b> Training text “the cat sat”. At position 2 the model sees “the cat” and gives the true next token “sat” a probability of 0.25. The loss at that position is −ln 0.25 ≈ 1.39. If after training it gives 0.8, the loss falls to −ln 0.8 ≈ 0.22. The total loss is the average over all positions of all training texts.</p>
+</div><div class="fig"><h4>A toy subword tokenizer</h4>
+<input id="tkin" type="text" value="Transformers learned tokenization unbelievably fast" style="width:100%;font:inherit;padding:7px 10px;border:1px solid var(--line);border-radius:8px">
+<div class="toks" id="tkout" style="margin-top:8px"></div>
+<div class="out" id="tko"></div>
+<div class="calc" id="tkmodel"></div>
+<div class="how"><b>How to read this</b><ul>
+<li>Type any text. Each coloured box is one token; the small number under it is its id in this toy subword vocabulary (about 90 pieces). Boxes that are a single letter are pieces the vocabulary does not contain as a whole.</li>
+<li>The grey line at the bottom is what <i>our</i> model receives for the sentence chosen in the bar at the top: its 5-word vocabulary maps each word to an id 0–4.</li></ul></div></div></div>
 
-<h2>Key takeaways for teaching</h2>
-<div class="callout"><b>Say it in one breath</b>A Transformer turns tokens into vectors, lets every token gather information from the others via softmax(QKᵀ/√d)V, refines each token with an MLP, stacks this many times, and is trained to predict the next token with cross-entropy.</div>
-<p>Cost: attention is O(n²·d) in time and O(n²) in memory, which is why long context is expensive and why techniques such as FlashAttention and KV-caching matter in AI engineering.</p>
-</article>
+<h2 data-step="2">Step 2 · Embed: look up a vector for every id</h2>
+<div class="pair"><div>
+<p>Each id selects one row of the <b>embedding table</b> \(E\) (shape \(V\times d\) = 5 × 4). The token becomes a vector of \(d\) numbers:</p>
+<div class="formula">$$x_i^{\text{emb}} = E[\text{id}_i]$$$$E[0]=[1,0,1,0]\ \ (\text{“I”})\qquad E[1]=[0,1,1,0]\ \ (\text{“love”})$$</div>
+<p><b>Why vectors?</b> An id like 9246 says nothing about meaning; neighbouring ids are unrelated words. A learned vector can place words with similar meaning close together and encode relations as directions (see <a href="/unsupervised-learning">word embeddings</a>). Every later step works with these vectors.</p>
+<p><b>It is a linear layer in disguise.</b> Write the id as a <b>one-hot</b> vector (all zeros, a single 1 at position id). Multiplying it by \(E\) picks out exactly one row. So the lookup is the matrix product \(\text{onehot}\cdot E\), and \(E\) is trained by backpropagation like any weight matrix.</p>
+<p><b>Trained parameters:</b> \(E\): 5 × 4 = <b>20</b> numbers. In GPT-3: 50,257 × 12,288 ≈ 617 million.</p>
+<div class="terms"><span class="terms-t">Key terms</span><dl>
+<dt>Embedding</dt><dd>The learned vector representing a token.</dd>
+<dt>d (d_model)</dt><dd>The length of every token vector inside the model; the “width of the bus”.</dd>
+<dt>One-hot vector</dt><dd>A vector with one 1 and all other entries 0.</dd>
+</dl></div>
+</div><div class="fig"><h4>one-hot(id) · E = embedding row</h4>
+<div id="f2"></div>
+<div class="how"><b>How to read this</b>For the token you follow (chosen in the top bar), the one-hot vector on the left has a single 1. Multiplying it by the table E selects the matching row (outlined), which becomes that token’s embedding on the right. Below, the embeddings of all tokens of the sentence are stacked into a matrix: <b>one row per token, one column per dimension</b>. This n × d shape is kept through the whole layer.</div></div></div>
 
-<script>
-(function(){
-var $=function(i){return document.getElementById(i)};
-var root=document.documentElement;
+<h2 data-step="3">Step 3 · Add positional encoding: inject word order</h2>
+<div class="pair"><div>
+<p>Attention (step 5–8) treats the tokens as a <b>set</b>: shuffle the words and its result is just shuffled too. “dogs love cats” and “cats love dogs” would look identical. So we add a <b>position vector</b> to each embedding. The original Transformer uses waves of different frequencies:</p>
+<div class="formula">$$PE_{(p,\,2k)}=\sin\!\Big(\frac{p}{10000^{2k/d}}\Big)$$$$PE_{(p,\,2k+1)}=\cos\!\Big(\frac{p}{10000^{2k/d}}\Big)$$<span class="cap">\(p\) = position (0, 1, 2, …), \(k\) = which pair of dimensions. With \(d=4\): dims 1–2 use \(p\), dims 3–4 use \(p/100\).</span></div>
+<div class="formula">$$x_p = E[\text{id}_p] + PE_p$$</div>
+<p><b>With numbers:</b> \(PE_0=[\sin 0,\cos 0,\sin 0,\cos 0]=[0,1,0,1]\) and \(PE_1=[\sin 1,\cos 1,\sin 0.01,\cos 0.01]=[0.84,0.54,0.01,1.00]\). Adding them gives \(x_1=[1,1,1,1]\) for “I” and \(x_2=[0.84,1.54,1.01,1.00]\) for “love”.</p>
+<p>Low dimensions oscillate fast (fine position), high dimensions slowly (coarse position), like the seconds and hours hands of a clock. <b>Trained parameters: none</b>, it is a fixed formula. (GPT-2 instead <i>learns</i> a position table; Llama uses rotary embeddings, RoPE.)</p>
+<div class="terms"><span class="terms-t">Key terms</span><dl>
+<dt>Positional encoding</dt><dd>A vector added to each embedding that says where the token is.</dd>
+<dt>Frequency</dt><dd>How fast a wave repeats. Each pair of dimensions uses a different one, so every position gets a unique pattern.</dd>
+<dt>RoPE</dt><dd>Rotary position embedding: rotates query and key vectors by a position-dependent angle (used by Llama).</dd>
+</dl></div>
+</div><div class="fig"><h4>Embedding + position = input to the layer</h4>
+<div id="f3"></div>
+<canvas id="c3" width="640" height="190" style="margin-top:8px"></canvas>
+<canvas id="c3b" width="640" height="110" style="margin-top:6px"></canvas>
+<div class="ctl-row"><span>anchor position</span><input type="range" id="a3" min="0" max="63" step="1" value="10"><output id="a3v"></output></div>
+<div class="how"><b>How to read this figure</b><ul>
+<li><b>Tables</b>: for each token of our sentence, its embedding E[id] plus its position vector PE equals x, the vector that enters the layer.</li>
+<li><b>Heat map</b>: the same formula for a bigger model (d = 64) and 64 positions. Each row is one position (0 at the top), each column one dimension. <span class="sw" style="background:#e8590c"></span>orange = positive, <span class="sw" style="background:#2f54eb"></span>blue = negative. Left columns change quickly between rows, right columns slowly.</li>
+<li><b>Curve</b>: similarity (dot product) between the anchor position’s vector and every other position’s vector. It peaks at the anchor and falls with distance, so nearby tokens look alike.</li></ul></div></div></div>
 
-/* Copy buttons */
-document.querySelectorAll('#lesson .code .copy').forEach(function(b){b.onclick=function(){var t=b.parentNode.querySelector('pre').innerText;var d=function(){b.textContent='Copied';setTimeout(function(){b.textContent='Copy'},1500)};if(navigator.clipboard)navigator.clipboard.writeText(t).then(d,d);else d()}});
+<div class="phase"><b>Phase 2 — The layer (repeated N times)</b><span>Steps 4–10: attention, where tokens exchange information. Steps 11–13: the feed-forward network, where each token “thinks” on its own.</span></div>
 
-/* "On this page" TOC: populated only if base.html provides a #toc container */
-var toc=document.getElementById('toc');
-var heads=document.querySelectorAll('#lesson h2');
-if(toc){heads.forEach(function(h,i){h.id='sec-'+(i+1);var a=document.createElement('a');a.href='#'+h.id;a.textContent=h.textContent;toc.appendChild(a)});
-var links=toc.querySelectorAll('a');
-addEventListener('scroll',function(){var c=0;heads.forEach(function(h,i){if(h.getBoundingClientRect().top<140)c=i});links.forEach(function(l,i){l.classList.toggle('on',i===c)})},{passive:true});}
+<h2 data-step="4">Step 4 · Three views of every word: Q, K, V</h2>
+<div class="pair"><div>
+<p>Every token vector is multiplied by three learned matrices, giving it three different <b>roles</b>:</p>
+<div class="formula">$$Q = X W_Q,\quad K = X W_K,\quad V = X W_V$$<span class=\"cap\">Each \(W\) has shape \(d\times d_k\) = 4 × 2: 4 numbers in, 2 out.</span></div>
+<div class="table compact"><table><thead><tr><th>Vector</th><th>Question it answers</th><th>Analogy</th></tr></thead><tbody>
+<tr><td><b>query q</b></td><td>“What am I looking for?”</td><td>what you type into a search box</td></tr>
+<tr><td><b>key k</b></td><td>“What do I contain / advertise?”</td><td>the title of a web page</td></tr>
+<tr><td><b>value v</b></td><td>“What do I hand over if chosen?”</td><td>the content of that page</td></tr>
+</tbody></table></div>
+<p>Why three separate matrices? Because what a word <i>looks for</i> is different from what it <i>offers</i>. “love” as a verb looks for its subject; “I” advertises “I am a subject”. Splitting the roles lets the model learn both.</p>
+<p><b>With numbers</b> (click a row on the right to see it): for “love”, \(x_2=[0.84,1.54,1.01,1.00]\) and \(W_Q\) adds dims 1+3 and 2+4, so \(q_2=[0.84+1.01,\ 1.54+1.00]=[1.85,\ 2.54]\).</p>
+<p>Note \(d_k=2 \lt d=4\): Q, K, V are projected into a <b>smaller</b> space. With several heads, each head gets its own small space (step 9).</p>
+<p><b>Trained parameters:</b> \(W_Q,W_K,W_V\): 3 × (4 × 2) = <b>24</b>.</p>
+<div class="terms"><span class="terms-t">Key terms</span><dl>
+<dt>Projection</dt><dd>Multiplying by a matrix to map a vector into another (here smaller) space.</dd>
+<dt>d_k</dt><dd>The length of query and key vectors (64–128 in real models).</dd>
+<dt>Self-attention</dt><dd>Q, K and V all come from the same sentence: the words attend to each other.</dd>
+</dl></div>
+</div><div class="fig"><h4>X · W = Q, K, V</h4>
+<div id="f4"></div>
+<div class="how"><b>How to read this</b>Top: the input matrix X (one row per token, from step 3) and the three weight matrices (4 rows in, 2 columns out). Bottom: the results Q, K, V, each with one 2-number row per token. Click a token row in X to see the multiplication for that token written out in the grey box. Each output number = the token’s row · one column of the weight matrix.</div></div></div>
 
-/* Widget 1: RNN vs attention */
-function cmp(){var n=+$('n').value;$('nv').textContent=n;
-$('cmp').innerHTML='<div>RNN path 1→n: '+(n-1)+' steps<i style="width:'+((n-1)/99*60)+'%"></i></div><div>Attention path: 1 step<i style="width:'+(1/99*60)+'%"></i></div><div>Attention table: '+n*n+' scores<i style="width:'+(n*n/10000*60)+'%;background:var(--muted,#5d6675)"></i></div>';
-$('cmpt').textContent='RNN steps cannot run in parallel; attention computes all '+n*n+' scores in a single matrix multiply.'}
-$('n').oninput=cmp;cmp();
+<h2 data-step="5">Step 5 · Scores: compare every query with every key</h2>
+<div class="pair"><div>
+<p>Now every token asks every token: “how well does your key match my query?” The match is a <b>dot product</b>:</p>
+<div class="formula">$$S = QK^\top\qquad S_{ij}=q_i\cdot k_j=\sum_{m=1}^{d_k}q_{i,m}\,k_{j,m}$$</div>
+<p>A dot product is large when two vectors point in the same direction, small or negative when they don’t, so it works as a similarity score. \(K^\top\) (transpose) turns keys into columns so that one matrix product computes the whole <b>n × n</b> table.</p>
+<p><b>With numbers:</b> \(q_2\cdot k_1=(1.85)(2)+(2.54)(2)=8.78\) (“love” looking at “I”) and \(q_2\cdot k_2=(1.85)(2.54)+(2.54)(1.85)=9.40\) (“love” looking at itself).</p>
+<p><b>Trained parameters: none</b>, pure arithmetic on Q and K. But this table is exactly why long context is expensive: 100,000 tokens → 10 billion scores per head per layer.</p>
+<div class="terms"><span class="terms-t">Key terms</span><dl>
+<dt>Dot product</dt><dd>Multiply matching entries and add: [a, b]·[c, d] = ac + bd.</dd>
+<dt>Transpose Kᵀ</dt><dd>K flipped so rows become columns.</dd>
+<dt>Attention scores</dt><dd>The raw n × n similarity table before softmax.</dd>
+</dl></div>
+</div><div class="fig"><h4>Score table S = Q·Kᵀ</h4>
+<div id="f5"></div>
+<div class="how"><b>How to read this table</b><b>Rows</b> = the token that is asking (its query). <b>Columns</b> = the token being considered (its key). Each cell = one dot product; darker = larger. Hover over (or tap) a cell to see its calculation. The row of the token you follow is what decides which words it will listen to.</div></div></div>
 
-/* Widget 2: attention */
-var T=['The','cat','sat','on','mat'],Q=[[1,.2],[.3,1],[1,1.2],[.2,1.3],[1.2,.3]],K=[[.8,.1],[.2,1.2],[1.2,.9],[.4,1],[1,.4]],sel=2;
-function att(){var s=+$('sc').value,cz=$('cz').checked;$('scv').textContent=s.toFixed(1);
-var W=Q.map(function(q,i){var sc=K.map(function(k,j){return cz&&j>i?-Infinity:(q[0]*k[0]+q[1]*k[1])/s});var m=Math.max.apply(null,sc),e=sc.map(function(x){return Math.exp(x-m)}),z=e.reduce(function(a,b){return a+b});return e.map(function(x){return x/z})});
-var h='<tr><th></th>'+T.map(function(t){return'<th>'+t+'</th>'}).join('')+'</tr>';
-W.forEach(function(r,i){h+='<tr><th class="q'+(i===sel?' sel':'')+'" data-i="'+i+'" tabindex="0">'+T[i]+'</th>'+r.map(function(w){return'<td style="background:color-mix(in srgb,var(--accent,#2f54eb) '+Math.round(w*100)+'%,transparent);color:'+(w>.55?'#fff':'var(--text,#171b24)')+'">'+w.toFixed(2)+'</td>'}).join('')+'</tr>'});
-$('hm').innerHTML=h;
-$('bars').innerHTML=W[sel].map(function(w,j){return'<div><span style="width:3.2em">'+T[j]+'</span><i style="width:'+w*70+'%"></i>'+w.toFixed(2)+'</div>'}).join('');
-document.querySelectorAll('#lesson .hm th.q').forEach(function(e){e.onclick=function(){sel=+e.dataset.i;att()};e.onkeydown=function(ev){if(ev.key==='Enter'){sel=+e.dataset.i;att()}}})}
-$('sc').oninput=att;$('cz').onchange=att;att();
+<h2 data-step="6">Step 6 · Divide by √d_k and apply the causal mask</h2>
+<div class="pair"><div>
+<p>Two adjustments before the scores become weights:</p>
+<p><b>1. Scale.</b> Divide every score by \(\sqrt{d_k}\) (here \(\sqrt2=1.414\)): \(8.78/1.414=6.21\), \(9.40/1.414=6.65\). Why? A dot product adds up \(d_k\) products, so with random vectors its typical size grows like \(\sqrt{d_k}\). With \(d_k=128\), raw scores would be about 11× larger, softmax would give one token ~100% and the rest ~0, and the gradients would vanish. Dividing keeps scores in a reasonable range whatever \(d_k\) is (see the experiment on the right).</p>
+<p><b>2. Causal mask.</b> A language model predicts the next word, so during training token \(i\) must not peek at tokens after it, otherwise it could just copy the answer. We set all scores above the diagonal to \(-\infty\); after softmax \(e^{-\infty}=0\), so those weights become exactly 0.</p>
+<div class="formula">$$\tilde S_{ij}=\begin{cases}S_{ij}/\sqrt{d_k} & j\le i\\ -\infty & j>i\end{cases}$$</div>
+<p>This is what makes GPT-style models “decoder-only” or “causal”. BERT-style encoders skip the mask and look both ways.</p>
+<div class="terms"><span class="terms-t">Key terms</span><dl>
+<dt>Causal mask</dt><dd>Blocks attention to future tokens.</dd>
+<dt>−∞ (minus infinity)</dt><dd>A score that becomes probability 0 after softmax.</dd>
+<dt>Saturation</dt><dd>Softmax output stuck at 0/1 so its gradient is ~0: the model stops learning.</dd>
+</dl></div>
+</div><div class="fig"><h4>Scaled and masked scores</h4>
+<div id="f6"></div>
+<label class="chk"><input type="checkbox" id="mask6" checked> causal mask</label>
+<h4 style="margin-top:12px">Why divide by √d_k? (random vectors)</h4>
+<div class="ctl-row"><span>key size d_k</span><input type="range" id="dk6" min="1" max="256" step="1" value="64"><output id="dk6v"></output></div>
+<label class="chk"><input type="checkbox" id="sc6" checked> divide by √d_k</label>
+<canvas id="c6" width="640" height="170"></canvas>
+<div class="out" id="o6"></div>
+<div class="how"><b>How to read this</b><ul>
+<li><b>Table</b>: the scores from step 5 divided by √d_k. Grey cells with −∞ are masked (future tokens). Untick the mask to see what an encoder like BERT would use.</li>
+<li><b>Bar chart</b>: softmax of 6 scores made from random query and key vectors of size d_k. Without scaling (untick), a large d_k makes one bar take almost everything, so attention becomes a hard, untrainable choice. With scaling, the spread stays the same for any d_k.</li></ul></div></div></div>
 
-/* Widget 3: positional encoding */
-function pe(p,i,d){var f=p/Math.pow(10000,(i-i%2)/d);return i%2?Math.cos(f):Math.sin(f)}
-function draw(){var d=+$('d').value,a=+$('a').value;$('dv').textContent=d;$('av').textContent=a;
-var c=$('pe'),x=c.getContext('2d'),w=c.width,h=c.height,cw=w/d,ch=h/64;
-for(var p=0;p<64;p++)for(var i=0;i<d;i++){var v=pe(p,i,d);x.fillStyle='rgb('+Math.round(128+v*120)+','+Math.round(128-Math.abs(v)*30)+','+Math.round(128-v*120)+')';x.fillRect(i*cw,p*ch,cw+1,ch+1)}
-x.strokeStyle='#000';x.lineWidth=2;x.strokeRect(0,a*ch,w,ch);
-var s=$('sim'),y=s.getContext('2d'),sh=s.height,st=getComputedStyle(root);y.clearRect(0,0,w,sh);
-var vals=[];for(var p=0;p<64;p++){var t=0;for(var i=0;i<d;i++)t+=pe(a,i,d)*pe(p,i,d);vals.push(t/d*2)}
-y.strokeStyle=st.getPropertyValue('--accent')||'#2f54eb';y.lineWidth=2;y.beginPath();vals.forEach(function(v,p){var X=p/63*(w-10)+5,Y=sh-10-Math.max(v,0)*(sh-20);p?y.lineTo(X,Y):y.moveTo(X,Y)});y.stroke();
-y.fillStyle=st.getPropertyValue('--muted')||'#5d6675';y.font='12px sans-serif';y.fillText('similarity to anchor (positions 0-63)',8,14)}
-$('d').oninput=draw;$('a').oninput=draw;draw();
+<h2 data-step="7">Step 7 · Softmax: scores become weights that sum to 1</h2>
+<div class="pair"><div>
+<p>Each row of scores is turned into <b>attention weights</b> with the softmax from <a href="/logistic-regression">logistic regression</a>:</p>
+<div class="formula">$$\alpha_{ij}=\frac{e^{\tilde S_{ij}}}{\sum_{m} e^{\tilde S_{im}}}$$</div>
+<p><b>With numbers</b> for “love”: \(e^{6.21}=498\), \(e^{6.65}=773\), sum = 1,271, so \(\alpha=[498/1271,\ 773/1271]=[0.39,\ 0.61]\). “love” will take <b>39%</b> of its new content from “I” and <b>61%</b> from itself. “I” can only see itself (mask), so its weight is 100%.</p>
+<p>Properties that matter: every weight is between 0 and 1, each row sums to 1, the biggest score gets the biggest share, and only <b>differences</b> between scores matter (adding 100 to a whole row changes nothing).</p>
+<div class="terms"><span class="terms-t">Key terms</span><dl>
+<dt>Attention weights α</dt><dd>How much each token takes from each other token; each row sums to 1.</dd>
+<dt>e<sup>x</sup></dt><dd>The exponential function: always positive, grows very fast.</dd>
+<dt>Attention pattern</dt><dd>The n × n table of weights, often visualised as a heat map.</dd>
+</dl></div>
+</div><div class="fig"><h4>Attention weights α = softmax(row)</h4>
+<div id="f7"></div>
+<div class="how"><b>How to read this</b>Same layout as the score table: rows ask, columns are looked at. Each cell is now a weight between 0 and 1, and every row adds up to 1.00. The grey box shows the softmax computation for the token you follow, number by number. The bars give the same weights as lengths.</div></div></div>
 
-/* Redraw canvases when base.html switches theme (data-theme attribute or OS preference) */
-new MutationObserver(function(m){if(m[0].attributeName==='data-theme')draw()}).observe(root,{attributes:true,attributeFilter:['data-theme']});
-var mq=matchMedia('(prefers-color-scheme: dark)');if(mq.addEventListener)mq.addEventListener('change',draw);
-})();
+<h2 data-step="8">Step 8 · Multiply by V: each word becomes a blend of the others</h2>
+<div class="pair"><div>
+<p>Each token’s new vector is the <b>weighted average of the value vectors</b>, using its attention weights:</p>
+<div class="formula">$$Z=\alpha V\qquad z_i=\sum_j \alpha_{ij}\,v_j$$</div>
+<p><b>With numbers:</b> \(z_2 = 0.39\times[2.00,2.00]+0.61\times[1.84,2.55]=[0.78,0.78]+[1.12,1.56]=[1.90,\ 2.33]\).</p>
+<p>Now the vector for “love” carries information about “I”. <b>This is the only place in the whole architecture where words communicate with each other.</b> Every other step processes each token on its own.</p>
+<p>Because our values are 2-D, we can draw this: the blended vector \(z\) lies on the line between the value vectors, closer to the one with the larger weight.</p>
+<div class="callout tf"><b>In real models</b>One head in a trained model might make the pronoun “it” attend 90% to the noun it refers to, so after this step the vector for “it” carries the meaning of that noun. Other heads track the previous word, matching brackets, the subject of a verb, and so on.</div>
+</div><div class="fig"><h4>Weighted average of the value vectors</h4>
+<canvas id="c8" width="640" height="300"></canvas>
+<div id="f8"></div>
+<div class="how"><b>How to read this</b><ul>
+<li><b>Plot</b>: each arrow is one token’s value vector v (its 2 numbers are the horizontal and vertical coordinates). The orange point is z for the token you follow, the weighted average; the labels show the weights. A weight of 1 would put z exactly on that arrow’s tip.</li>
+<li><b>Table</b>: Z = α·V for all tokens, one 2-number row per token.</li></ul></div></div></div>
 
-/* Widget 4: two attention heads (illustrative) */
-(function(){
-var $=function(i){return document.getElementById(i)};if(!$('heads'))return;
-var T=['The','cat','sat','because','it','was','tired'],n=T.length,mode=0;
-function sm(r){var m=Math.max.apply(null,r),e=r.map(function(x){return Math.exp(x-m)}),s=e.reduce(function(a,b){return a+b},0);return e.map(function(x){return x/s})}
-function head(h){return T.map(function(_,i){return sm(T.map(function(_,j){if(j>i)return -1e9;if(h===0)return j===i-1?4:j===i?1.2:0;var sc=0;if(T[i]==='it'&&T[j]==='cat')sc=4.5;else if(T[i]==='was'&&(T[j]==='it'||T[j]==='cat'))sc=T[j]==='it'?3:2.4;else if(T[i]==='tired'&&T[j]==='cat')sc=3;else if(T[i]==='sat'&&T[j]==='cat')sc=3;else if(j===i)sc=1.5;return sc}))})}
-function draw(){var c=$('heads'),g=c.getContext('2d'),W=c.width,H=c.height,A=mode===2?head(0).map(function(r,i){var b=head(1)[i];return r.map(function(v,j){return(v+b[j])/2})}):head(mode),cs=38,ox=90,oy=60;g.clearRect(0,0,W,H);g.font='12px sans-serif';
-T.forEach(function(t,j){g.save();g.translate(ox+j*cs+cs/2,oy-8);g.rotate(-.6);g.fillStyle='#5d6675';g.fillText(t,0,0);g.restore()});
-A.forEach(function(r,i){g.fillStyle='#171b24';g.textAlign='right';g.fillText(T[i],ox-8,oy+i*cs+cs/2+4);g.textAlign='left';r.forEach(function(v,j){g.fillStyle=j>i?'#f1f3f5':'rgba(47,84,235,'+(0.06+v*0.94).toFixed(3)+')';g.fillRect(ox+j*cs,oy+i*cs,cs-3,cs-3);if(j<=i){g.fillStyle=v>.5?'#fff':'#171b24';g.font='10px monospace';g.fillText(v.toFixed(2),ox+j*cs+5,oy+i*cs+cs/2+3);g.font='12px sans-serif'}})});
-g.fillStyle='#5d6675';g.fillText('looking at →',ox,14);g.save();g.translate(14,oy+120);g.rotate(-Math.PI/2);g.fillText('token that looks ↓',0,0);g.restore();
-$('headt').textContent=['Head 1: each word mostly attends to the word right before it (a positional pattern).','Head 2: “it” takes 0.9+ of its information from “cat”, so after this layer the vector for “it” carries the meaning of “cat”.','Average of both heads (in reality the heads are concatenated, not averaged, and then mixed by W_O).'][mode]}
-document.querySelectorAll('#lesson .hd').forEach(function(b){b.onclick=function(){mode=+b.dataset.h;document.querySelectorAll('#lesson .hd').forEach(function(x){x.classList.toggle('on',x===b)});draw()}});draw();
-})();
-</script>
-{% endraw %}
+<h2 data-step="9">Step 9 · Project with W_O (and multi-head attention)</h2>
+<div class="pair"><div>
+<p>The attention output has only \(d_k=2\) numbers, but the rest of the model works with \(d=4\). The <b>output projection</b> \(W_O\) (2 × 4) maps it back:</p>
+<div class="formula">$$\text{attn} = Z W_O$$$$[1.90,\ 2.33]\cdot W_O = [1.90,\ 2.33,\ 2.12,\ 2.33]$$</div>
+<p><b>Multi-head attention.</b> Real models run \(h\) attention heads in parallel, each with its own \(W_Q,W_K,W_V\) of width \(d_k=d/h\) (e.g. 12 heads × 64 = 768 in GPT-2). Each head can learn a different kind of relationship. Their outputs are <b>concatenated</b> (placed side by side, back to width \(d\)) and mixed by \(W_O\):</p>
+<div class="formula">$$\text{MultiHead}(X)=\text{Concat}(\text{head}_1,\dots,\text{head}_h)\,W_O$$</div>
+<p>Splitting into heads costs nothing extra: \(h\) heads of width \(d/h\) have the same number of parameters as one head of width \(d\).</p>
+<p><b>Trained parameters:</b> \(W_O\): 2 × 4 = <b>8</b>.</p>
+<div class="terms"><span class="terms-t">Key terms</span><dl>
+<dt>Head</dt><dd>One independent attention computation with its own Q/K/V weights.</dd>
+<dt>Concatenate</dt><dd>Put vectors one after another into one longer vector.</dd>
+<dt>W_O</dt><dd>The output matrix that mixes the heads and restores width d.</dd>
+</dl></div>
+</div><div class="fig"><h4>Z · W_O, and two heads in a bigger example</h4>
+<div id="f9"></div>
+<div class="seg" id="hd9" style="margin-top:10px"><button data-v="0" class="on">head 1: previous word</button><button data-v="1">head 2: who is “it”?</button></div>
+<canvas id="c9" width="640" height="300"></canvas>
+<div class="how"><b>How to read this</b><ul>
+<li><b>Top</b>: our model’s Z (one row per token) times W_O gives a 4-number vector per token again.</li>
+<li><b>Heat map</b>: attention weights of two heads in a longer sentence (rows look at columns, causal mask applied; illustrative patterns similar to those found in trained models). Head 1 attends to the previous word; head 2 links “it” to “cat”. Both run in parallel.</li></ul></div></div></div>
+
+<h2 data-step="10">Step 10 · Add the residual, then LayerNorm</h2>
+<div class="pair"><div>
+<p><b>Residual connection.</b> Instead of replacing the token vector with the attention output, we <b>add</b> them:</p>
+<div class="formula">$$r = x + \text{attn}(x)$$$$=[0.84,1.54,1.01,1.00]+[1.90,2.33,2.12,2.33]$$$$=[2.74,\ 3.87,\ 3.13,\ 3.33]$$</div>
+<p>“love” does not lose itself inside “I”: attention <i>edits</i> the vector, it does not replace it. It also gives gradients a direct path back through many layers (see <a href="/neural-networks">vanishing gradients</a>).</p>
+<p><b>LayerNorm.</b> Then each token vector is rescaled to mean 0 and standard deviation 1, which keeps numbers in a stable range layer after layer:</p>
+<div class="formula">$$\mu=\tfrac1d\sum_m r_m\qquad \sigma^2=\tfrac1d\sum_m (r_m-\mu)^2$$$$h=\gamma\odot\frac{r-\mu}{\sqrt{\sigma^2+\epsilon}}+\beta$$</div>
+<p><b>With numbers:</b> \(\mu=13.07/4=3.27\), deviations \([-0.53,0.60,-0.14,0.06]\), \(\sigma^2=0.166\), \(\sigma=0.41\), so \(h=[-1.30,\ 1.47,\ -0.34,\ 0.15]\). (The live numbers on the right are computed without intermediate rounding, so the last digit can differ.)</p>
+<p><b>Trained parameters:</b> \(\gamma\) (scale) and \(\beta\) (shift), 4 + 4 = <b>8</b>; here \(\gamma=1,\ \beta=0\). Many recent models put the normalisation <i>before</i> each sub-layer (“pre-norm”) and use RMSNorm, a simpler variant without the mean.</p>
+<div class="terms"><span class="terms-t">Key terms</span><dl>
+<dt>Residual (skip) connection</dt><dd>Output = input + sublayer(input).</dd>
+<dt>Mean μ, variance σ²</dt><dd>The average of the numbers and the average squared distance from it.</dd>
+<dt>ε (epsilon)</dt><dd>A tiny number (e.g. 10⁻⁵) that avoids dividing by zero.</dd>
+<dt>γ, β</dt><dd>Learned scale and shift applied after normalising.</dd>
+</dl></div>
+</div><div class="fig"><h4>Residual add, then normalise (token you follow)</h4>
+<canvas id="c10" width="640" height="260"></canvas>
+<div class="ctl-row"><span>γ (scale)</span><input type="range" id="g10" min="0.2" max="2" step="0.05" value="1"><output id="g10v"></output></div>
+<div class="ctl-row"><span>β (shift)</span><input type="range" id="b10" min="-1" max="1" step="0.05" value="0"><output id="b10v"></output></div>
+<div class="calc" id="f10"></div>
+<div class="how"><b>How to read this graph</b>Four groups of bars, one per dimension d1–d4. <span class="sw" style="background:#adb5bd"></span>grey = the original x, <span class="sw" style="background:#9c36b5"></span>purple = attention output, <span class="sw" style="background:#2f54eb"></span>blue = their sum r, <span class="sw" style="background:#e8590c"></span>orange = after LayerNorm h. Notice how LayerNorm centres the numbers around 0 and gives them a standard spread, while keeping their order. Move γ and β to see the learned scale and shift.</div></div></div>
+
+<h2 data-step="11">Step 11 · Feed-forward expand + ReLU (4 → 8)</h2>
+<div class="pair"><div>
+<p>Attention moved information <i>between</i> words. The <b>feed-forward network</b> (FFN, a 2-layer <a href="/neural-networks">MLP</a>) now processes each word <b>on its own</b>.</p>
+<div class="callout"><b>The one rule for vector × matrix</b>Multiplying a vector by a matrix = taking the dot product of the vector with <b>every column</b>. Each column gives one output number. So <b>rows of the matrix = numbers in</b> (must match the vector), <b>columns = numbers out</b>. \(W_1\) is 4 × 8: 4 in, 8 out (expand). \(W_2\) is 8 × 4: 8 in, 4 out (contract). Nothing is stretched or squeezed; only the matrix shape differs.</div>
+<div class="formula">$$a=\mathrm{ReLU}(hW_1+b_1)\qquad \mathrm{ReLU}(x)=\max(0,x)$$</div>
+<p>Read \(W_1\) by <b>columns</b>: each column is one neuron’s input weights, the pattern it is looking for. Neurons 1–4 each read one dimension; neurons 5–8 read <b>combinations</b> of two dimensions, patterns that cannot be seen in any single number. That is why the layer is wider than \(d\).</p>
+<p>Then ReLU keeps positive scores and silences the rest. The bias is a learned threshold: neuron 7’s bias of −0.5 means it must score above 0.5 to fire. For “love”, 3 of the 8 detectors stay silent. Without ReLU, \(W_1\) and \(W_2\) would multiply into one 4 × 4 matrix and the FFN would add nothing (tick the box to see it).</p>
+<p><b>Trained parameters:</b> \(W_1\) (4 × 8 = 32) + \(b_1\) (8) = <b>40</b>.</p>
+<div class="terms"><span class="terms-t">Key terms</span><dl>
+<dt>FFN / MLP</dt><dd>Feed-forward network: linear → activation → linear, applied to each token separately.</dd>
+<dt>d_ff</dt><dd>The width of the hidden layer (usually 4d; 49,152 in GPT-3).</dd>
+<dt>Neuron fires / silent</dt><dd>Its ReLU output is positive / zero.</dd>
+</dl></div>
+</div><div class="fig"><h4>Eight detectors look at h</h4>
+<div id="f11"></div>
+<label class="chk"><input type="checkbox" id="norelu11"> remove ReLU (see what breaks)</label>
+<div class="nbars" id="nb11"></div>
+<div class="how"><b>How to read this</b><ul>
+<li><b>Table</b>: one row per neuron. “listens for” is its column of W₁; “dot” = h · that column; then the bias is added; “ReLU” is the output. Silent neurons (output 0) are greyed.</li>
+<li><b>Bars</b>: the 8 outputs a. Orange bars would be negative values that ReLU removes. With ReLU removed, negative numbers pass through and the FFN becomes a single linear map.</li></ul></div></div></div>
+
+<h2 data-step="12">Step 12 · Feed-forward contract (8 → 4)</h2>
+<div class="pair"><div>
+<p>The 8 detector outputs must be collected back into a vector of width \(d=4\), so the next step can add them to \(h\). \(W_2\) is 8 × 4:</p>
+<div class="formula">$$f = aW_2+b_2$$</div>
+<p><b>Key insight: every neuron has two weight vectors.</b> Its column of \(W_1\) says what it <b>listens for</b>; its row of \(W_2\) says what it <b>writes</b> when it fires. Neuron 5 listens for [0,1,1,0] but writes [0, 0.5, 0.5, 0]. These are separate, independently learned decisions.</p>
+<p>Two equivalent ways to compute \(f\) (toggle on the right):</p>
+<ul><li><b>Row view</b>: each neuron’s row, scaled by how strongly it fired, added up. Silent neurons add nothing.</li>
+<li><b>Column view</b>: dot product of \(a\) with each of the 4 columns of \(W_2\). Only 4 columns, so only 4 numbers come out.</li></ul>
+<p><b>With numbers:</b> column 2 = 1.47 + 0.565 + 0.085 + 0.56 = 2.68, so \(f=[0.09,\ 2.68,\ 0.57,\ 0.71]\).</p>
+<p><b>Why expand then contract?</b> The wide middle is a <b>workbench</b> with room for many separate detectors; the narrow width \(d\) is the <b>bus</b> between layers, kept small because every layer and token pays for it. 8 on/off neurons give 2⁸ = 256 firing patterns versus 16 for 4. Researchers see \(W_1\) columns as <b>keys</b> (“does the input match my pattern?”) and \(W_2\) rows as <b>values</b> (“then add this fact”): the FFN is where much of a model’s knowledge is stored.</p>
+<p><b>Trained parameters:</b> \(W_2\) (8 × 4 = 32) + \(b_2\) (4) = <b>36</b>.</p>
+</div><div class="fig"><h4>Collect the votes: a · W₂</h4>
+<div class="seg" id="v12"><button data-v="row" class="on">row view: neuron contributions</button><button data-v="col">column view: 4 dot products</button></div>
+<div id="f12"></div>
+<div class="how"><b>How to read this</b>In row view each line is one neuron: its output a (how strongly it fired) × its W₂ row = its contribution. The bottom line adds the columns, giving the 4-number FFN output. In column view, each output number is the dot product of all 8 outputs with one column of W₂. Both give the same result.</div></div></div>
+
+<h2 data-step="13">Step 13 · Add the residual, then LayerNorm (end of the layer)</h2>
+<div class="pair"><div>
+<p>Exactly as in step 10: add the FFN output to its input, then normalise:</p>
+<div class="formula">$$h_{\text{final}}=\mathrm{LayerNorm}(h + f)$$</div>
+<p><b>With numbers:</b> \([0.09,2.68,0.57,0.71]+[-1.30,1.47,-0.34,0.15]=[-1.21,4.15,0.23,0.86]\); normalised: \(h_{\text{final}}\approx[-1.13,\ 1.60,\ -0.40,\ -0.08]\).</p>
+<p><b>The output has the same shape as the input</b> (n × d). That is what lets us <b>stack</b> layers: layer 2 receives exactly the kind of matrix layer 1 received, and refines it further. GPT-2 small stacks 12 layers, GPT-3 96. Each layer has its own weights. Through the stack, a token’s vector gradually changes from “which word am I?” to “what word should come next?”.</p>
+<p>The vectors flowing through the residual connections are often called the <b>residual stream</b>: each attention and FFN block reads from it and adds a small edit to it.</p>
+<p><b>Trained parameters:</b> second LayerNorm γ, β = <b>8</b>.</p>
+</div><div class="fig"><h4>Second residual + LayerNorm, and stacking layers</h4>
+<div id="f13"></div>
+<div class="ctl-row"><span>stack N layers</span><input type="range" id="n13" min="1" max="12" step="1" value="1"><output id="n13v"></output></div>
+<canvas id="c13" width="640" height="200"></canvas>
+<div class="how"><b>How to read this</b>The calculation box shows h + f and its normalisation for the token you follow. The diagram below shows N stacked layers: the matrix entering and leaving every layer has the same shape n × d (here n tokens × 4), so layers can be stacked like identical bricks. The counter gives our toy model’s parameter count for N layers.</div></div></div>
+
+<div class="phase"><b>Phase 3 — Getting a word out</b><span>Steps 14–16: turn the last token’s final vector into a probability for every vocabulary word, then pick one.</span></div>
+
+<h2 data-step="14">Step 14 · Unembed: one score (logit) per vocabulary word</h2>
+<div class="pair"><div>
+<p>To predict the <b>next</b> word we only need the final vector of the <b>last</b> token (“love”). Each vocabulary word gets a score, its <b>logit</b>, from a dot product with an unembedding vector. Here the unembedding is <b>tied</b> to the embedding: \(W_U=E^\top\), so word \(w\)’s detector is its own embedding row:</p>
+<div class="formula">$$\text{logit}_w = h_{\text{final}}\cdot E[w]$$</div>
+<p><b>With numbers:</b> logit(you) = (−1.13)(1) + (1.60)(1) + (−0.40)(0) + (−0.08)(1) = <b>0.39</b>; logit(cats) = 1.60 − 0.08 = <b>1.52</b>.</p>
+<p>A large logit means “the final vector points in the same direction as this word’s vector”. GPT-2 ties \(W_U\) to \(E\) to save parameters; Llama keeps them separate.</p>
+<div class="terms"><span class="terms-t">Key terms</span><dl>
+<dt>Logit</dt><dd>A raw score before softmax; any real number.</dd>
+<dt>Unembedding W_U</dt><dd>The d × V matrix that turns a vector into one logit per vocabulary word.</dd>
+<dt>Tied weights</dt><dd>Using the same matrix (transposed) for embedding and unembedding.</dd>
+</dl></div>
+</div><div class="fig"><h4>h_final · E[w] for every word</h4>
+<div id="f14"></div>
+<div class="how"><b>How to read this</b>One row per vocabulary word: its embedding row E[w], the dot product with h_final written out, and the resulting logit (bar: blue = positive, orange = negative). The highest logit is the model’s favourite. These logits are computed from the token you follow; prediction normally uses the last token.</div></div></div>
+
+<h2 data-step="15">Step 15 · Softmax over the vocabulary</h2>
+<div class="pair"><div>
+<p>Softmax turns the logits into a <b>probability distribution</b> over the whole vocabulary (all positive, sum = 100%):</p>
+<div class="formula">$$P(w)=\frac{e^{\text{logit}_w/T}}{\sum_{u} e^{\text{logit}_u/T}}$$</div>
+<p><b>With numbers</b> (T = 1): \(e^{-1.53}=0.22,\ e^{1.20}=3.32,\ e^{0.39}=1.48,\ e^{1.52}=4.57,\ e^{-1.21}=0.30\); sum = 9.89. So P(cats) = 46%, P(love) = 34%, P(you) = <b>15%</b>.</p>
+<p><b>The model predicts “cats”: it is wrong.</b> The correct answer “you” got only 15%. That is exactly what an untrained model looks like. Training (after step 16) fixes it.</p>
+<p><b>Temperature \(T\)</b> divides the logits before softmax. \(T\lt1\) sharpens the distribution (more confident, more repetitive text); \(T\gt1\) flattens it (more varied, more random). This is the “temperature” setting of ChatGPT and the Claude API.</p>
+</div><div class="fig"><h4>Next-word probabilities</h4>
+<canvas id="c15" width="640" height="250"></canvas>
+<div class="ctl-row"><span>temperature T</span><input type="range" id="t15" min="0.1" max="3" step="0.05" value="1"><output id="t15v"></output></div>
+<div class="how"><b>How to read this graph</b>One bar per vocabulary word; its height is the probability that it comes next. The <span class="sw" style="background:#2f9e44"></span>green bar is the correct answer for training (“you”); the outlined bar is the model’s top choice. Lower the temperature and the top word takes almost everything; raise it and the bars level out.</div></div></div>
+
+<h2 data-step="16">Step 16 · Sample a token, append it, and repeat</h2>
+<div class="pair"><div>
+<p>The model does not output a word directly; it outputs probabilities. To produce text we <b>pick</b> one token:</p>
+<ul><li><b>Greedy</b> (temperature 0): always take the most probable token. Deterministic but often repetitive.</li>
+<li><b>Sampling</b>: draw at random according to the probabilities. A 46% word is chosen about 46% of the time. Variants such as top-k and top-p (nucleus) only sample among the most likely tokens.</li></ul>
+<p>Then the chosen token is <b>appended</b> to the input and the <b>entire pipeline runs again</b> on the longer sequence (new positions, a bigger attention table) to predict the following word. This loop is called <b>autoregressive generation</b>. A 500-word answer from a chatbot means roughly 650 complete passes through the model.</p>
+<p><b>Try it:</b> sample a few times to see the randomness, then press <b>Append</b>: the chosen word is added to the sentence in the top bar, and every step on this page recomputes for the longer sentence. (Our untrained toy model will produce odd sentences.)</p>
+<div class="callout"><b>KV-cache</b>When generating, the keys and values of earlier tokens do not change, so real systems store them (the “KV-cache”) and only compute the new token’s row. This is why long chats need a lot of GPU memory.</div>
+</div><div class="fig"><h4>Sampling the next token</h4>
+<div class="ctl-row"><span>temperature</span><input type="range" id="t16" min="0" max="2" step="0.05" value="1"><output id="t16v"></output></div>
+<div class="btns"><button id="smp16">Sample 1 ▶</button><button id="smp100">Sample 100×</button><button id="app16">Append sampled token to the sentence</button></div>
+<canvas id="c16" width="640" height="210"></canvas>
+<div class="ex" id="o16"></div>
+<div class="how"><b>How to read this</b>Bars show how often each word was drawn in your samples (grey outline = the expected share from step 15 at this temperature). With many samples the counts approach the probabilities. Temperature 0 always picks the top word.</div></div></div>
+
+<div class="phase"><b>Learning — how the numbers change</b><span>Run the pipeline, measure how much probability the true next word got, and push every parameter a little in the direction that would have given it more.</span></div>
+
+<h2 data-step="17">Training: loss, gradient, update</h2>
+<div class="pair"><div>
+<p><b>1. The loss.</b> Cross-entropy: the negative log of the probability given to the correct word:</p>
+<div class="formula">$$\mathcal L=-\ln P(\text{you})=-\ln(0.151)=1.89$$</div>
+<p>If the model gave “you” 100%, \(-\ln 1=0\): no loss. As the probability falls towards 0, the loss climbs towards infinity. Confident and wrong is punished hardest.</p>
+<p><b>2. The gradient at the output.</b> With softmax + cross-entropy, the gradient with respect to the logits is simply <b>prediction minus truth</b>:</p>
+<div class="formula">$$\frac{\partial\mathcal L}{\partial\,\text{logits}}=p-y$$$$=[0.022,\ 0.336,\ \mathbf{-0.849},\ 0.463,\ 0.030]$$<span class="cap">\(y\) is the one-hot vector of the correct word [0, 0, 1, 0, 0].</span></div>
+<p>Gradient descent moves <i>against</i> the gradient: “you” (−0.849) is pushed <b>up</b> hard, “cats” (+0.463) is pushed <b>down</b> hardest, words near 0% barely move. The size of each push is exactly how wrong it was.</p>
+<p><b>3. Update the unembedding</b> (learning rate η = 0.1). Each word’s column moves by \(-\eta\,(p_w-y_w)\,h_{\text{final}}\). For “you”: \([1,1,0,1]-0.1\times(-0.849)\times h_{\text{final}}\approx[0.904,\ 1.136,\ -0.034,\ 0.993]\). Its second number rose because \(h_{\text{final}}\) is large in dimension 2: “listen harder to this direction”.</p>
+<p><b>4. Rerun.</b> After one step: P(you) 15.1% → <b>22.4%</b>, P(cats) 46.2% → 40.7%, loss 1.89 → <b>1.50</b>. Still wrong, but measurably less wrong. (The live demo on the right computes without rounding intermediate values, so it shows 22.6% and 1.49.) Press <b>Train</b> to keep going: after about 20 steps “you” passes 85%.</p>
+<p><b>5. The gradient keeps flowing.</b> To keep the demo followable we only update \(W_U\). In reality the chain rule carries the signal back through every step: LayerNorm → residual → \(W_2\) → ReLU → \(W_1\) → LayerNorm → residual → \(W_O\) → softmax → \(W_Q,W_K,W_V\) → \(E\). Neurons that were silent (ReLU = 0) get no gradient this step: silent neurons don’t learn. All 144 parameters get their own nudge in one backward sweep.</p>
+<div class="callout"><b>How real training differs</b><b>Every position trains at once:</b> from “I love you” the model gets two examples in one pass (“I” → “love”, “I love” → “you”); the causal mask makes that honest. <b>Batches:</b> gradients from thousands of sentences are averaged before each update. <b>Scale:</b> trillions of tokens, the Adam optimizer, and weeks on thousands of GPUs.</div>
+<div class="terms"><span class="terms-t">Key terms</span><dl>
+<dt>Cross-entropy loss</dt><dd>−ln of the probability given to the correct token.</dd>
+<dt>Gradient p − y</dt><dd>Prediction minus one-hot truth: how much each logit should move.</dd>
+<dt>Learning rate η</dt><dd>Step size of each update.</dd>
+<dt>Backpropagation</dt><dd>Passing the gradient backwards through every step with the chain rule.</dd>
+<dt>Inference</dt><dd>Using the trained model: the same forward pass (steps 1–16), with no loss, no gradients and no updates.</dd>
+</dl></div>
+</div><div class="fig"><h4>Train the output layer on “… → target”</h4>
+<div class="ctl-row"><span>target word</span><span class="seg" id="tg17"></span></div>
+<div class="ctl-row"><span>learning rate η</span><input type="range" id="lr17" min="0.01" max="1" step="0.01" value="0.1"><output id="lr17v"></output></div>
+<div class="btns"><button id="tr1">Train 1 step</button><button id="tr20">Train 20 steps</button><button id="trrun">Train ▶</button><button id="trrs">Reset weights</button></div>
+<canvas id="c17" width="640" height="230"></canvas>
+<canvas id="c17b" width="640" height="130"></canvas>
+<div class="calc" id="f17"></div>
+<div class="how"><b>How to read this</b><ul>
+<li><b>Bars</b>: next-word probabilities. <span class="sw" style="background:#ced4da"></span>grey = before any training, <span class="sw" style="background:#2f54eb"></span>blue = now, <span class="sw" style="background:#2f9e44"></span>green outline = the target word.</li>
+<li><b>Curve</b>: the loss −ln P(target) after each step. It falls as the target’s probability rises.</li>
+<li><b>Grey box</b>: the numbers for the last step: p − y for every word and the updated column of W_U for the target. Change the target word to teach the model a different continuation.</li></ul></div></div></div>
+
+<h2 data-step="18">Every parameter, counted, and the parameters of real LLMs</h2>
+<div class="pair"><div>
+<p>Our toy model has exactly <b>144</b> trained numbers:</p>
+<div class="table compact"><table><thead><tr><th>Parameter</th><th>Shape</th><th>Count</th><th>Job</th></tr></thead><tbody>
+<tr><td>E (tied to W_U)</td><td>5 × 4</td><td>20</td><td>token → vector, and vector → logits</td></tr>
+<tr><td>W_Q, W_K, W_V</td><td>3 × (4 × 2)</td><td>24</td><td>three views of each word</td></tr>
+<tr><td>W_O</td><td>2 × 4</td><td>8</td><td>recombine heads, restore width</td></tr>
+<tr><td>W₁, b₁</td><td>4 × 8, 8</td><td>40</td><td>FFN expand: 8 detectors</td></tr>
+<tr><td>W₂, b₂</td><td>8 × 4, 4</td><td>36</td><td>FFN contract: collect the votes</td></tr>
+<tr><td>γ, β (× 2 LayerNorms)</td><td>2 × (4 + 4)</td><td>16</td><td>normalisation scale and shift</td></tr>
+<tr><td><b>Total</b></td><td></td><td><b>144</b></td><td></td></tr>
+</tbody></table></div>
+<p>GPT-3 is the same procedure with 175 billion numbers instead of 144. Where do they come from? Per layer, attention has 4 matrices of about \(d\times d\) (Q, K, V, O) = \(4d^2\), and the FFN has 2 matrices of \(d\times 4d\) = \(8d^2\). Hence the <b>rule of thumb</b>:</p>
+<div class="formula">$$N_{\text{params}}\approx 12\,d^2\,L\;+\;V\,d$$<span class="cap">\(d\) = model width, \(L\) = number of layers, \(V\) = vocabulary size. For GPT-3: \(12\times12{,}288^2\times96\approx174\) billion, plus \(50{,}257\times12{,}288\approx0.6\) billion for the embeddings.</span></div>
+<p><b>Try the calculator on the right.</b> Pick a real model: the breakdown is computed from its published architecture (width, layers, heads, FFN size, vocabulary), and you can change any setting to see where the parameters live. Two things to notice: (1) in big models the <b>FFN holds about ⅔</b> of the parameters; (2) memory needs 2 bytes per parameter just to <i>store</i> a model in 16-bit precision, and roughly 16 bytes per parameter to <i>train</i> it with Adam.</p>
+<div class="terms"><span class="terms-t">Key terms</span><dl>
+<dt>Gated FFN (SwiGLU)</dt><dd>An FFN with 3 matrices instead of 2 (used by Llama); d_ff is reduced to keep the size similar.</dd>
+<dt>GQA</dt><dd>Grouped-query attention: several query heads share one key/value head, shrinking W_K, W_V and the KV-cache (Llama 2 70B).</dd>
+<dt>RMSNorm</dt><dd>A simpler LayerNorm with only a scale γ (d numbers) and no shift.</dd>
+<dt>Learned positions</dt><dd>A trained table of position vectors (GPT-2: 1,024 × d). Sinusoidal and RoPE add no parameters.</dd>
+</dl></div>
+</div><div class="fig"><h4>LLM parameter calculator</h4>
+<div class="seg" id="pre18"><button data-v="toy" class="on">our toy</button><button data-v="gpt2s">GPT-2 small</button><button data-v="gpt2xl">GPT-2 XL</button><button data-v="gpt3">GPT-3</button><button data-v="l7">Llama 2 7B</button><button data-v="l13">Llama 2 13B</button><button data-v="l70">Llama 2 70B</button></div>
+<div class="pc-grid">
+<div class="ctl-row"><span>width d</span><input type="number" id="pd" min="1" style="width:7em"></div>
+<div class="ctl-row"><span>layers L</span><input type="number" id="pL" min="1" style="width:7em"></div>
+<div class="ctl-row"><span>heads h</span><input type="number" id="ph" min="1" style="width:7em"></div>
+<div class="ctl-row"><span>KV heads</span><input type="number" id="pkv" min="1" style="width:7em"></div>
+<div class="ctl-row"><span>head size d_k</span><input type="number" id="pdk" min="1" style="width:7em"></div>
+<div class="ctl-row"><span>FFN width d_ff</span><input type="number" id="pff" min="1" style="width:7em"></div>
+<div class="ctl-row"><span>vocabulary V</span><input type="number" id="pV" min="1" style="width:7em"></div>
+<div class="ctl-row"><span>context length</span><input type="number" id="pctx" min="1" style="width:7em"></div>
+</div>
+<div style="margin-top:4px"><label class="chk"><input type="checkbox" id="pgate"> gated FFN (SwiGLU, 3 matrices)</label><label class="chk"><input type="checkbox" id="ptied"> tied embedding / unembedding</label><label class="chk"><input type="checkbox" id="pbias"> biases</label><label class="chk"><input type="checkbox" id="pabias"> attention biases</label><label class="chk"><input type="checkbox" id="prms"> RMSNorm (no β)</label><label class="chk"><input type="checkbox" id="plpos"> learned positions</label><label class="chk"><input type="checkbox" id="pfin"> final norm</label></div>
+<canvas id="c18" width="640" height="150" style="margin-top:6px"></canvas>
+<div id="f18"></div>
+<div class="how"><b>How to read this</b><ul>
+<li>Pick a model or type your own settings. The table lists every group of parameters with its formula and count; the stacked bar shows the share of each group.</li>
+<li>“Rule of thumb” is 12·d²·L + V·d; compare it with the exact count.</li>
+<li>Memory: <b>fp16</b> = 2 bytes per parameter (storing / running the model); <b>training</b> ≈ 16 bytes per parameter with Adam in mixed precision (weights, gradients and optimizer state), before counting activations.</li></ul></div></div></div>
+
+<div class="summary"><b>Teach it in one sentence:</b> a Transformer turns tokens into vectors, lets every token gather information from the others with softmax(QKᵀ/√d_k)V, refines each token with a feed-forward network, keeps everything stable with residual connections and LayerNorm, stacks this block N times, and is trained to give the true next token high probability with cross-entropy and gradient descent. GPT-3 is our 144-parameter model with 175 billion parameters.</div>
+
+</div><aside class="flow" aria-label="Transformer flowchart"><h5>Transformer pipeline · click a step</h5><svg id="flow" viewBox="0 0 300 800" preserveAspectRatio="xMidYMin meet"></svg><div class="fx" id="flowx"></div></aside></div>
+{% endraw %}{% include "_lesson_scripts.html" %}
+<script src="{{ url_for('static', filename='transformer-lesson.js') }}"></script>
 {% endblock %}
